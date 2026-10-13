@@ -1,9 +1,14 @@
 # SuperiorSkyblock2 PVC maintenance fork
 
-This full-history GPL-3.0 fork builds `2026.3-pvc.3` with multiple owned islands,
+This full-history GPL-3.0 fork builds `2026.3-pvc.4` with multiple owned islands,
 owner permission policies, durable operations and regional Folia execution.
-The [PVC3 correction record](docs/pvc/CORRECTIONS-PVC3.md) explains the additional
-command, GUI and concurrent shared-state changes.
+Player-facing service messages use the generic **Skyblock** name and the
+Peaceful Vanilla Club gold, yellow, gray and dark-gray palette. English is the
+default presentation language, including for previously saved player locales;
+the configurable policy preserves those saved preferences.
+Read the [branding and language contract](docs/pvc/BRANDING.md).
+The [PVC3 correction record](docs/pvc/CORRECTIONS-PVC3.md) documents the retained
+command, GUI and concurrent shared-state fixes.
 Read the [fork documentation](docs/pvc/README.md),
 [installation guide](docs/pvc/INSTALLATION.md), and
 [release verification](docs/pvc/VERIFICATION.md) before use.

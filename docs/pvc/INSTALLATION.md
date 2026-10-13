@@ -3,7 +3,7 @@
 This guide describes the PVC source fork. It does not authorize installation,
 permission changes or a production restart. Use the exact JAR, compiled source
 commit, hash and native build scope in the completed release
-[verification record](VERIFICATION.md). This guide describes `2026.3-pvc.3`;
+[verification record](VERIFICATION.md). This guide describes `2026.3-pvc.4`;
 the completed qualification of `2026.3-pvc.1` remains historical evidence for
 that exact older artifact and does not qualify a replacement. Rehearse your actual
 backend/plugin stack before rollout. Later Minecraft/Folia versions need their
@@ -19,6 +19,7 @@ configuration migration adds only absent PVC keys and defaults to:
 ```yaml
 pvc:
   size-mode: LEGACY
+  force-default-language: true
 ```
 
 Existing settings, comments, private values and newline style are retained.
@@ -28,6 +29,25 @@ bounded defaults. Invalid existing PVC values or unsupported inline mappings
 cause a reported failure rather than silently replacing the original file.
 Missing new language entries are also added with backups, preserving existing
 custom translations. The fork does not enable previously disabled modules.
+
+`2026.3-pvc.4` defaults to the server's configured language for presentation.
+Keep `default-language: en-US` for English; the migration preserves an existing
+operator-selected default rather than overwriting it. With
+`pvc.force-default-language: true`, client languages and stored preferences do
+not change messages/help, first-join language detection is bypassed and the
+language selector reports the server language. Raw player preferences and
+upstream translations are retained. Set the policy to `false` to restore
+per-player presentation and language selection; `auto-language-detection`
+continues to control eligible first joins independently.
+
+The bundled theme uses `&8` frames/separators, `&6` labels/commands, `&e` values
+and `&7` explanations with the generic `[Skyblock]` prefix. Existing generated
+locale/menu/module files are not overwritten with those defaults. To recolor
+them, apply an explicit reviewed presentation-only update with per-file backups;
+keep custom text, explicit empty messages, disabled features and functional
+settings. Prepared theme files are not proof of application or activation.
+See [English presentation and branding](BRANDING.md) for policy, examples and
+the distinction between service replies and player-authored payloads.
 
 Perform a planned upgrade in this order:
 
@@ -44,10 +64,17 @@ Perform a planned upgrade in this order:
    SQL requires a consistent dump/snapshot. Retain local LuckPerms data/config
    and the other backend plugins/configuration needed to restore the snapshot.
 4. Replace only the SuperiorSkyblock2 JAR, retaining its existing data folder.
-   Remove the old duplicate JAR from the active plugins directory. Start the
-   same backend normally with its existing supported Java/JVM configuration.
+   If a separate theme update is authorized, apply its reviewed presentation
+   changes to the existing files while stopped, preserving their individual
+   rollback backups. Remove the old duplicate JAR from the active plugins
+   directory. Start the same backend normally with its existing supported
+   Java/JVM configuration.
 5. Check successful plugin enablement, database/migration/recovery completion,
    worlds and spawn, then test the same player flows and restart persistence.
+   Check English presentation for a client/stored preference in another
+   language, ordinary help and the service palette without changing that
+   player's stored preference. Check custom messages and functional settings
+   against their pre-update backups.
    Investigate any error before opening access. Retain the backup and exact
    release identity alongside the change record.
 
