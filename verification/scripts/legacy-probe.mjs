@@ -161,7 +161,7 @@ bot.on('windowOpen', window => {
   creationExpected = false
   const title = JSON.stringify(window.title)
   if (!title.includes('Create a new island') || window.slots[4]?.name !== 'grass_block') {
-    finish(new Error('Exact current Cielo Classic menu was not opened')); return
+    finish(new Error('Exact current Cielo Classic menu was not opened: title=' + title + ' slot4=' + window.slots[4]?.name + ' items=' + window.slots.map(item => item?.name ?? 'empty').join(','))); return
   }
   creationClicks++
   pause(250).then(() => bot.clickWindow(4, 0, 0)).catch(finish)
