@@ -1,63 +1,67 @@
 # SuperiorSkyblock2 — PVC maintenance fork
 
-This GPL-3.0 source fork adds multiple owned islands, permission-based owner
-limits and sizes, durable operation handling, and region-aware Folia execution.
-Upstream package/API identity and original platform adapters are preserved.
+This GPL-3.0 maintained source fork preserves upstream identity and adds
+multiple owned islands, highest-grant owner quotas/radii, durable operations
+and region-aware Folia execution. The exact `2026.3-pvc.2` artifact passed
+172 automated tests, 95 native phase runs and
+two identical full clean main-JAR builds on the fixed Leaf/Folia 1.21.11 and
+26.2 builds in [VERIFICATION.md](VERIFICATION.md). The previous release's
+sanitized qualification ledger remains unchanged as historical evidence.
+These are isolated declared scenarios, not a population/TPS benchmark or
+authorization to install in production.
 
-Operators should read [installation and rollback](INSTALLATION.md). Maintainers
-should also read [Folia architecture](FOLIA.md), [upstream integration](UPSTREAM.md), [patch families](PATCHES.md),
-and [owner entitlement behavior](ENTITLEMENTS.md) before making source changes.
-Addon authors should also read [API migration](API-MIGRATION.md), including
-explicit island context, asynchronous completion and provider capability rules.
-The completed [verification record](VERIFICATION.md) identifies the exact
-`2026.3-pvc.1` artifact: 110 automated tests and 87 native phases passed on the
-recorded Leaf/Folia 1.21.11 and 26.2 builds, including retained restarts. This
-qualifies the documented shared-world scenarios; it does not authorize a
-production change or establish a population/load benchmark. Later versions and
-unqualified addons require separate maintained-source work and qualification.
+Operators should read [installation/rollback](INSTALLATION.md),
+[all command contracts](COMMANDS.md) and [owner policy](ENTITLEMENTS.md).
+Maintainers should read [Folia architecture](FOLIA.md),
+[upstream integration](UPSTREAM.md), [patch families](PATCHES.md) and
+[API/addon migration](API-MIGRATION.md).
 
-An existing configuration without PVC settings receives `pvc.size-mode: LEGACY`
-through missing-only migration; existing settings and configured PVC values are
-retained. Enable `PERMISSION_AUTOMATIC` deliberately after choosing rank radii,
-keeping `build-outside-island: false` and removing incompatible border-size
-upgrades. Official playtime/donor rank radii remain an operator decision. The
-fork does not assign LuckPerms permissions, change ranks or install itself on
-any backend.
+An existing configuration receives only missing PVC/language keys and retains
+its existing values. Missing size mode defaults to `LEGACY`; automatic sizing
+requires a deliberate `PERMISSION_AUTOMATIC` opt-in, outside-building disabled
+and incompatible border-size upgrades removed. Rank and donor radii remain an
+operator decision. Disabled gameplay modules stay disabled. The fork does not
+assign LuckPerms ranks/nodes, import permissions or install itself on a backend.
 
-Default ownership quota is one. Additional quotas use
-`superior.island.ownership.limit.<count>`; the highest effective numeric grant
-wins. `superior.island.ownership.limit.unlimited` removes that quota. Radius
-grants use `superior.island.size.radius.<radius>` and are not added together.
-Policy nodes default to false; OP alone does not authorize extra ownership or
-radius. Existing OP/wildcard access to ordinary commands is preserved. Automatic
-sizes remain bounded by the world's existing reserved cell ceiling. LEGACY mode
-retains upstream's separate `build-outside-island` behavior.
+Ownership defaults to one. `superior.island.ownership.limit.N` resolves to the
+highest true numeric grant; the distinct `unlimited` node removes that numeric
+quota. `superior.island.size.radius.N` uses the highest radius without addition.
+Policy namespaces default to false; OP alone does not grant extra property or
+radius. Automatic dimensions remain inside the saved reserved-cell ceiling.
 
-New player commands are `/is list [page]` (alias `/is islands`) and
-`/is select <id|uuid|name>` (alias `/is use`), requiring `superior.island.list`
-and `superior.island.select` respectively.
-`--island <id|uuid|name>` selects the target of one command without changing the
-persistent selection. Existing single-island usage remains valid. Stable short
-IDs are never reused, including after deletion or an abandoned creation.
+Ordinary single-island syntax stays intact. Personal list/select, temporary
+selectors and ID presentation require **verified quota above one and more than
+one actual owned/team membership**. A larger quota with only one membership
+keeps ordinary presentation while permitting another creation when all checks
+pass. List/select nodes default to true but remain gated and respect explicit
+denies. Quota revocation hides tools without deleting islands/UUIDs/short IDs;
+limited commands prefer the selected owned or oldest owned property. A sole
+owned island takes priority over other team memberships.
 
-Sizing administration retains `/is admin setsize <owner> <radius>` and
-`/is admin addsize <owner> <amount>`; in automatic mode these are persistent
-owner-wide overrides. In automatic mode,
-`/is admin clearsizeoverride <owner>` removes the owner override; any legacy
-per-island exception still takes priority over permissions. The extra `legacy`
-argument intentionally also removes those old exceptions.
-`/is admin sizepolicy <owner>` explains the policy.
+Permitted administrative/member selectors remain precise. Free-form payloads
+preserve nested selectors and support `--` escaping. `CapturedCommandDispatch`
+passes configured Superior hooks through the same registered command handlers
+with captured fallback context, recognizes actual aliases and own namespace,
+and respects explicit configured destinations. A recognized upgrade mutation
+must reach its actual expected level before cost/success. Deferred mission
+rewards retain their completed island on the entity owner. Optional approvals
+freeze owner/author/player UUID intent and island membership epochs; role or
+remove/rejoin changes invalidate stale requests.
 
-Folia requires island worlds and spawn to be loaded at server startup. Island
-dimensions require the correct void generator/environment; a separate spawn
-requires its qualified loading arrangement and safe platform. The fork does not create
-worlds dynamically on Folia or qualify Cielo's other plugins/addons. Follow the
-platform-specific prerequisites in the installation guide.
+In automatic mode, `setsize`/`addsize` write durable overrides for the owner's
+current and future islands; `clearsizeoverride` removes that owner override,
+with an optional deliberate `legacy` argument for old fixed exceptions.
+`sizepolicy` explains the effective policy. The old per-island sizing API retains
+its island-specific behavior.
 
-The test observer JAR and synthetic clients under `verification/` are excluded
-from the plugin release. Their path, port and marker guards reject production
-roots. Deployment requires a separate operator decision, normal stopped JAR
-replacement and a complete consistent backup of configuration, plugin data,
-SQL and island worlds. Once multi-island state exists, an upstream-JAR rollback
-requires restoring the complete pre-upgrade snapshot; replacing only the JAR is
-unsafe.
+Folia requires island dimensions and spawn to be loaded at startup with their
+qualified generator/environment/loading arrangements. Unknown future native
+versions, per-island-world providers and other Cielo plugins/addons require
+their own maintained-source compatibility and qualification. Custom database
+bridges remain rejected in every mode.
+
+Probe/seed helpers, fault injection and private fixtures are excluded from the
+main plugin. A rollout requires a separately authorized normal stop, consistent
+full plugin/SQL/world/configuration backup and JAR replacement. After multi-island
+state exists, upstream rollback requires the complete consistent preceding
+snapshot; JAR-only rollback is unsafe.
