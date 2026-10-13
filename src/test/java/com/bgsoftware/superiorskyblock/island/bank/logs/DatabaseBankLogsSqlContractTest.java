@@ -7,6 +7,9 @@ import com.bgsoftware.common.databasebridge.transaction.DatabaseTransactionsExec
 import org.junit.Test;
 import org.sqlite.SQLiteDataSource;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -14,7 +17,6 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -70,16 +72,24 @@ public class DatabaseBankLogsSqlContractTest {
 
     private static final class Session extends SQLDatabaseSession<BankArgs> implements AutoCloseable {
         private Connection anchor;
+        private Path fixture;
         private Session(String prefix) throws Exception {
             super(new BankArgs(prefix));
-            assertTrue(connect());
-            try (java.sql.Statement statement = anchor.createStatement()) {
-                statement.executeUpdate("CREATE TABLE `" + prefix + "bank_transactions` (`island` TEXT, `position` INTEGER)");
+            boolean initialized = false;
+            try {
+                fixture = Files.createTempFile("superior-bank-logs-test-", ".db");
+                assertTrue(connect());
+                try (java.sql.Statement statement = anchor.createStatement()) {
+                    statement.executeUpdate("CREATE TABLE `" + prefix + "bank_transactions` (`island` TEXT, `position` INTEGER)");
+                }
+                initialized = true;
+            } finally {
+                if (!initialized) close();
             }
         }
         @Override public boolean connect() {
             SQLiteDataSource database = new SQLiteDataSource();
-            database.setUrl("jdbc:sqlite:file:bank-logs-" + UUID.randomUUID() + "?mode=memory&cache=shared");
+            database.setUrl("jdbc:sqlite:" + fixture.toAbsolutePath().toString().replace('\\', '/'));
             this.dataSource = database;
             try { anchor = database.getConnection(); ready.complete(null); return true; }
             catch (SQLException failure) { throw new IllegalStateException(failure); }
@@ -92,9 +102,19 @@ public class DatabaseBankLogsSqlContractTest {
         }
         @Override public void close() {
             // These finite source tests own the Common sessions in their isolated test JVM.
-            DatabaseTransactionsExecutor.stopActiveExecutors();
-            try { if (anchor != null) anchor.close(); }
-            catch (SQLException failure) { throw new IllegalStateException(failure); }
+            try {
+                DatabaseTransactionsExecutor.stopActiveExecutors();
+            } finally {
+                try { if (anchor != null) anchor.close(); }
+                catch (SQLException failure) { throw new IllegalStateException(failure); }
+                finally {
+                    if (fixture != null) try {
+                        // The default SQLite journal mode is DELETE; only this fixture's sibling is owned.
+                        Files.deleteIfExists(fixture.resolveSibling(fixture.getFileName() + "-journal"));
+                        Files.deleteIfExists(fixture);
+                    } catch (IOException failure) { throw new IllegalStateException("Could not remove owned bank SQL fixture", failure); }
+                }
+            }
         }
     }
 }
