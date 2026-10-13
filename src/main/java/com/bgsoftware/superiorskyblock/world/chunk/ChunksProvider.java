@@ -4,6 +4,7 @@ import com.bgsoftware.common.annotations.Nullable;
 import com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin;
 import com.bgsoftware.superiorskyblock.core.ChunkPosition;
 import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
+import com.bgsoftware.superiorskyblock.core.threads.BoundedWorkPipeline;
 import org.bukkit.Chunk;
 import org.bukkit.World;
 import org.bukkit.scheduler.BukkitTask;
@@ -20,6 +21,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /** Bounded admission, coalesced loads and region-owned callbacks, including cache hits. */
 public final class ChunksProvider {
@@ -30,6 +32,9 @@ public final class ChunksProvider {
     private static int inFlight;
     private static volatile boolean stopped;
     private static BukkitTask timeoutTask;
+    private static final BoundedWorkPipeline<ChunkPosition> bulk = new BoundedWorkPipeline<>(
+            () -> plugin.getPvcConfig().getChunkLoadConcurrency(),
+            () -> plugin.getPvcConfig().getChunkLoadQueueLimit(), BukkitExecutor::ensureAsync);
     private ChunksProvider() { }
 
     public static CompletableFuture<Chunk> loadChunk(ChunkPosition position, ChunkLoadReason reason,
@@ -201,7 +206,35 @@ public final class ChunksProvider {
     private static <T> CompletableFuture<T> failed(Throwable error) {
         CompletableFuture<T> future = new CompletableFuture<>(); future.completeExceptionally(error); return future;
     }
+
+    /** Independent reset/storage work shares one global lazy window, not one window per island. */
+    public static CompletableFuture<Void> processExistingBounded(Iterable<ChunkPosition> positions, ChunkLoadReason reason,
+                                                                 Consumer<Chunk> consumer) {
+        return processExistingBoundedAsync(positions, reason, chunk -> {
+            consumer.accept(chunk);
+            return CompletableFuture.completedFuture(null);
+        });
+    }
+
+    public static CompletableFuture<Void> processExistingBoundedAsync(Iterable<ChunkPosition> positions, ChunkLoadReason reason,
+                                                                      Function<Chunk, CompletableFuture<?>> consumer) {
+        return bulk.submit(positions, position -> loadExistingChunk(position, reason, null).thenCompose(chunk -> {
+            if (chunk == null) return CompletableFuture.completedFuture(null);
+            CompletableFuture<Void> callback = new CompletableFuture<>();
+            try {
+                BukkitExecutor.region(chunk.getWorld(), chunk.getX(), chunk.getZ(), () -> {
+                    try {
+                        consumer.apply(chunk).whenComplete((unused, failure) -> {
+                            if (failure == null) callback.complete(null); else callback.completeExceptionally(failure);
+                        });
+                    } catch (Throwable failure) { callback.completeExceptionally(failure); }
+                });
+            } catch (Throwable failure) { callback.completeExceptionally(failure); }
+            return callback;
+        }));
+    }
     public static void stop() {
+        bulk.close(new RejectedExecutionException("Chunk service stopped"));
         ChunkStorageBridge.stop();
         List<Request> pending;
         synchronized (lock) {

@@ -159,6 +159,20 @@ preserved and validated; increasing a limit is not a performance guarantee.
 Chunk loading has bounded global admission, coalesces equivalent requests and
 streams chunk operations instead of allocating a future for every cell chunk.
 Each ordinary sequential operation holds at most one load/callback in flight.
+Independent reset event/clear stages and modern storage acknowledgements instead
+share one lazy round-robin bulk window across all islands, using the same
+`chunk-load-concurrency` (default 8) and `chunk-load-queue-limit` (default 512
+admitted bulk jobs). The window remains occupied until each owner's callback
+and real IO acknowledgement completes; it is not multiplied per island, and
+there is no future allocated for every coordinate. This avoids three repeated
+one-owner-tick-per-chunk passes over a large existing End footprint. A failed
+job stops admitting coordinates and drains already-admitted work before failing
+its caller; shutdown fails callers while keeping unresolved slots in a permanently
+closed pipeline. Existing-only loads, world-generation fences and all physical
+block/entity/POI readback/flush barriers remain mandatory.
+After shutdown or timeout, wrapper counters do not prove that uncancellable
+native IO has drained; the closed service and retained intent prohibit replacement
+admission until restart reconciliation.
 The storage acknowledgement service has its own bounded admission using the
 same configured concurrency, queue limit and deadline. Queue residence counts
 toward those deadlines.

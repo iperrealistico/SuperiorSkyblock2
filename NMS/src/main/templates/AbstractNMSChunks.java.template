@@ -98,8 +98,11 @@ public abstract class AbstractNMSChunks implements NMSChunks {
         if (!com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.isFolia())
             return NMSChunks.super.deleteChunksAsync(island, positions);
         NMSUtils.ChunkCallback deletion = getDeleteChunkCallback(null);
-        return com.bgsoftware.superiorskyblock.world.chunk.ChunksProvider.processExistingSequential(positions,
+        long generation = plugin.getPvcIslandService().getWorldGeneration(island.getUniqueId());
+        return com.bgsoftware.superiorskyblock.world.chunk.ChunksProvider.processExistingBounded(positions,
                 com.bgsoftware.superiorskyblock.world.chunk.ChunkLoadReason.DELETE_CHUNK, chunk -> {
+                    if (!plugin.getPvcIslandService().isCurrentWorldWriter(island, generation))
+                        throw new java.util.concurrent.RejectedExecutionException("Island cleanup generation retired");
                     ServerLevel level = ((CraftWorld) chunk.getWorld()).getHandle();
                     deletion.onLoadedChunk(level.getChunk(chunk.getX(), chunk.getZ()));
                 });

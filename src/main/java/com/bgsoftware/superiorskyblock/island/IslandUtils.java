@@ -537,8 +537,10 @@ public class IslandUtils {
             CompletableFuture<Void> result = new CompletableFuture<>();
             deleteChunks(island, positions, () -> result.complete(null));
             clearing = result;
-        } else clearing = com.bgsoftware.superiorskyblock.world.chunk.ChunksProvider.processExistingSequential(positions,
+        } else clearing = com.bgsoftware.superiorskyblock.world.chunk.ChunksProvider.processExistingBounded(positions,
                 ChunkLoadReason.DELETE_CHUNK, chunk -> {
+                    if (!plugin.getPvcIslandService().isCurrentWorldWriter(island, generation))
+                        throw new java.util.concurrent.RejectedExecutionException("Island cleanup generation retired");
                     ChunkPosition position = ChunkPosition.of(chunk, false);
                     plugin.getStackedBlocks().removeStackedBlocks(position);
                     PluginEventsFactory.callIslandChunkResetEvent(island, position);

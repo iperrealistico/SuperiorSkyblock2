@@ -35,6 +35,14 @@ not by discarding the entire upstream or fork version of a file.
 
 ## Retirement conditions
 
+The generic cleanup pipeline belongs to PVC-EXECUTION/PVC-DURABILITY. Large
+existing End footprints exposed the cumulative latency of three serial
+owner-callback passes. Independent reset events, native clearing and modern
+storage now share a lazy bounded round-robin window, with physical storage
+acknowledgements occupying their slots. Retire it only when upstream provides
+equivalent global bounds, fairness, failure draining, epoch protection and
+populated native reset acceptance; increasing a timeout is not a replacement.
+
 The execution family also retains Folia-specific async player arrival handling.
 The exact official source bundles omit the normal Bukkit teleport/changed-world
 events on their async path; destination entity tracking provides the real

@@ -13,7 +13,6 @@ import org.bukkit.scheduler.BukkitTask;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
@@ -91,7 +90,7 @@ public final class ChunkStorageBridge {
         } catch (Throwable error) { return failed(error); }
     }
 
-    /** Streaming positions, one storage acknowledgement in flight per operation. */
+    /** Lazy positions share the bulk window until their real storage acknowledgement. */
     public static CompletableFuture<Void> saveChunksAsync(Collection<ChunkPosition> positions) {
         return saveChunksAsync(positions, () -> true, Runnable::run);
     }
@@ -123,9 +122,10 @@ public final class ChunkStorageBridge {
                 });
                 return result;
             }
-            CompletableFuture<Void> result = new CompletableFuture<>();
-            next(positions.iterator(), result, currentWriter, admitWriter);
-            return result;
+            return ChunksProvider.processExistingBoundedAsync(positions, ChunkLoadReason.API_REQUEST, chunk -> {
+                if (!currentWriter.getAsBoolean()) return failed(new RejectedExecutionException("World write generation retired"));
+                return saveChunkAsync(chunk, currentWriter, admitWriter);
+            });
         } catch (Throwable error) { return failed(error); }
     }
 
@@ -143,21 +143,6 @@ public final class ChunkStorageBridge {
             });
             return capture;
         });
-    }
-
-    private static void next(Iterator<ChunkPosition> positions, CompletableFuture<Void> result, BooleanSupplier currentWriter, Consumer<Runnable> admitWriter) {
-        if (result.isDone()) return;
-        if (!currentWriter.getAsBoolean()) { result.completeExceptionally(new RejectedExecutionException("World write generation retired")); return; }
-        final ChunkPosition position;
-        try { if (!positions.hasNext()) { result.complete(null); return; } position = positions.next(); }
-        catch (Throwable error) { result.completeExceptionally(error); return; }
-        ChunksProvider.loadExistingChunk(position, ChunkLoadReason.API_REQUEST, null)
-                .thenCompose(chunk -> chunk == null ? CompletableFuture.completedFuture(null) : saveChunkAsync(chunk, currentWriter, admitWriter))
-                .whenComplete((unused, error) -> {
-                    if (error != null) result.completeExceptionally(error);
-                    else try { BukkitExecutor.async(() -> next(positions, result, currentWriter, admitWriter)); }
-                    catch (Throwable stopped) { result.completeExceptionally(stopped); }
-                });
     }
 
     private static <T> CompletableFuture<T> submit(Supplier<CompletableFuture<T>> operation) {
