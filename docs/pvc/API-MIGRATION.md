@@ -147,8 +147,10 @@ the implementation satisfies a contract. Per-island-world/slime-world providers
 are not shipped or qualified by this fork. Do not hot-swap providers while
 island operations are pending; rehearse a stopped migration instead.
 
-Custom database bridges, world factories and chunk providers likewise require
-their own compatible lifecycle/durability contracts. Do not treat a void save
+Custom database bridges are rejected in every mode by this release, including
+LEGACY single-island operation; there is no opt-in contract for them. The
+built-in SQL bridge is required. Custom world factories and chunk providers
+still require their own compatible lifecycle/durability contracts. Do not treat a void save
 method, queued operation or swallowed SQL exception as a commit acknowledgment.
 The maintained core SQL writer and qualified native storage adapters establish
 the fork's barriers; installing the fork does not wrap every external provider

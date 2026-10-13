@@ -9,11 +9,12 @@ should also read [Folia architecture](FOLIA.md), [upstream integration](UPSTREAM
 and [owner entitlement behavior](ENTITLEMENTS.md) before making source changes.
 Addon authors should also read [API migration](API-MIGRATION.md), including
 explicit island context, asynchronous completion and provider capability rules.
-The planned [verification record](VERIFICATION.md) will identify the exact
-qualified artifact and native lanes. Until published, qualification is pending;
-a successful compile does not qualify a release for production. Minecraft
-1.21.11 and 26.2 are mandatory targets; later versions require separate
-maintained-source compatibility work and native qualification.
+The completed [verification record](VERIFICATION.md) identifies the exact
+`2026.3-pvc.1` artifact: 110 automated tests and 87 native phases passed on the
+recorded Leaf/Folia 1.21.11 and 26.2 builds, including retained restarts. This
+qualifies the documented shared-world scenarios; it does not authorize a
+production change or establish a population/load benchmark. Later versions and
+unqualified addons require separate maintained-source work and qualification.
 
 An existing configuration without PVC settings receives `pvc.size-mode: LEGACY`
 through missing-only migration; existing settings and configured PVC values are
@@ -28,8 +29,9 @@ Default ownership quota is one. Additional quotas use
 wins. `superior.island.ownership.limit.unlimited` removes that quota. Radius
 grants use `superior.island.size.radius.<radius>` and are not added together.
 Policy nodes default to false; OP alone does not authorize extra ownership or
-radius. Existing OP/wildcard access to ordinary commands is preserved. All sizes
-remain bounded by the world's existing reserved cell ceiling.
+radius. Existing OP/wildcard access to ordinary commands is preserved. Automatic
+sizes remain bounded by the world's existing reserved cell ceiling. LEGACY mode
+retains upstream's separate `build-outside-island` behavior.
 
 New player commands are `/is list [page]` (alias `/is islands`) and
 `/is select <id|uuid|name>` (alias `/is use`), requiring `superior.island.list`
@@ -46,8 +48,9 @@ per-island exception still takes priority over permissions. The extra `legacy`
 argument intentionally also removes those old exceptions.
 `/is admin sizepolicy <owner>` explains the policy.
 
-Folia requires shared configured worlds and spawn to be loaded at server
-startup with the correct void generator/environment. The fork does not create
+Folia requires island worlds and spawn to be loaded at server startup. Island
+dimensions require the correct void generator/environment; a separate spawn
+requires its qualified loading arrangement and safe platform. The fork does not create
 worlds dynamically on Folia or qualify Cielo's other plugins/addons. Follow the
 platform-specific prerequisites in the installation guide.
 

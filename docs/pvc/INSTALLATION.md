@@ -1,12 +1,12 @@
 # Installation and operation
 
 This guide describes the PVC source fork. It does not authorize installation,
-permission changes or a production restart. Use the exact JAR, source commit,
-hash and supported native lanes from the release [verification record](VERIFICATION.md)
-when that record is published. Until then, qualification is pending; compilation
-or a Folia support declaration alone is insufficient. Minecraft 1.21.11 and
-26.2 remain mandatory acceptance versions. Later Minecraft/Folia versions need
-their own maintained-source adapter and qualification before deployment.
+permission changes or a production restart. Use the exact JAR, compiled source
+commit, hash and native build scope in the completed release
+[verification record](VERIFICATION.md): 110 automated tests and 87 native phases
+passed on the recorded Leaf/Folia 1.21.11 and 26.2 builds. Rehearse your actual
+backend/plugin stack before rollout. Later Minecraft/Folia versions need their
+own maintained-source adapter and qualification before deployment.
 
 ## Upgrade the existing Leaf backend
 
@@ -104,8 +104,10 @@ unavailable permissions as a revocation. See [policy details](ENTITLEMENTS.md).
 ## Physical grid and commands
 
 `max-island-size` is the saved physical cell ceiling. Existing Cielo's value is
-1000; ordinary initial radius remains its configured 100 in LEGACY mode.
-Changing an entitlement/override can grow an island only within its reserved
+1000; ordinary initial radius remains its configured 100 in LEGACY mode with
+`build-outside-island: false`. Retained LEGACY `build-outside-island: true`
+uses upstream's rounded ceiling multiplied by 1.5; automatic mode rejects it.
+Changing an automatic entitlement/override can grow an island only within its reserved
 cell. It does not enlarge island spacing or generate terrain. The database
 retains the grid ceiling, and changing the YAML alone does not expand an
 existing grid. A larger physical ceiling needs a separately planned world/data
@@ -145,10 +147,14 @@ legacy exception is deliberate administration, not a permission revoke.
 
 The supported topology is the default shared-world provider/creation algorithm:
 all islands share the configured dimension worlds. Per-island-world/slime-world
-addons and custom creation/database/mission providers need their own compatible
+addons and custom creation/mission providers need their own compatible
 durable/Folia contracts; installing this fork does not qualify them. A custom
 mission provider must explicitly support island UUID subjects before allowing
 more than one owned island. See [mission migration](MISSION-MIGRATION.md).
+
+This release rejects custom database bridges in every mode, including LEGACY
+single-island operation. Only the built-in SQL bridge supplies the required
+transaction/recovery contracts; there is no custom-database capability opt-in.
 
 `WorldsProvider` now has three additive, default-false capability contracts:
 `supportsFoliaExecution()`, `supportsMultipleOwnedIslands()` and

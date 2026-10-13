@@ -1,12 +1,14 @@
 # Folia architecture and operating requirements
 
 This document describes the maintained execution and storage contracts in the
-PVC source fork. It is not a native test result or an authorization to change a
-server. Use the exact artifact identity, platform builds, completed scenarios
-and limitations in the release [verification record](VERIFICATION.md) when
-published. Compilation, `folia-supported`, and successful startup alone do not
-qualify a release. Installation, backups, world configuration and rollback are
-covered in [INSTALLATION.md](INSTALLATION.md).
+PVC source fork. Use the exact artifact identity, platform builds, completed
+scenarios and limitations in the completed
+[verification record](VERIFICATION.md): all 87 native phases passed on the four
+recorded Leaf/Folia 1.21.11 and 26.2 builds. Folia End qualification includes two
+actual actors, native combat/respawn, ticket lifecycle, genuine topology changes
+and occupied reset. This does not qualify another plugin stack or a future
+native ABI, and does not authorize a server change. Installation, backups,
+world configuration and rollback are covered in [INSTALLATION.md](INSTALLATION.md).
 
 ## Platform boundaries
 
@@ -70,9 +72,11 @@ separately in [VERIFICATION.md](VERIFICATION.md).
 
 The supported built-in topology uses the default shared-world provider: islands
 occupy reserved cells in the same configured dimension worlds. Per-island-world
-and slime-world addons are separate integrations. Custom world, creation,
-database and mission providers must implement the relevant durable identity and
-Folia capability contracts; a capability flag is not evidence of correctness.
+and slime-world addons are separate integrations. Custom world, creation and
+mission providers must implement the relevant durable identity and Folia
+capability contracts; a capability flag is not evidence of correctness. This
+release rejects custom database bridges in every mode, including LEGACY;
+only the built-in SQL bridge has the required transaction/recovery contract.
 See the provider requirements in [INSTALLATION.md](INSTALLATION.md) and
 [MISSION-MIGRATION.md](MISSION-MIGRATION.md).
 
