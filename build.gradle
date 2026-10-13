@@ -170,8 +170,18 @@ shadowJar {
         if (sub.path.startsWith(':NMS:v1')) {
             try {
                 def reobfTask = sub.tasks.named('reobfJar')
-                dependsOn(reobfTask)
-                from(reobfTask.map { it.outputJar }) {
+                // Paperweight's custom remap task is not an AbstractArchiveTask
+                // and retains extraction timestamps/NTFS ZIP extras. Package
+                // its source-built class/resource bytes through a standard
+                // reproducible archive before embedding the module.
+                def reproducibleNms = sub.tasks.register('pvcReproducibleNms', Zip) {
+                    dependsOn(reobfTask)
+                    archiveFileName.set(sub.name + '.jar')
+                    destinationDirectory.set(sub.layout.buildDirectory.dir('pvc-reproducible'))
+                    from(reobfTask.map { sub.zipTree(it.outputJar) })
+                }
+                dependsOn(reproducibleNms)
+                from(reproducibleNms.map { it.archiveFile }) {
                     exclude 'META-INF/MANIFEST.MF', 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
                     rename { sub.name }
                     into("nms")

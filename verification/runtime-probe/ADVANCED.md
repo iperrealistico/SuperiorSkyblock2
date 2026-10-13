@@ -30,7 +30,12 @@ Run the actions in this order, waiting for each matching observer signal:
 3. `revokewildcard`: revoke the explicit parent grant while OP remains enabled;
    verify quota 1/default radius, then remove OP.
 4. `endprepare`: paste real End schematics when necessary, acknowledge metadata
-   and create the two native dormant fights.
+   and create the two native dormant fights. The private shared void-world
+   fixture receives a real 3x3 bedrock floor at the unchanged configured common
+   spawn Y-1, after validating its preloaded normal world, safe height and absence
+   of an occupied player cell. Each actual floor chunk is written on its owner
+   and native storage-acknowledged; no player is frozen or kept artificially
+   flying, and the occupied-reset spawn position assertion remains unchanged.
 5. `endenter`, `endactive`: teleport the two actual clients onto real, native
    storage-acknowledged 3x3 bedrock waiting platforms, 12 blocks horizontally
    away from each island's exit podium. This keeps actual visitors outside the

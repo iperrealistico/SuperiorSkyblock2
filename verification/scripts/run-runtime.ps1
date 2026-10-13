@@ -213,6 +213,11 @@ function Run-Phase([string]$Root,[string]$Phase,[string]$Java,[int]$Port,[string
     if(-not$ready-or-not$passed-or-not$clientPassed-or$ownershipError-or$forced-or(-not$intentionalCrash-and$result.exitCode-ne0)){throw "Native $Phase failed: evidence retained at $Root"}
 }
 try {
+    # An operator may stop an owned matrix at a profile boundary without
+    # interrupting a live JVM or rewriting an immutable qualification input.
+    if(Test-Path -LiteralPath (Join-Path $workspace '.ai-control/workspace-local/superior-native.stop')){
+        throw 'Native matrix stop requested; no new profile or JVM started.'
+    }
     $deadline=[DateTime]::UtcNow.AddMinutes(20)
     while($null-eq$gate) {
         if([DateTime]::UtcNow-gt$deadline){throw 'Shared gate timeout; no native process started.'}

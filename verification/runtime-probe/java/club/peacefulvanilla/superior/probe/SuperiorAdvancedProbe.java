@@ -190,7 +190,7 @@ public final class SuperiorAdvancedProbe {
         if (first.getWorld() != second.getWorld() || Math.max(Math.abs(first.getX() - second.getX()), Math.abs(first.getZ() - second.getZ())) < 1024)
             throw new IllegalStateException("The two End arenas must be separated in their actual shared world");
         mergesBefore = trackingCounter("getMergeCount"); splitsBefore = trackingCounter("getSplitCount");
-        CompletableFuture<Void> preparation = CompletableFuture.completedFuture(null);
+        CompletableFuture<Void> preparation = prepareCommonSpawnPlatform();
         for (Island island : arenas) preparation = preparation.thenCompose(unused -> prepareArena(island, settings));
         preparation.whenComplete((unused, error) -> {
             if (error != null) fail(primary, error);
@@ -368,6 +368,68 @@ public final class SuperiorAdvancedProbe {
                         floor.getWorld().getBlockAt(floor.getBlockX() + x, floor.getBlockY(), floor.getBlockZ() + z).setType(Material.BEDROCK, false);
                     return null;
                 })).thenCompose(unused -> ChunkStorageBridge.saveChunksAsync(island, List.of(position)));
+    }
+
+    /** The private shared void-world fixture still needs a genuine safe common spawn. */
+    private CompletableFuture<Void> prepareCommonSpawnPlatform() {
+        guardFixture();
+        Island spawnIsland = superior.getGrid().getSpawnIsland();
+        Location spawn = spawnIsland.getIslandHome(null);
+        if (spawn == null || spawn.getWorld() == null || !Double.isFinite(spawn.getX()) ||
+                !Double.isFinite(spawn.getY()) || !Double.isFinite(spawn.getZ()))
+            return CompletableFuture.failedFuture(new IllegalStateException("Common spawn must be an actual finite configured location"));
+        World world = spawn.getWorld();
+        Path fixture = observer.getServer().getWorldContainer().toPath().toAbsolutePath().normalize();
+        try {
+            if (Bukkit.getWorld(world.getUID()) != world || world.getEnvironment() != World.Environment.NORMAL ||
+                    !world.getWorldFolder().toPath().toRealPath().startsWith(fixture.toRealPath()) ||
+                    spawn.getBlockY() - 1 < world.getMinHeight() || spawn.getBlockY() + 2 >= world.getMaxHeight())
+                throw new IllegalStateException("Configured common spawn is outside the owned preloaded normal fixture or safe build height");
+        } catch (java.io.IOException invalidWorldPath) {
+            return CompletableFuture.failedFuture(invalidWorldPath);
+        }
+        List<Location> floor = new ArrayList<>();
+        java.util.Set<ChunkPosition> chunks = new java.util.LinkedHashSet<>();
+        for (int x = -1; x <= 1; ++x) for (int z = -1; z <= 1; ++z) {
+            Location block = new Location(world, spawn.getBlockX() + x, spawn.getBlockY() - 1, spawn.getBlockZ() + z);
+            Island occupied = superior.getGrid().getIslandAt(block);
+            if ((occupied != null && !occupied.isSpawn()) || intersectsPlayerCell(block))
+                return CompletableFuture.failedFuture(new IllegalStateException("Common-spawn floor intersects a reserved player island"));
+            floor.add(block);
+            chunks.add(ChunkPosition.of(world, block.getBlockX() >> 4, block.getBlockZ() >> 4, false));
+        }
+        CompletableFuture<Void> prepared = CompletableFuture.completedFuture(null);
+        for (ChunkPosition chunk : chunks)
+            prepared = prepared.thenCompose(unused -> world.getChunkAtAsync(chunk.getX(), chunk.getZ(), true).thenApply(loaded -> null));
+        for (Location block : floor)
+            prepared = prepared.thenCompose(unused -> region(block, () -> {
+                if (!BukkitExecutor.owns(world, block.getBlockX() >> 4, block.getBlockZ() >> 4))
+                    throw new IllegalStateException("Common-spawn floor write has no actual chunk owner");
+                Island occupied = superior.getGrid().getIslandAt(block);
+                if ((occupied != null && !occupied.isSpawn()) || intersectsPlayerCell(block))
+                    throw new IllegalStateException("Common-spawn floor became a reserved player island");
+                block.getBlock().setType(Material.BEDROCK, false);
+                return null;
+            }));
+        // SpawnIsland has no player ownership/generation; the native collection
+        // path acknowledges the actual four boundary chunks without inventing an owner.
+        prepared = prepared.thenCompose(unused -> ChunkStorageBridge.saveChunksAsync(chunks));
+        for (Location block : floor)
+            prepared = prepared.thenCompose(unused -> region(block, () -> {
+                if (block.getBlock().getType() != Material.BEDROCK)
+                    throw new IllegalStateException("Native common-spawn platform block is missing after its storage acknowledgement");
+                return null;
+            }));
+        return prepared.thenRun(() -> observer.getLogger().info("SUPERIOR_ADV_COMMON_SPAWN_PLATFORM_ACK blocks=9 chunks=" +
+                chunks.size() + " world=" + world.getName() + " spawn=" + spawn.getX() + ',' + spawn.getY() + ',' + spawn.getZ()));
+    }
+
+    private boolean intersectsPlayerCell(Location location) {
+        // Spawn protection can take precedence in getIslandAt; independently
+        // reject every registered reserved player cell before a fixture write.
+        for (Island island : superior.getGrid().getIslands())
+            if (!island.isSpawn() && island.isInside(location)) return true;
+        return false;
     }
 
     private Object readDiagnosticField(Object target, String name) {
