@@ -84,15 +84,30 @@ async function create(count) {
   return until(state => state.count === count && state.available)
 }
 const matches = values => values.map(value => typeof value === 'string' ? value : value.match ?? value.text ?? value.value ?? '').filter(Boolean)
+async function positiveCompletion(text, label) {
+  const ready = await probe('tab-ready', 'SUPERIOR_COMMAND_TAB_READY')
+  const state = Object.fromEntries([...ready.matchAll(/([A-Za-z]+)=(\d+)/g)].map(match => [match[1], Number(match[2])]))
+  assert(state.quota > 1 && state.memberships > 1 && state.currentTime >= state.verifiedAt
+    && state.currentTime - state.verifiedAt < state.ttl, 'Positive TAB precondition was not authoritatively verified')
+  const packetFrom = tabPackets.length, requestedAt = Date.now()
+  console.log('SUPERIOR_COMMAND_TAB_REQUEST case=' + label + ' requestedAt=' + requestedAt + ' text=' + JSON.stringify(text))
+  const names = matches(await primary.tabComplete(text, true, false))
+  assert(tabPackets.length > packetFrom, 'Positive TAB did not receive an actual server completion packet')
+  console.log('SUPERIOR_COMMAND_TAB_RESPONSE case=' + label + ' requestedAt=' + requestedAt
+    + ' receivedAt=' + Date.now() + ' matches=' + JSON.stringify(names))
+  return names
+}
 async function userInterface(expectTools, label) {
   const from = messages[0].length
   for (let page = 1; page <= 4; page++) await send(primary, '/is help ' + page)
   await pause(500)
   const help = messages[0].slice(from).join('\n')
-  const names = matches(await primary.tabComplete('/is ', true, false))
+  const names = expectTools ? await positiveCompletion('/is ', label + '-commands')
+    : matches(await primary.tabComplete('/is ', true, false))
   let selectors, selectorResponse = 'packet'
   try {
-    selectors = matches(await primary.tabComplete('/is home --island ', true, false, 5000))
+    selectors = expectTools ? await positiveCompletion('/is home --island ', label + '-selector')
+      : matches(await primary.tabComplete('/is home --island ', true, false, 5000))
   } catch (error) {
     if (expectTools || !/^Event tab_complete did not fire within timeout of 5000ms$/.test(error.message)) throw error
     // An unavailable selector can reject this Brigadier request without a reply.
@@ -157,7 +172,7 @@ async function newRecheck(a, b) {
     const window = await gui(primary, () => send(primary, '/is ' + family + ' --island ' + c))
     await probe('tail-inspect', 'SUPERIOR_COMMAND_RECHECK_PUBLIC_GUI_PASS')
     primary.closeWindow(window)
-    const names = matches(await primary.tabComplete('/is ' + family + ' --island ', true, false))
+    const names = await positiveCompletion('/is ' + family + ' --island ', 'public-' + family)
     assert(names.includes(String(c)), 'External island is absent from public selector completion for ' + family)
   }
   const teamFrom = messages[0].length

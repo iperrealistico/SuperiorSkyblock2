@@ -114,6 +114,7 @@ public final class NativeCommandProbe implements Listener {
                     if (error != null) fail(actor, error); else quota(actor, other, true);
                 });
                 case "status" -> status(actor);
+                case "tab-ready" -> tabReady(actor);
                 case "chatcheck" -> chatcheck(actor);
                 case "warpcheck" -> warpcheck(actor);
                 case "ratingscheck" -> ratingscheck(actor);
@@ -253,6 +254,26 @@ public final class NativeCommandProbe implements Listener {
                     if (error != null) fail(actor, error);
                     else if (limit != (expanded ? 3 : 1)) fail(actor, new IllegalStateException("Actual owner quota did not converge"));
                     else reply(actor, (actor == subject ? "SUPERIOR_COMMAND_QUOTA quota=" : "SUPERIOR_COMMAND_AUX_QUOTA quota=") + limit);
+                });
+    }
+
+    /** Observe the positive TAB precondition without relaxing the plugin's expired-policy fence. */
+    private void tabReady(Player actor) {
+        superior.getPvcEntitlements().refreshOwnershipLimit(actor.getUniqueId()).thenCompose(refreshedLimit ->
+                onPlayer(actor, () -> {
+                    int limit = superior.getPvcEntitlements().getVerifiedOwnershipLimit(actor.getUniqueId());
+                    var snapshot = superior.getPvcEntitlements().getSnapshot(actor.getUniqueId());
+                    long now = System.currentTimeMillis();
+                    long ttl = superior.getPvcConfig().getRefreshMillis();
+                    int memberships = account(PRIMARY).getIslands().size();
+                    if (refreshedLimit <= 1 || limit <= 1 || snapshot.getOwnershipLimit() != limit ||
+                            !snapshot.isFresh(now, ttl) || memberships <= 1)
+                        throw new IllegalStateException("Positive native TAB requires a fresh expanded quota and multiple actual memberships");
+                    actor.sendMessage("SUPERIOR_COMMAND_TAB_READY verifiedAt=" + snapshot.getVerifiedAtMillis() +
+                            " currentTime=" + now + " quota=" + limit + " memberships=" + memberships + " ttl=" + ttl);
+                    return null;
+                })).whenComplete((unused, error) -> {
+                    if (error != null) fail(actor, error);
                 });
     }
 

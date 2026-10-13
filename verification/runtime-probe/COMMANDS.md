@@ -103,6 +103,25 @@ configured menu hooks, stale hook rejection, membership-epoch invalidation,
 current ban hierarchy, cancelled console expulsion and setrate event authors.
 Global/personal menu behavior is checked independently of incidental selection.
 
+The private fixture retains a one-second entitlement TTL. The maintained source
+fails closed during an expired-policy refresh: `MultiIslandCommands.unlocked`
+requests an asynchronous refresh and returns false until the verified quota is
+fresh; the selector then has no positive suggestions. The 250ms coordinator
+pulse leaves a source-proven expiration window. The isolated 1342 Folia1.21.11
+positive-TAB timeout remains a failed run; attributing that particular timeout
+to this window is an inference because it did not record policy freshness at
+the request. The earlier identical-main 1258 run passed the same assertions.
+
+Before each positive TAB request, the test-only `tab-ready` action now awaits an
+authoritative owner refresh, rechecks the fresh quota and multiple actual
+memberships on the player's owner scheduler, and acknowledges `verifiedAt`,
+`currentTime`, quota, membership count and TTL. The driver immediately requests
+the real completion and logs its request/response. It still requires a received
+packet with the expected public island or visible tools. There is no retry,
+timeout-as-PASS, TTL increase or change to negative hidden-selector cases.
+This synchronization qualifies positive completion with its required fresh
+policy; it does not claim uninterrupted suggestions during policy refreshes.
+
 `NativeSharedStateProbe` performs a fixed number of block/entity metadata
 receipts through two real actor schedulers, validates actor/clone refund
 attribution and waits for bank quiescence and physical SQL acknowledgements.
