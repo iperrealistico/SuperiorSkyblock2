@@ -126,7 +126,7 @@ public final class SuperiorLegacyProbe {
                         try {
                             reply(player, "SUPERIOR_LEGACY_READY mode=LEGACY quota=1 preserved=" + state.getProperty("keys")
                                     + " skipSingleMenu=" + superior.getSettings().isSkipOneItemMenus()
-                                    + " denial=" + encodedMessage(player, Message.PVC_OWNERSHIP_LIMIT_REACHED, 1)
+                                    + " denial=" + encodedMessage(player, Message.ISLAND_ALREADY_EXIST)
                                     + " home=" + encodedMessage(player, Message.TELEPORTED_SUCCESS));
                         } catch (Throwable failure) { fail(player, failure); }
                     }
