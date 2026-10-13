@@ -24,6 +24,7 @@ public final class CmdAdminSizePolicy implements ISuperiorCommand {
         if (owner == null) return;
         plugin.getPvcEntitlements().refresh(owner.getUniqueId()).whenComplete((snapshot, error) ->
                 PvcSizeCommands.feedback(plugin, sender, (error == null ? "" : "Provider unavailable; last-known policy: ") +
-                        plugin.getPvcEntitlements().describe(owner.getUniqueId())));
+                        "&6" + plugin.getPvcEntitlements().describe(owner.getUniqueId())
+                                .replace(", ", " &8| &6").replace("=", " &8: &e")));
     }
 }

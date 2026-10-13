@@ -75,7 +75,7 @@ public abstract class AbstractMenuView<V extends MenuView<V, A>, A extends ViewA
                 plugin.getPvcIslandService().isAvailable(island.getUniqueId())) && island.isMember(inventoryViewer) &&
                 (privilege == null || island.hasPermission(inventoryViewer, privilege));
         if (valid && actionConsumed.compareAndSet(false, true)) return true;
-        Message.CUSTOM.send(inventoryViewer, "&cThis confirmation expired or the island permissions changed. Open it again.", true);
+        com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(inventoryViewer, "This confirmation expired or the island permissions changed. Open it again.");
         return false;
     }
 

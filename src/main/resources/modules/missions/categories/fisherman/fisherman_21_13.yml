@@ -15,9 +15,9 @@ auto-reward: true
 rewards:
   commands:
     - 'eco give %player% 15000'
-    - 'is admin msg %player% &e&lFisherman | &7Successfully finished the mission Fisherman II!'
-    - 'is admin msg %player% &e&lFisherman | &7What about testing our luck?'
-    - 'is admin msg %player% &e&lFisherman | &7&oFor more information about the next mission, checkout /is missions'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Successfully finished the mission Fisherman II!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7What about testing our luck?'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7&oFor more information about the next mission, checkout /is missions'
 
 # List of required missions that must be completed before completing this one.
 required-missions:
@@ -50,7 +50,7 @@ required-caughts:
 icons:
   locked:
     type: PAPER
-    name: '&aFisherman II'
+    name: '&6Fisherman II'
     lore:
       - '&7Cleaning the ocean from junk can be messy, but fun!'
       - '&7Catch 5 items.'
@@ -62,11 +62,11 @@ icons:
       - '&8 - &7$15,000'
       - ''
       - '&6Items: &7{1}/5'
-      - '&c&l ✘ &7Locked'
+      - '&6&l ✘ &7Locked'
     amount: 2
   not-completed:
     type: PAPER
-    name: '&aFisherman II'
+    name: '&6Fisherman II'
     lore:
       - '&7Cleaning the ocean from junk can be messy, but fun!'
       - '&7Catch 5 items.'
@@ -79,11 +79,11 @@ icons:
       - ''
       - '&6Items: &7{1}/5'
       - '&6Progress: &7{0}%'
-      - '&c&l ✘ &7Not Completed'
+      - '&6&l ✘ &7Not Completed'
     amount: 2
   can-complete:
     type: PAPER
-    name: '&aFisherman II'
+    name: '&6Fisherman II'
     lore:
       - '&7Cleaning the ocean from junk can be messy, but fun!'
       - '&7Catch 5 items.'
@@ -96,12 +96,12 @@ icons:
       - ''
       - '&6Items: &75/5'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Click to redeem your reward.'
+      - '&e&l ✔ &7Click to redeem your reward.'
     amount: 2
     glow: true
   completed:
     type: MAP
-    name: '&aFisherman II'
+    name: '&6Fisherman II'
     lore:
       - '&7Cleaning the ocean from junk can be messy, but fun!'
       - '&7Catch 5 items.'
@@ -111,5 +111,5 @@ icons:
       - ''
       - '&6Items: &75/5'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Already Claimed.'
+      - '&e&l ✔ &7Already Claimed.'
     amount: 2

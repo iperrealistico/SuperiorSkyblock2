@@ -160,7 +160,7 @@ public class CmdRankup implements IPermissibleCommand {
                     }
                     hasNextLevel = result == ConfiguredUpgradeCommands.Result.SUCCESS;
                     if (!hasNextLevel)
-                        Message.CUSTOM.send(superiorPlayer, "&cThe upgrade could not be completed. Earlier configured actions may already have taken effect.", true);
+                        com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(superiorPlayer, "The upgrade could not be completed. Earlier configured actions may already have taken effect.");
                 }
             }
         }

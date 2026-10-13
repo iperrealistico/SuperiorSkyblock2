@@ -9,7 +9,7 @@ from collections import Counter
 from pathlib import Path
 
 
-def inspect(jar: Path, expected_version: str = "2026.3-pvc.3") -> dict:
+def inspect(jar: Path, expected_version: str = "2026.3-pvc.4") -> dict:
     failures = []
     versions = Counter()
     with zipfile.ZipFile(jar) as archive:
@@ -63,7 +63,7 @@ def inspect(jar: Path, expected_version: str = "2026.3-pvc.3") -> dict:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("jar", type=Path)
-    parser.add_argument("--version", default="2026.3-pvc.3")
+    parser.add_argument("--version", default="2026.3-pvc.4")
     arguments = parser.parse_args()
     result = inspect(arguments.jar, arguments.version)
     print(json.dumps(result, indent=2))

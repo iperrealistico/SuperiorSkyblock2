@@ -26,6 +26,7 @@ public final class PvcConfig {
     static {
         DEFAULTS.put("pvc", "");
         DEFAULTS.put("pvc.size-mode", "LEGACY");
+        DEFAULTS.put("pvc.force-default-language", "true");
         DEFAULTS.put("pvc.entitlements", "");
         DEFAULTS.put("pvc.entitlements.cache-capacity", "2048");
         DEFAULTS.put("pvc.entitlements.history-capacity", "65536");
@@ -45,6 +46,7 @@ public final class PvcConfig {
         DEFAULTS.put("pvc.runtime.dragon-arena-activation-timeout-seconds", "60");
     }
     private final SizeMode sizeMode;
+    private final boolean forceDefaultLanguage;
     private final int cacheCapacity, historyCapacity, timeoutSeconds, maxInFlight, refreshBatch, queueCapacity, maxNodes;
     private final long refreshMillis;
     private final Set<Integer> radiusCandidates;
@@ -54,6 +56,9 @@ public final class PvcConfig {
     private PvcConfig(YamlConfiguration yaml) throws IOException {
         try {
             sizeMode = SizeMode.valueOf(yaml.getString("pvc.size-mode", "LEGACY").toUpperCase(java.util.Locale.ROOT));
+            Object languagePolicy = yaml.get("pvc.force-default-language");
+            if (!(languagePolicy instanceof Boolean)) throw new IllegalArgumentException("pvc.force-default-language must be true or false");
+            forceDefaultLanguage = (Boolean) languagePolicy;
             cacheCapacity = positive(yaml, "cache-capacity", 16, 1000000);
             historyCapacity = positive(yaml, "history-capacity", cacheCapacity, 1000000);
             timeoutSeconds = positive(yaml, "request-timeout-seconds", 1, 300);
@@ -192,6 +197,7 @@ public final class PvcConfig {
         Node(int line, int indent) { this.line = line; this.indent = indent; }
     }
     public SizeMode getSizeMode() { return sizeMode; }
+    public boolean isDefaultLanguageForced() { return forceDefaultLanguage; }
     public int getCacheCapacity() { return cacheCapacity; }
     public int getHistoryCapacity() { return historyCapacity; }
     public long getRefreshMillis() { return refreshMillis; }

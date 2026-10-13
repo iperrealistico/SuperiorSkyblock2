@@ -55,7 +55,7 @@ public class PlayerChat {
                 revision != plugin.getPvcIslandService().getRevision(islandId) || (privilege != null &&
                 !target.hasPermission(plugin.getPlayers().getSuperiorPlayer(player), privilege))))) {
             playerChatListeners.remove(playerId, this);
-            com.bgsoftware.superiorskyblock.core.messages.Message.CUSTOM.send(player, "&cThis input expired or the island permissions changed. Open it again.", true);
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(player, "This input expired or the island permissions changed. Open it again.");
             return true;
         }
         try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope scope =

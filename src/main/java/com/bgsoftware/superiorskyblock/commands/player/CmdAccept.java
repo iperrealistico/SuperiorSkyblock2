@@ -78,7 +78,7 @@ public class CmdAccept implements ISuperiorCommand {
                     precise, false, candidate -> plugin.getPvcIslandService().isAvailable(candidate.getUniqueId()) &&
                             candidate.isInvited(superiorPlayer));
             if (selection.ambiguous) {
-                sender.sendMessage(org.bukkit.ChatColor.YELLOW + "You have several invitations. Use /is accept <island ID>.");
+                com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "You have several invitations. Use &6/is accept &e<island ID>&7.");
                 return;
             }
             island = selection.island;
@@ -92,7 +92,7 @@ public class CmdAccept implements ISuperiorCommand {
                         candidate -> plugin.getPvcIslandService().isAvailable(candidate.getUniqueId()) &&
                                 candidate.isInvited(superiorPlayer));
                 if (selection.ambiguous) {
-                    sender.sendMessage(org.bukkit.ChatColor.YELLOW + "That player invited you to several islands. Use the island ID.");
+                    com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "That player invited you to several islands. Use the island ID.");
                     return;
                 }
                 island = selection.island;

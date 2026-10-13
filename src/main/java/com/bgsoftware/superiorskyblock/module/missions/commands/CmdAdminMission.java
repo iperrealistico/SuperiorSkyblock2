@@ -70,7 +70,7 @@ public class CmdAdminMission implements IAdminPlayerCommand {
             return;
         if (missions.stream().anyMatch(Mission::getIslandMission) && (targetPlayer.getIsland() == null ||
                 !plugin.getPvcIslandService().isAvailable(targetPlayer.getIsland().getUniqueId()))) {
-            Message.CUSTOM.send(sender, "&cChoose a current island of this player with --island <ID>.", true); return;
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "Choose a current island of this player with &6--island &e<ID>&7."); return;
         }
 
         if (args[3].equalsIgnoreCase("complete")) {

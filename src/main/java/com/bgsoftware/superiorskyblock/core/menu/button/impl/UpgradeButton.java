@@ -22,7 +22,7 @@ import java.util.Objects;
 
 public class UpgradeButton extends AbstractMenuViewButton<IslandMenuView> {
 
-    private static final TemplateItem INVALID_ITEM = new TemplateItem(new ItemBuilder(Material.BEDROCK).withName("&c&lInvalid Item"));
+    private static final TemplateItem INVALID_ITEM = new TemplateItem(new ItemBuilder(Material.BEDROCK).withName("&6&lInvalid Item"));
 
     private UpgradeButton(AbstractMenuTemplateButton<IslandMenuView> templateButton, IslandMenuView menuView) {
         super(templateButton, menuView);

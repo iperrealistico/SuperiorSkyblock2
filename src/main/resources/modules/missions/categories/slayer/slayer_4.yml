@@ -19,9 +19,9 @@ rewards:
   commands:
     - 'eco give %player% 250000'
     - 'is admin unlockworld %player% the_end true'
-    - 'is admin msg %player% &e&lSlayer | &7Successfully finished the mission Slayer IV!'
-    - 'is admin msg %player% &e&lSlayer | &7You passed all the tests, you are ready now for the end...'
-    - 'is admin msg %player% &e&lSlayer | &7&oYou are now a professional Slayer, congratz!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Successfully finished the mission Slayer IV!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7You passed all the tests, you are ready now for the end...'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7&oYou are now a professional Slayer, congratz!'
 
 # List of required missions that must be completed before completing this one.
 required-missions:
@@ -40,7 +40,7 @@ required-entities:
 icons:
   locked:
     type: PAPER
-    name: '&aSlayer IV'
+    name: '&6Slayer IV'
     lore:
       - '&7Before the end, there is one mission left.'
       - '&7Kill the wither.'
@@ -52,12 +52,12 @@ icons:
       - '&8 - &7$250,000'
       - '&8 - &7Unlock The End'
       - ''
-      - '&6Wither Killed: &c&l✘'
-      - '&c&l ✘ &7Locked'
+      - '&6Wither Killed: &6&l✘'
+      - '&6&l ✘ &7Locked'
     amount: 4
   not-completed:
     type: PAPER
-    name: '&aSlayer IV'
+    name: '&6Slayer IV'
     lore:
       - '&7Before the end, there is one mission left.'
       - '&7Kill the wither.'
@@ -69,12 +69,12 @@ icons:
       - '&8 - &7$250,000'
       - '&8 - &7Unlock The End'
       - ''
-      - '&6Wither Killed: &c&l✘'
-      - '&c&l ✘ &7Not Completed'
+      - '&6Wither Killed: &6&l✘'
+      - '&6&l ✘ &7Not Completed'
     amount: 4
   can-complete:
     type: PAPER
-    name: '&aSlayer IV'
+    name: '&6Slayer IV'
     lore:
       - '&7Before the end, there is one mission left.'
       - '&7Kill the wither.'
@@ -86,13 +86,13 @@ icons:
       - '&8 - &7$250,000'
       - '&8 - &7Unlock The End'
       - ''
-      - '&6Wither Killed: &a&l✔'
-      - '&a&l ✔ &7Click to redeem your reward.'
+      - '&6Wither Killed: &e&l✔'
+      - '&e&l ✔ &7Click to redeem your reward.'
     amount: 4
     glow: true
   completed:
     type: MAP
-    name: '&aSlayer IV'
+    name: '&6Slayer IV'
     lore:
       - '&7Before the end, there is one mission left.'
       - '&7Kill the wither.'
@@ -101,6 +101,6 @@ icons:
       - '&8 - &7$250,000'
       - '&8 - &7Unlock The End'
       - ''
-      - '&6Wither Killed: &a&l✔'
-      - '&a&l ✔ &7Already Claimed.'
+      - '&6Wither Killed: &e&l✔'
+      - '&e&l ✔ &7Already Claimed.'
     amount: 4

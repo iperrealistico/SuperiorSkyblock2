@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&8&l{}'
+title: '&6&l{}'
 previous-menu: true
 
 pattern:
@@ -19,11 +19,11 @@ items:
   '$':
     type: STAINED_GLASS_PANE
     data: 15
-    name: '&f'
+    name: '&8'
   '@':
     role: Member
     type: LEATHER_CHESTPLATE
-    name: '&eMember'
+    name: '&6Member'
     lore:
       - '&7Click to set player''s role to member.'
     flags:
@@ -31,7 +31,7 @@ items:
   '%':
     role: Moderator
     type: GOLD_CHESTPLATE
-    name: '&eModerator'
+    name: '&6Moderator'
     lore:
       - '&7Click to set player''s role to moderator.'
     flags:
@@ -39,7 +39,7 @@ items:
   '&':
     role: Admin
     type: IRON_CHESTPLATE
-    name: '&eAdmin'
+    name: '&6Admin'
     lore:
       - '&7Click to set player''s role to admin.'
     flags:
@@ -47,7 +47,7 @@ items:
   '*':
     role: Leader
     type: DIAMOND_CHESTPLATE
-    name: '&eLeader'
+    name: '&6Leader'
     lore:
       - '&7Click to transfer leadership to player.'
     flags:

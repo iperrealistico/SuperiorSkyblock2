@@ -21,9 +21,9 @@ only-natural-blocks: true
 rewards:
   commands:
     - 'eco give %player% 125000'
-    - 'is admin msg %player% &e&lMiner | &7Successfully finished the mission Miner IV!'
-    - 'is admin msg %player% &e&lMiner | &7Are you ready for the ultimate test?'
-    - 'is admin msg %player% &e&lMiner | &7&oFor more information about the next mission, checkout /is missions'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Successfully finished the mission Miner IV!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Are you ready for the ultimate test?'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7&oFor more information about the next mission, checkout /is missions'
 
 # List of required missions that must be completed before completing this one.
 required-missions:
@@ -46,7 +46,7 @@ required-blocks:
 icons:
   locked:
     type: PAPER
-    name: '&aMiner IV'
+    name: '&6Miner IV'
     lore:
       - '&7I have more customers, I need more materials!'
       - '&7Mine x192 coal ore and x320 iron ore.'
@@ -60,11 +60,11 @@ icons:
       - ''
       - '&6Coal Ore Mined: &7{value_coal_ore}/192'
       - '&6Iron Ore Mined: &7{value_iron_ore}/320'
-      - '&c&l ✘ &7Locked'
+      - '&6&l ✘ &7Locked'
     amount: 4
   not-completed:
     type: PAPER
-    name: '&aMiner IV'
+    name: '&6Miner IV'
     lore:
       - '&7I have more customers, I need more materials!'
       - '&7Mine x192 coal ore and x320 iron ore.'
@@ -79,11 +79,11 @@ icons:
       - '&6Coal Ore Mined: &7{value_coal_ore}/192'
       - '&6Iron Ore Mined: &7{value_iron_ore}/320'
       - '&6Progress: &7{0}%'
-      - '&c&l ✘ &7Not Completed'
+      - '&6&l ✘ &7Not Completed'
     amount: 4
   can-complete:
     type: PAPER
-    name: '&aMiner IV'
+    name: '&6Miner IV'
     lore:
       - '&7I have more customers, I need more materials!'
       - '&7Mine x192 coal ore and x320 iron ore.'
@@ -98,12 +98,12 @@ icons:
       - '&6Coal Ore Mined: &7192/192'
       - '&6Iron Ore Mined: &7320/320'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Click to redeem your reward.'
+      - '&e&l ✔ &7Click to redeem your reward.'
     amount: 4
     glow: true
   completed:
     type: MAP
-    name: '&aMiner IV'
+    name: '&6Miner IV'
     lore:
       - '&7I have more customers, I need more materials!'
       - '&7Mine x192 coal ore and x320 iron ore.'
@@ -114,5 +114,5 @@ icons:
       - '&6Coal Ore Mined: &7192/192'
       - '&6Iron Ore Mined: &7320/320'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Already Claimed.'
+      - '&e&l ✔ &7Already Claimed.'
     amount: 4

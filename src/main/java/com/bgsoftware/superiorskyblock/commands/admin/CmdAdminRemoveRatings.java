@@ -69,7 +69,7 @@ public class CmdAdminRemoveRatings implements IAdminIslandCommand {
     public void execute(SuperiorSkyblockPlugin plugin, CommandSender sender, String[] args) {
         Island explicitTarget = IslandExecutionScope.isExplicitTarget() ? IslandExecutionScope.current() : null;
         if (explicitTarget != null && !plugin.getPvcIslandService().isAvailable(explicitTarget.getUniqueId())) {
-            Message.CUSTOM.send(sender, "&cThis island has an operation in progress. Please wait.", true);
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "This island has an operation in progress. Please wait.");
             return;
         }
         RatingTargets targets = resolveTargets(args[2], explicitTarget,

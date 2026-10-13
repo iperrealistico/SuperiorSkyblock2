@@ -4793,7 +4793,7 @@ public class SIsland implements Island {
                 return;
             }
             if (tracker != null && !Boolean.TRUE.equals(replaced)) {
-                if (asker != null) Message.CUSTOM.send(asker, "&cThe island changed during calculation. Current counts were preserved; try again.", true);
+                if (asker != null) com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(asker, "The island changed during calculation. Current counts were preserved; try again.");
                 saveBlockCounts(currentTotalBlockCounts.get(), oldWorth, oldLevel, true, last);
                 if (callback != null) callback.run();
                 return;

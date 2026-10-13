@@ -72,7 +72,7 @@ public class IslandUtils {
             Runnable feedback = () -> {
                 if (error != null || com.bgsoftware.superiorskyblock.core.database.sql.DBSession.isCommitOutcomeUncertain()) {
                     if (error != null) Log.error(error, "Island deletion did not complete; its durable intent remains reserved");
-                    Message.CUSTOM.send(sender, "&cThe island deletion is incomplete or uncertain. Staff must check recovery before retrying.", true);
+                    com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "The island deletion is incomplete or uncertain. Staff must check recovery before retrying.");
                     return;
                 }
                 audience.forEach(member -> member.runIfOnline(player -> Message.DISBAND_ANNOUNCEMENT.send(member, actorName)));

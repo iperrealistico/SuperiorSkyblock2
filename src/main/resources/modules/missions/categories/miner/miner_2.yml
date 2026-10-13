@@ -22,9 +22,9 @@ rewards:
   commands:
     - 'eco give %player% 5000'
     - 'is admin rankup %player% generator-rates'
-    - 'is admin msg %player% &e&lMiner | &7Successfully finished the mission Miner II!'
-    - 'is admin msg %player% &e&lMiner | &7I like iron, mind getting more for me?'
-    - 'is admin msg %player% &e&lMiner | &7&oFor more information about the next mission, checkout /is missions'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Successfully finished the mission Miner II!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7I like iron, mind getting more for me?'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7&oFor more information about the next mission, checkout /is missions'
 
 # List of required missions that must be completed before completing this one.
 required-missions:
@@ -50,7 +50,7 @@ required-blocks:
 icons:
   locked:
     type: PAPER
-    name: '&aMiner II'
+    name: '&6Miner II'
     lore:
       - '&7Continue mining for ores!'
       - '&7Mine x96 cobblestone, x32 coal ore and x16 iron ore.'
@@ -67,11 +67,11 @@ icons:
       - '&6Cobblestone Mined: &7{value_cobblestone}/96'
       - '&6Coal Ore Mined: &7{value_coal_ore}/32'
       - '&6Iron Ore Mined: &7{value_iron_ore}/16'
-      - '&c&l ✘ &7Locked'
+      - '&6&l ✘ &7Locked'
     amount: 2
   not-completed:
     type: PAPER
-    name: '&aMiner II'
+    name: '&6Miner II'
     lore:
       - '&7Continue mining for ores!'
       - '&7Mine x96 cobblestone, x32 coal ore and x16 iron ore.'
@@ -89,11 +89,11 @@ icons:
       - '&6Coal Ore Mined: &7{value_coal_ore}/32'
       - '&6Iron Ore Mined: &7{value_iron_ore}/16'
       - '&6Progress: &7{0}%'
-      - '&c&l ✘ &7Not Completed'
+      - '&6&l ✘ &7Not Completed'
     amount: 2
   can-complete:
     type: PAPER
-    name: '&aMiner II'
+    name: '&6Miner II'
     lore:
       - '&7Continue mining for ores!'
       - '&7Mine x96 cobblestone, x32 coal ore and x16 iron ore.'
@@ -111,12 +111,12 @@ icons:
       - '&6Coal Ore Mined: &732/32'
       - '&6Iron Ore Mined: &716/16'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Click to redeem your reward.'
+      - '&e&l ✔ &7Click to redeem your reward.'
     amount: 2
     glow: true
   completed:
     type: MAP
-    name: '&aMiner II'
+    name: '&6Miner II'
     lore:
       - '&7Continue mining for ores!'
       - '&7Mine x96 cobblestone, x32 coal ore and x16 iron ore.'
@@ -129,5 +129,5 @@ icons:
       - '&6Coal Ore Mined: &732/32'
       - '&6Iron Ore Mined: &716/16'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Already Claimed.'
+      - '&e&l ✔ &7Already Claimed.'
     amount: 2

@@ -10,14 +10,13 @@ import com.bgsoftware.superiorskyblock.core.menu.button.AbstractMenuViewButton;
 import com.bgsoftware.superiorskyblock.core.menu.button.MenuTemplateButtonImpl;
 import com.bgsoftware.superiorskyblock.core.menu.impl.internal.MenuConfigEditor;
 import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import com.bgsoftware.superiorskyblock.api.menu.button.click.ButtonClickContext;
 import org.bukkit.entity.Player;
 
 public class ConfigEditorSaveButton extends AbstractMenuViewButton<MenuConfigEditor.View> {
 
-    private static final TemplateItem SAVE_BUTTON_ITEM = new TemplateItem(new ItemBuilder(Material.EMERALD).withName("&aSave Changes"));
+    private static final TemplateItem SAVE_BUTTON_ITEM = new TemplateItem(new ItemBuilder(Material.EMERALD).withName("&6Save Changes"));
 
     private ConfigEditorSaveButton(AbstractMenuTemplateButton<MenuConfigEditor.View> templateButton, MenuConfigEditor.View menuView) {
         super(templateButton, menuView);
@@ -29,7 +28,7 @@ public class ConfigEditorSaveButton extends AbstractMenuViewButton<MenuConfigEdi
         BukkitExecutor.async(() -> {
             Menus.MENU_CONFIG_EDITOR.saveConfig(config -> plugin.getSettings().loadData());
             BukkitExecutor.entity(player, () -> {
-                player.sendMessage("" + ChatColor.YELLOW + ChatColor.BOLD + "SuperiorSkyblock" + ChatColor.GRAY + " Saved configuration successfully.");
+                com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(player, "Saved configuration successfully.");
                 getView().setPreviousMove(false);
                 getView().closeView();
             });

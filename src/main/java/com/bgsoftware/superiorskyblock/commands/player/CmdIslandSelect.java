@@ -24,7 +24,7 @@ public final class CmdIslandSelect implements ISuperiorCommand {
         Island island = plugin.getPvcIslandService().resolve(args[1]);
         if (island == null || !plugin.getPvcIslandService().isAvailable(island.getUniqueId()) || !island.isMember(player)) { Message.INVALID_ISLAND.send(sender); return; }
         player.selectIsland(island);
-        Message.CUSTOM.send(sender, "&6Selected island &e#" + island.getShortId() + "&7 " + island.getName(), true);
+        com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "&6Selected island &e#" + island.getShortId() + " &8| &e" + island.getName());
     }
     @Override public List<String> tabComplete(SuperiorSkyblockPlugin plugin, CommandSender sender, String[] args) {
         if (args.length != 2) return Collections.emptyList();

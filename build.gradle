@@ -5,7 +5,7 @@ plugins {
 }
 
 group 'SuperiorSkyblock'
-version = "2026.3-pvc.3"
+version = "2026.3-pvc.4"
 
 project.ext {
     targetFolder = file("target/")

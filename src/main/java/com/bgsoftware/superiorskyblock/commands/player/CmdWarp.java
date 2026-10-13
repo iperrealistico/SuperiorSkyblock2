@@ -74,7 +74,7 @@ public class CmdWarp implements ISuperiorCommand {
             return;
 
         if (!plugin.getPvcIslandService().isAvailable(targetIsland.getUniqueId())) {
-            Message.CUSTOM.send(sender, "&cThis island has an operation in progress. Please wait.", true);
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "This island has an operation in progress. Please wait.");
             return;
         }
 

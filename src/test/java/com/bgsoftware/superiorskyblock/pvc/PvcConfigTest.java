@@ -43,6 +43,7 @@ public class PvcConfigTest {
         Files.write(file, original);
         PvcConfig first = PvcConfig.prepareAndLoad(folder.toFile());
         assertEquals(PvcConfig.SizeMode.LEGACY, first.getSizeMode());
+        assertTrue(first.isDefaultLanguageForced());
         assertEquals(8, first.getChunkLoadConcurrency());
         assertArrayEquals(original, Files.readAllBytes(folder.resolve("config.yml.pvc-backup")));
         byte[] migrated = Files.readAllBytes(file);
@@ -56,6 +57,22 @@ public class PvcConfigTest {
         Files.write(folder.resolve("config.yml"), original);
         try { PvcConfig.prepareAndLoad(folder.toFile()); fail("Invalid supplied values must fail closed"); }
         catch (java.io.IOException expected) { assertArrayEquals(original, Files.readAllBytes(folder.resolve("config.yml"))); }
+    }
+    @Test public void explicitMultilingualOptOutSurvivesMissingKeyMigration() throws Exception {
+        Path folder = Files.createTempDirectory("superior-language-policy");
+        Path file = folder.resolve("config.yml");
+        String original = "pvc:\n  force-default-language: false # intentional opt-out\n";
+        Files.write(file, original.getBytes(StandardCharsets.UTF_8));
+        assertFalse(PvcConfig.prepareAndLoad(folder.toFile()).isDefaultLanguageForced());
+        assertTrue(new String(Files.readAllBytes(file), StandardCharsets.UTF_8).contains("false # intentional opt-out"));
+    }
+    @Test public void invalidLanguagePolicyRetainsOriginalConfiguration() throws Exception {
+        Path folder = Files.createTempDirectory("superior-language-policy-invalid");
+        Path file = folder.resolve("config.yml");
+        byte[] original = "pvc:\n  force-default-language: 'invalid'\n".getBytes(StandardCharsets.UTF_8);
+        Files.write(file, original);
+        try { PvcConfig.prepareAndLoad(folder.toFile()); fail("Invalid language policy must be rejected"); }
+        catch (java.io.IOException expected) { assertArrayEquals(original, Files.readAllBytes(file)); }
     }
     @Test public void optionalPrivateOperatorFixturePreservesEveryExistingLeafValue() throws Exception {
         String supplied = System.getProperty("pvc.fixture.config");

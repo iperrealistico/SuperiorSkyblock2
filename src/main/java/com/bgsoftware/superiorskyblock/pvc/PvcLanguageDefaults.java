@@ -16,9 +16,10 @@ public final class PvcLanguageDefaults {
     private static final Map<String, String> DEFAULTS;
     static {
         Map<String, String> values = new LinkedHashMap<>();
-        values.put("PVC_OWNERSHIP_LIMIT_REACHED", "&c&lIsland | &7You have reached your limit of {0} owned islands.");
-        values.put("PVC_ISLAND_CREATION_QUEUE_FULL", "&c&lIsland | &7Island creation is busy. Please try again shortly.");
-        values.put("PVC_OWNERSHIP_POLICY_UNAVAILABLE", "&c&lIsland | &7Your island permissions could not be verified. Please try again shortly.");
+        values.put("PVC_OWNERSHIP_LIMIT_REACHED", PvcMessages.service("You have reached your limit of &e{0} &7owned islands."));
+        values.put("PVC_ISLAND_CREATION_QUEUE_FULL", PvcMessages.service("Island creation is busy. Please try again shortly."));
+        values.put("PVC_OWNERSHIP_POLICY_UNAVAILABLE", PvcMessages.service("Your island permissions could not be verified. Please try again shortly."));
+        values.put("PVC_SERVER_LANGUAGE_FIXED", PvcMessages.service("The server language is &e{0}&7."));
         DEFAULTS = Collections.unmodifiableMap(values);
     }
     private PvcLanguageDefaults() { }

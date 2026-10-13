@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&c&lConfirm Disband'
+title: '&6&lConfirm Disband'
 previous-menu: true
 type: DIALOG
 
@@ -17,8 +17,8 @@ cancel: '^'
 body:
   - type: item
     description: |
-      Are you sure you want to delete your island?
-      &cThis action cannot be undone!
+      &7Are you sure you want to delete your island?
+      &6This action cannot be undone!
     show-decorations: false
     show-tooltip: false
     item:
@@ -27,6 +27,6 @@ body:
 
 buttons:
   '@':
-    label: '&aConfirm'
+    label: '&eConfirm'
   '^':
-    label: '&cCancel'
+    label: '&6Cancel'

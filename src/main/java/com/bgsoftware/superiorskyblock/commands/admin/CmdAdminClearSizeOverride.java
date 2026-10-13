@@ -25,7 +25,7 @@ public final class CmdAdminClearSizeOverride implements ISuperiorCommand {
     }
     @Override public void execute(SuperiorSkyblockPlugin plugin, CommandSender sender, String[] args) {
         if (args.length == 4 && !args[3].equalsIgnoreCase("legacy")) {
-            PvcSizeCommands.feedback(plugin, sender, "Use [legacy] only when intentionally clearing per-island fixed-size exceptions.");
+            PvcSizeCommands.feedback(plugin, sender, "Use &6[legacy] &7only when intentionally clearing per-island fixed-size exceptions.");
             return;
         }
         SuperiorPlayer owner = PvcSizeCommands.owner(plugin, sender, args[2]);
@@ -49,12 +49,12 @@ public final class CmdAdminClearSizeOverride implements ISuperiorCommand {
             }
             clears.whenComplete((unused, legacyError) -> {
                 if (legacyError != null) {
-                    PvcSizeCommands.feedback(plugin, sender, "Owner override cleared, but legacy exceptions could not all be committed. Retry [legacy] and inspect /is admin sizepolicy.");
+                    PvcSizeCommands.feedback(plugin, sender, "Owner override cleared, but legacy exceptions could not all be committed. Retry &6[legacy] &7and inspect &6/is admin sizepolicy&7.");
                     return;
                 }
                 PvcSizeCommands.feedback(plugin, sender, "Owner override cleared. " +
                         (legacy ? "Legacy size exceptions committed; the configured size policy resumes." :
-                                "Any legacy per-island exceptions remain; inspect /is admin sizepolicy."));
+                                "Any legacy per-island exceptions remain; inspect &6/is admin sizepolicy&7."));
             });
         });
     }

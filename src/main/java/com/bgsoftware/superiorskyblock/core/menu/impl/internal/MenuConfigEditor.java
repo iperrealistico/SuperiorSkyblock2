@@ -79,8 +79,8 @@ public class MenuConfigEditor extends AbstractPagedMenu<MenuConfigEditor.View, M
 
     public void updateConfig(Player player, String path, Object value) {
         config.set(path, value);
-        player.sendMessage("" + ChatColor.YELLOW + ChatColor.BOLD + "SuperiorSkyblock" + ChatColor.GRAY +
-                " Changed value of " + path + " to " + value);
+        com.bgsoftware.superiorskyblock.pvc.PvcMessages.sendRaw(player,
+                "Changed value of " + ChatColor.YELLOW + path + ChatColor.GRAY + " to " + ChatColor.YELLOW + value + ChatColor.GRAY + ".");
     }
 
     public static MenuConfigEditor createInstance() {
@@ -97,7 +97,7 @@ public class MenuConfigEditor extends AbstractPagedMenu<MenuConfigEditor.View, M
 
         patternBuilder.setButton(49, new DummyButton.Builder<View>()
                 .setButtonItem(new TemplateItem(new ItemBuilder(Materials.SUNFLOWER.toBukkitType())
-                        .withName("&aCurrent Page").withLore("&7Page {0}")))
+                        .withName("&6Current Page").withLore("&6Page &8: &e{0}")))
                 .build());
         patternBuilder.setCurrentPageSlots(Collections.singletonList(49));
 
@@ -148,8 +148,8 @@ public class MenuConfigEditor extends AbstractPagedMenu<MenuConfigEditor.View, M
              Menu<View, Args> menu, Args args) {
             super(inventoryViewer, previousMenuView, menu);
             this.path = args.path;
-            this.cachedTitleArgs = new Object[]{path.isEmpty() ? ChatColor.BOLD + "Settings Editor" :
-                    ChatColor.BOLD + "Section: " + path};
+            this.cachedTitleArgs = new Object[]{path.isEmpty() ? ChatColor.GOLD + "Settings Editor" :
+                    ChatColor.GOLD + "Section" + ChatColor.DARK_GRAY + ": " + ChatColor.YELLOW + path};
         }
 
         public List<String> getPathSlots() {
@@ -182,15 +182,15 @@ public class MenuConfigEditor extends AbstractPagedMenu<MenuConfigEditor.View, M
                 );
 
                 if (section.isBoolean(path))
-                    itemBuilder.withLore("&7Value: " + section.getBoolean(path));
+                    itemBuilder.withLore("&6Value &8: &e" + section.getBoolean(path));
                 else if (section.isInt(path))
-                    itemBuilder.withLore("&7Value: " + section.getInt(path));
+                    itemBuilder.withLore("&6Value &8: &e" + section.getInt(path));
                 else if (section.isDouble(path))
-                    itemBuilder.withLore("&7Value: " + section.getDouble(path));
+                    itemBuilder.withLore("&6Value &8: &e" + section.getDouble(path));
                 else if (section.isString(path))
-                    itemBuilder.withLore("&7Value: " + section.getString(path));
+                    itemBuilder.withLore("&6Value &8: &e" + section.getString(path));
                 else if (section.isList(path))
-                    itemBuilder.withLore("&7Value:", section.getStringList(path));
+                    itemBuilder.withLore("&6Value &8:", section.getStringList(path));
                 else if (section.isConfigurationSection(path))
                     itemBuilder.withLore("&7Click to edit section.");
 

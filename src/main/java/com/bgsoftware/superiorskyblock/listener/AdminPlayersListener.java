@@ -1,13 +1,10 @@
 package com.bgsoftware.superiorskyblock.listener;
 
 import com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin;
-import com.bgsoftware.superiorskyblock.core.messages.Message;
 import com.bgsoftware.superiorskyblock.platform.event.GameEvent;
 import com.bgsoftware.superiorskyblock.platform.event.GameEventPriority;
 import com.bgsoftware.superiorskyblock.platform.event.GameEventType;
 import com.bgsoftware.superiorskyblock.platform.event.args.GameEventArgs;
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
 import java.util.UUID;
@@ -32,16 +29,17 @@ public class AdminPlayersListener extends AbstractGameEventListener {
 
         // Notifies me when a server uses one of my plugins.
         if (player.getUniqueId().equals(DEVELOPER_UUID)) {
-            com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.entity(player, () -> Message.CUSTOM.send(player,
-                    "&8[&fSuperiorSeries&8] &7This server is using SuperiorSkyblock2 v" +
-                            plugin.getDescription().getVersion() + buildName, true), 5L);
+            com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.entity(player, () ->
+                    com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(player,
+                            "This server is using SuperiorSkyblock2 &ev" +
+                                    plugin.getDescription().getVersion() + "&7" + buildName), 5L);
         }
 
         // Notifies operators about new updates
         if (player.isOp() && plugin.getUpdater().isOutdated()) {
             com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.entity(player, () ->
-                    player.sendMessage(ChatColor.BLUE + "" + ChatColor.BOLD + "SuperiorSkyblock2" + ChatColor.GRAY +
-                            " A new version is available (v" + plugin.getUpdater().getLatestVersion() + ")!"), 20L);
+                    com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(player,
+                            "A new version is available &8(&ev" + plugin.getUpdater().getLatestVersion() + "&8)&7!"), 20L);
         }
     }
 

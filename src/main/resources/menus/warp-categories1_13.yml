@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&lWarp Categories'
+title: '&6&lWarp Categories'
 previous-menu: true
 
 pattern:
@@ -23,26 +23,26 @@ next-page: '^'
 
 # This lore is added to category icons.
 edit-lore:
-  - '&f '
-  - '&f '
-  - '&7&o(( &f&oLeft-Click &7&oto see island warps. ))'
-  - '&7&o(( &f&oRight-Click &7&oto edit the category. ))'
+  - '&7 '
+  - '&7 '
+  - '&7&o(( &7&oLeft-Click &7&oto see island warps. ))'
+  - '&7&o(( &7&oRight-Click &7&oto edit the category. ))'
 
 items:
   '@':
     type: BLACK_STAINED_GLASS_PANE
-    name: '&f'
+    name: '&8'
   '%':
     type: PAPER
-    name: '&cPrevious Page'
+    name: '&6Previous Page'
   '*':
     type: SUNFLOWER
-    name: '&aCurrent Page'
+    name: '&6Current Page'
     lore:
       - '&7Page 1'
   '^':
     type: PAPER
-    name: '&cNext Page'
+    name: '&6Next Page'
   '$':
     type: BLACK_STAINED_GLASS_PANE
-    name: '&f'
+    name: '&8'

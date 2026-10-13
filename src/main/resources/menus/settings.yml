@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&lIsland Settings'
+title: '&6&lIsland Settings'
 previous-menu: true
 
 pattern:
@@ -24,13 +24,13 @@ items:
   '$':
     type: STAINED_GLASS_PANE
     data: 3
-    name: '&f'
+    name: '&8'
   '%':
     type: PAPER
     name: '{0}Previous Page'
   '*':
     type: DOUBLE_PLANT
-    name: '&aCurrent Page'
+    name: '&6Current Page'
     lore:
       - '&7Page {0}'
   '^':
@@ -46,14 +46,14 @@ settings:
       name: '&6Always Day'
       lore:
         - '&7Set a day time on your island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: STAINED_CLAY
       data: 4
       name: '&6Always Day'
       lore:
         - '&7Set a day time on your island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -67,14 +67,14 @@ settings:
       name: '&6Always Middle Day'
       lore:
         - '&7Set a middle day time on your island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: STAINED_CLAY
       data: 1
       name: '&6Always Middle Day'
       lore:
         - '&7Set a middle day time on your island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -88,14 +88,14 @@ settings:
       name: '&6Always Night'
       lore:
         - '&7Set a night time on your island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: STAINED_CLAY
       data: 3
       name: '&6Always Night'
       lore:
         - '&7Set a night time on your island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -109,14 +109,14 @@ settings:
       name: '&6Always Middle Night'
       lore:
         - '&7Set a middle night day time on your island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: STAINED_CLAY
       data: 11
       name: '&6Always Middle Night'
       lore:
         - '&7Set a middle night day time on your island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -129,13 +129,13 @@ settings:
       name: '&6Always Rain'
       lore:
         - '&7Set a rainy weather on your island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: WATER_LILY
       name: '&6Always Rain'
       lore:
         - '&7Set a rainy weather on your island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -148,13 +148,13 @@ settings:
       name: '&6Always Shiny'
       lore:
         - '&7Set a shiny weather on your island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: DEAD_BUSH
       name: '&6Always Shiny'
       lore:
         - '&7Set a shiny weather on your island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -168,14 +168,14 @@ settings:
       name: '&6Creeper Explosion'
       lore:
         - '&7Allow creepers to explode blocks inside your island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: SKULL_ITEM
       data: 4
       name: '&6Creeper Explosion'
       lore:
         - '&7Allow creepers to explode blocks inside your island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -188,13 +188,13 @@ settings:
       name: '&6Crops Growth'
       lore:
         - '&7Allow growth of crops inside your island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: SEEDS
       name: '&6Crops Growth'
       lore:
         - '&7Allow growth of crops inside your island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -207,13 +207,13 @@ settings:
       name: '&6Egg Lay'
       lore:
         - '&7Allow chickens to lay eggs inside your island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: EGG
       name: '&6Egg Lay'
       lore:
         - '&7Allow chickens to lay eggs inside your island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -226,13 +226,13 @@ settings:
       name: '&6Enderman Grief'
       lore:
         - '&7Allow enderman to grief blocks inside your island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: ENDER_PEARL
       name: '&6Enderman Grief'
       lore:
         - '&7Allow enderman to grief blocks inside your island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -245,13 +245,13 @@ settings:
       name: '&6Fire Spread'
       lore:
         - '&7Allow fire to spread inside your island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: FLINT_AND_STEEL
       name: '&6Fire Spread'
       lore:
         - '&7Allow fire to spread inside your island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -264,13 +264,13 @@ settings:
       name: '&6Ghast Fireball'
       lore:
         - '&7Allow fireballs to break blocks inside your island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: FIREBALL
       name: '&6Ghast Fireball'
       lore:
         - '&7Allow fireballs to break blocks inside your island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -283,13 +283,13 @@ settings:
       name: '&6Lava Flow'
       lore:
         - '&7Allow lava to flow inside your island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: LAVA_BUCKET
       name: '&6Lava Flow'
       lore:
         - '&7Allow lava to flow inside your island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -303,14 +303,14 @@ settings:
       name: '&6Natural Animals Spawn'
       lore:
         - '&7Allow natural spawning of animals inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: MONSTER_EGG
       data: 90
       name: '&6Natural Animals Spawn'
       lore:
         - '&7Allow natural spawning of animals inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -324,14 +324,14 @@ settings:
       name: '&6Natural Monster Spawn'
       lore:
         - '&7Allow natural spawning of monsters inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: MONSTER_EGG
       data: 54
       name: '&6Natural Monster Spawn'
       lore:
         - '&7Allow natural spawning of monsters inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -344,7 +344,7 @@ settings:
       name: '&6PvP'
       lore:
         - '&7Allow players to pvp inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
       flags:
         - HIDE_ATTRIBUTES
     settings-disabled:
@@ -352,7 +352,7 @@ settings:
       name: '&6PvP'
       lore:
         - '&7Allow players to pvp inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
       flags:
         - HIDE_ATTRIBUTES
     sound:
@@ -367,13 +367,13 @@ settings:
       name: '&6Spawner Animals Spawn'
       lore:
         - '&7Allow spawner spawning of animals inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: MOB_SPAWNER
       name: '&6Spawner Animals Spawn'
       lore:
         - '&7Allow spawner spawning of animals inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -386,13 +386,13 @@ settings:
       name: '&6Spawner Monster Spawn'
       lore:
         - '&7Allow spawner spawning of monsters inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: MOB_SPAWNER
       name: '&6Spawner Monster Spawn'
       lore:
         - '&7Allow spawner spawning of monsters inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -405,13 +405,13 @@ settings:
       name: '&6TNT Explosion'
       lore:
         - '&7Allow TNT to explode blocks inside your island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: TNT
       name: '&6TNT Explosion'
       lore:
         - '&7Allow TNT to explode blocks inside your island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -424,13 +424,13 @@ settings:
       name: '&6Tree Growth'
       lore:
         - '&7Allow growth of trees inside your island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: SAPLING
       name: '&6Tree Growth'
       lore:
         - '&7Allow growth of trees inside your island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -443,13 +443,13 @@ settings:
       name: '&6Water Flow'
       lore:
         - '&7Allow water to flow inside your island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: WATER_BUCKET
       name: '&6Water Flow'
       lore:
         - '&7Allow water to flow inside your island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2
@@ -463,14 +463,14 @@ settings:
       name: '&6Wither Explosion'
       lore:
         - '&7Allow withers to explode blocks inside your island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     settings-disabled:
       type: SKULL_ITEM
       data: 1
       name: '&6Wither Explosion'
       lore:
         - '&7Allow withers to explode blocks inside your island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     sound:
       type: ORB_PICKUP
       volume: 0.2

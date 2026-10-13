@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&lIsland Warps'
+title: '&6&lIsland Warps'
 previous-menu: true
 
 pattern:
@@ -23,10 +23,10 @@ next-page: '^'
 
 # This lore is added to warp icons.
 edit-lore:
-  - '&f '
-  - '&f '
-  - '&7&o(( &f&oLeft-Click &7&oto warp to the location. ))'
-  - '&7&o(( &f&oRight-Click &7&oto edit warp. ))'
+  - '&7 '
+  - '&7 '
+  - '&7&o(( &7&oLeft-Click &7&oto warp to the location. ))'
+  - '&7&o(( &7&oRight-Click &7&oto edit warp. ))'
 
 items:
   '@':
@@ -39,7 +39,7 @@ items:
     name: '{0}Previous Page'
   '*':
     type: SUNFLOWER
-    name: '&aCurrent Page'
+    name: '&6Current Page'
     lore:
       - '&7Page {0}'
   '^':
@@ -47,7 +47,7 @@ items:
     name: '{0}Next Page'
   '$':
     type: BLACK_STAINED_GLASS_PANE
-    name: '&f'
+    name: '&8'
 
 sounds:
   '@':

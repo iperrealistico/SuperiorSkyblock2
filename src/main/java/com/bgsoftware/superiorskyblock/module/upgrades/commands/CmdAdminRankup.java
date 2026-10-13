@@ -119,8 +119,8 @@ public class CmdAdminRankup implements IAdminIslandCommand {
                             () -> { });
                     if (result == ConfiguredUpgradeCommands.Result.SUCCESS) ++islandsChangedCount;
                     else {
-                        Message.CUSTOM.send(sender, "&cIsland " + island.getShortId() +
-                                " could not complete this upgrade. Earlier configured actions may already have taken effect.", true);
+                        com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "Island &e" + island.getShortId() +
+                                " &7could not complete this upgrade. Earlier configured actions may already have taken effect.");
                     }
                 }
             }
@@ -128,8 +128,8 @@ public class CmdAdminRankup implements IAdminIslandCommand {
 
         if (islandsChangedCount == 0) return;
         if (islandsChangedCount < islands.size()) {
-            Message.CUSTOM.send(sender, "&eCompleted the configured upgrade for " + islandsChangedCount +
-                    " of " + islands.size() + " islands.", true);
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "Completed the configured upgrade for &e" + islandsChangedCount +
+                    " &7of &e" + islands.size() + " &7islands.");
             return;
         }
 

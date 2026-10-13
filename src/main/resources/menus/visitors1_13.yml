@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&lIsland Visitors ({0})'
+title: '&6&lIsland Visitors ({0})'
 previous-menu: true
 
 pattern:
@@ -36,7 +36,7 @@ items:
     name: '{0}Previous Page'
   '*':
     type: SUNFLOWER
-    name: '&aCurrent Page'
+    name: '&6Current Page'
     lore:
       - '&7Page {0}'
   '^':
@@ -44,12 +44,12 @@ items:
     name: '{0}Next Page'
   '~':
     type: SKELETON_SKULL
-    name: '&eUnique Visitors'
+    name: '&6Unique Visitors'
     lore:
       - '&7Click to open all-time visitors menu.'
   '$':
     type: BLACK_STAINED_GLASS_PANE
-    name: '&f'
+    name: '&8'
 
 sounds:
   '@':

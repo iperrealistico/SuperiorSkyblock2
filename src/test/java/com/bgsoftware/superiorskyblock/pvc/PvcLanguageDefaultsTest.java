@@ -20,7 +20,7 @@ public class PvcLanguageDefaultsTest {
     }
     @Test public void explicitEmptyAndNullMessagesRemainDisabled() throws Exception {
         java.io.File locale = temporary.newFile("en-US.yml");
-        String original = "PVC_OWNERSHIP_LIMIT_REACHED: ''\n'PVC_ISLAND_CREATION_QUEUE_FULL': null\nPVC_OWNERSHIP_POLICY_UNAVAILABLE: ''\n";
+        String original = "PVC_OWNERSHIP_LIMIT_REACHED: ''\n'PVC_ISLAND_CREATION_QUEUE_FULL': null\nPVC_OWNERSHIP_POLICY_UNAVAILABLE: ''\nPVC_SERVER_LANGUAGE_FIXED: ''\n";
         Files.write(locale.toPath(), original.getBytes(StandardCharsets.UTF_8)); PvcLanguageDefaults.merge(locale);
         assertArrayEquals(original.getBytes(StandardCharsets.UTF_8), Files.readAllBytes(locale.toPath()));
     }

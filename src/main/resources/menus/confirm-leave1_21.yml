@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&c&lConfirm Leave'
+title: '&6&lConfirm Leave'
 previous-menu: true
 type: DIALOG
 
@@ -16,7 +16,7 @@ cancel: '^'
 
 body:
   - type: item
-    description: 'Are you sure you want to leave your island?'
+    description: '&7Are you sure you want to leave your island?'
     show-decorations: false
     show-tooltip: false
     item:
@@ -25,6 +25,6 @@ body:
 
 buttons:
   '@':
-    label: '&aConfirm'
+    label: '&eConfirm'
   '^':
-    label: '&cCancel'
+    label: '&6Cancel'

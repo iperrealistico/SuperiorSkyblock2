@@ -102,7 +102,7 @@ public class SIslandChest implements IslandChest {
                     if (existing == null || !existing.isOnline()) viewerLease.compareAndSet(lease, null);
                 }
                 if (!viewerLease.compareAndSet(null, player.getUniqueId()) && !player.getUniqueId().equals(viewerLease.get())) {
-                    player.sendMessage(org.bukkit.ChatColor.YELLOW + "This island chest is currently in use. Please try again shortly."); return;
+                    com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(player, "This island chest is currently in use. Please try again shortly."); return;
                 }
             }
             player.openInventory(getInventory());

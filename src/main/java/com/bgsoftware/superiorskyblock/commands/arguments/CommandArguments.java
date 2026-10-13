@@ -49,12 +49,12 @@ public class CommandArguments {
         Island island = findIsland(plugin, sender, argument);
         if (island == null && targetPlayer != null &&
                 (targetPlayer.getOwnedIslands().size() > 1 || targetPlayer.getIslands().size() > 1)) {
-            Message.CUSTOM.send(sender, "&cSpecify the destination island by name or ID.", true);
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "Specify the destination island by name or ID.");
             return new IslandArgument(null, targetPlayer);
         }
 
         if (island != null && !plugin.getPvcIslandService().isAvailable(island.getUniqueId())) {
-            Message.CUSTOM.send(sender, "&cThis island has an operation in progress. Please wait.", true);
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "This island has an operation in progress. Please wait.");
             return new IslandArgument(null, targetPlayer);
         }
         if (island == null) {
@@ -119,7 +119,7 @@ public class CommandArguments {
                 com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current() : superiorPlayer.getIsland();
 
         if (island != null && !plugin.getPvcIslandService().isAvailable(island.getUniqueId())) {
-            Message.CUSTOM.send(sender, "&cThis island is being recovered or removed. Please wait.", true);
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "This island is being recovered or removed. Please wait.");
             island = null;
         }
 
@@ -181,7 +181,7 @@ public class CommandArguments {
                 com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current() : null;
         if (target != null) return new IslandArgument(target, target.getOwner());
         if (!(sender instanceof Player)) {
-            Message.CUSTOM.send(sender, "&cYou must specify a player's name.", true);
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "You must specify a player's name.");
             return IslandArgument.EMPTY;
         }
 
@@ -210,7 +210,7 @@ public class CommandArguments {
                 com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current() : null;
         if (target != null) return new IslandArgument(target, plugin.getPlayers().getSuperiorPlayer(sender));
         if (!(sender instanceof Player)) {
-            Message.CUSTOM.send(sender, "&cYou must specify a player's name.", true);
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "You must specify a player's name.");
             return IslandArgument.EMPTY;
         }
 

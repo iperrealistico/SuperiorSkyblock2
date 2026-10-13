@@ -96,7 +96,7 @@ public class CmdAdminResetWorld implements IAdminIslandCommand {
         for (Island island : islands) {
             if (!PluginEventsFactory.callIslandWorldResetEvent(island, sender, dimension)) continue;
             if (!(island instanceof com.bgsoftware.superiorskyblock.island.SIsland)) {
-                sender.sendMessage(org.bukkit.ChatColor.RED + "This island provider cannot perform an acknowledged reset.");
+                com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "This island provider cannot perform an acknowledged reset.");
                 continue;
             }
             changed.add(island);
@@ -108,7 +108,7 @@ public class CmdAdminResetWorld implements IAdminIslandCommand {
                     Runnable reply = () -> {
                         if (error != null) {
                             com.bgsoftware.superiorskyblock.core.logging.Log.error(error, "Island world reset did not complete");
-                            sender.sendMessage(org.bukkit.ChatColor.RED + "The reset is incomplete; the island remains reserved for recovery.");
+                            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "The reset is incomplete; the island remains reserved for recovery.");
                         } else if (changed.size() > 1)
                             Message.RESET_WORLD_SUCCEED_ALL.send(sender, Formatters.CAPITALIZED_FORMATTER.format(args[3]));
                         else if (targetPlayer == null)

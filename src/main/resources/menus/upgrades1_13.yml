@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&lIsland Upgrades'
+title: '&6&lIsland Upgrades'
 previous-menu: true
 
 pattern:
@@ -18,7 +18,7 @@ pattern:
 items:
   '$':
     type: BLACK_STAINED_GLASS_PANE
-    name: '&f'
+    name: '&8'
 
 upgrades:
   hoppers-limit:
@@ -26,38 +26,38 @@ upgrades:
     '1':
       has-next-level:
         type: HOPPER
-        name: '&d&lHopper Increase &a(Available)'
+        name: '&6&lHopper Increase &e(Available)'
         lore:
           - '&7'
-          - '&dNext Level: &e2'
+          - '&6Next Level: &e2'
           - '&7'
           - '&7Purchasing the hopper upgrade'
           - '&7will increase your island''s'
           - '&7max hoppers limit.'
           - '&7'
-          - '&dAmount: &f16x Hoppers'
-          - '&dPrice: &f$1,000,000'
+          - '&6Amount: &716x Hoppers'
+          - '&6Price: &7$1,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: HOPPER
-        name: '&d&lHopper Increase &c(Unavailable)'
+        name: '&6&lHopper Increase &6(Unavailable)'
         lore:
           - '&7'
-          - '&dNext Level: &e2'
+          - '&6Next Level: &e2'
           - '&7'
           - '&7Purchasing the hopper upgrade'
           - '&7will increase your island''s'
           - '&7max hoppers limit.'
           - '&7'
-          - '&dAmount: &f16x Hoppers'
-          - '&dPrice: &f$1,000,000'
+          - '&6Amount: &716x Hoppers'
+          - '&6Price: &7$1,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -65,38 +65,38 @@ upgrades:
     '2':
       has-next-level:
         type: HOPPER
-        name: '&d&lHopper Increase &a(Available)'
+        name: '&6&lHopper Increase &e(Available)'
         lore:
           - '&7'
-          - '&dNext Level: &e3'
+          - '&6Next Level: &e3'
           - '&7'
           - '&7Purchasing the hopper upgrade'
           - '&7will increase your island''s'
           - '&7max hoppers limit.'
           - '&7'
-          - '&dAmount: &f32x Hoppers'
-          - '&dPrice: &f$3,000,000'
+          - '&6Amount: &732x Hoppers'
+          - '&6Price: &7$3,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: HOPPER
-        name: '&d&lHopper Increase &c(Unavailable)'
+        name: '&6&lHopper Increase &6(Unavailable)'
         lore:
           - '&7'
-          - '&dNext Level: &e3'
+          - '&6Next Level: &e3'
           - '&7'
           - '&7Purchasing the hopper upgrade'
           - '&7will increase your island''s'
           - '&7max hoppers limit.'
           - '&7'
-          - '&dAmount: &f32x Hoppers'
-          - '&dPrice: &f$3,000,000'
+          - '&6Amount: &732x Hoppers'
+          - '&6Price: &7$3,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -104,38 +104,38 @@ upgrades:
     '3':
       has-next-level:
         type: HOPPER
-        name: '&d&lHopper Increase &a(Available)'
+        name: '&6&lHopper Increase &e(Available)'
         lore:
           - '&7'
-          - '&dNext Level: &e4'
+          - '&6Next Level: &e4'
           - '&7'
           - '&7Purchasing the hopper upgrade'
           - '&7will increase your island''s'
           - '&7max hoppers limit.'
           - '&7'
-          - '&dAmount: &f64x Hoppers'
-          - '&dPrice: &f$9,000,000'
+          - '&6Amount: &764x Hoppers'
+          - '&6Price: &7$9,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: HOPPER
-        name: '&d&lHopper Increase &c(Unavailable)'
+        name: '&6&lHopper Increase &6(Unavailable)'
         lore:
           - '&7'
-          - '&dNext Level: &e2'
+          - '&6Next Level: &e2'
           - '&7'
           - '&7Purchasing the hopper upgrade'
           - '&7will increase your island''s'
           - '&7max hoppers limit.'
           - '&7'
-          - '&dAmount: &f64x Hoppers'
-          - '&dPrice: &f$9,000,000'
+          - '&6Amount: &764x Hoppers'
+          - '&6Price: &7$9,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -143,7 +143,7 @@ upgrades:
     '4':
       has-next-level:
         type: HOPPER
-        name: '&c&lMAX LEVEL'
+        name: '&6&lMAX LEVEL'
         lore:
           - '&7You have reached the maximum'
           - '&7level of the hoppers limit!'
@@ -153,7 +153,7 @@ upgrades:
           pitch: 0.2
       no-next-level:
         type: HOPPER
-        name: '&c&lMAX LEVEL'
+        name: '&6&lMAX LEVEL'
         lore:
           - '&7You have reached the maximum'
           - '&7level of the hoppers limit!'
@@ -166,7 +166,7 @@ upgrades:
     '1':
       has-next-level:
         type: DIAMOND_HOE
-        name: '&e&lCrop Growth &a(Available)'
+        name: '&6&lCrop Growth &e(Available)'
         lore:
           - '&7'
           - '&eNext Level: 2'
@@ -175,10 +175,10 @@ upgrades:
           - '&7gives all crops within your island'
           - '&7increased growth speed.'
           - '&7'
-          - '&eGrowth: &fx2 Speed'
-          - '&ePrice: &f$100,000'
+          - '&eGrowth: &7x2 Speed'
+          - '&ePrice: &7$100,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         flags:
           - HIDE_ATTRIBUTES
         sound:
@@ -187,7 +187,7 @@ upgrades:
           pitch: 0.2
       no-next-level:
         type: DIAMOND_HOE
-        name: '&e&lCrop Growth &c(Unavailable)'
+        name: '&6&lCrop Growth &6(Unavailable)'
         lore:
           - '&7'
           - '&eNext Level: 2'
@@ -196,10 +196,10 @@ upgrades:
           - '&7gives all crops within your island'
           - '&7increased growth speed.'
           - '&7'
-          - '&eGrowth: &fx2 Speed'
-          - '&ePrice: &f$100,000'
+          - '&eGrowth: &7x2 Speed'
+          - '&ePrice: &7$100,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         flags:
           - HIDE_ATTRIBUTES
         sound:
@@ -209,7 +209,7 @@ upgrades:
     '2':
       has-next-level:
         type: DIAMOND_HOE
-        name: '&e&lCrop Growth &a(Available)'
+        name: '&6&lCrop Growth &e(Available)'
         lore:
           - '&7'
           - '&eNext Level: 3'
@@ -218,10 +218,10 @@ upgrades:
           - '&7gives all crops within your island'
           - '&7increased growth speed.'
           - '&7'
-          - '&eGrowth: &fx3 Speed'
-          - '&ePrice: &f$500,000'
+          - '&eGrowth: &7x3 Speed'
+          - '&ePrice: &7$500,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         flags:
           - HIDE_ATTRIBUTES
         sound:
@@ -230,7 +230,7 @@ upgrades:
           pitch: 0.2
       no-next-level:
         type: DIAMOND_HOE
-        name: '&e&lCrop Growth &c(Unavailable)'
+        name: '&6&lCrop Growth &6(Unavailable)'
         lore:
           - '&7'
           - '&eNext Level: 3'
@@ -239,10 +239,10 @@ upgrades:
           - '&7gives all crops within your island'
           - '&7increased growth speed.'
           - '&7'
-          - '&eGrowth: &fx3 Speed'
-          - '&ePrice: &f$500,000'
+          - '&eGrowth: &7x3 Speed'
+          - '&ePrice: &7$500,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         flags:
           - HIDE_ATTRIBUTES
         sound:
@@ -252,7 +252,7 @@ upgrades:
     '3':
       has-next-level:
         type: DIAMOND_HOE
-        name: '&e&lCrop Growth &a(Available)'
+        name: '&6&lCrop Growth &e(Available)'
         lore:
           - '&7'
           - '&eNext Level: 4'
@@ -261,10 +261,10 @@ upgrades:
           - '&7gives all crops within your island'
           - '&7increased growth speed.'
           - '&7'
-          - '&eGrowth: &fx4 Speed'
-          - '&ePrice: &f$1,000,000'
+          - '&eGrowth: &7x4 Speed'
+          - '&ePrice: &7$1,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         flags:
           - HIDE_ATTRIBUTES
         sound:
@@ -273,7 +273,7 @@ upgrades:
           pitch: 0.2
       no-next-level:
         type: DIAMOND_HOE
-        name: '&e&lCrop Growth &c(Unavailable)'
+        name: '&6&lCrop Growth &6(Unavailable)'
         lore:
           - '&7'
           - '&eNext Level: 4'
@@ -282,10 +282,10 @@ upgrades:
           - '&7gives all crops within your island'
           - '&7increased growth speed.'
           - '&7'
-          - '&eGrowth: &fx4 Speed'
-          - '&ePrice: &f$1,000,000'
+          - '&eGrowth: &7x4 Speed'
+          - '&ePrice: &7$1,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         flags:
           - HIDE_ATTRIBUTES
         sound:
@@ -295,7 +295,7 @@ upgrades:
     '4':
       has-next-level:
         type: DIAMOND_HOE
-        name: '&c&lMAX LEVEL'
+        name: '&6&lMAX LEVEL'
         lore:
           - '&7You have reached the maximum'
           - '&7level of the crop growth!'
@@ -307,7 +307,7 @@ upgrades:
           pitch: 0.2
       no-next-level:
         type: DIAMOND_HOE
-        name: '&c&lMAX LEVEL'
+        name: '&6&lMAX LEVEL'
         lore:
           - '&7You have reached the maximum'
           - '&7level of the crop growth!'
@@ -322,19 +322,19 @@ upgrades:
     '1':
       has-next-level:
         type: SPAWNER
-        name: '&b&lSpawner Boost &a(Available)'
+        name: '&6&lSpawner Boost &e(Available)'
         lore:
           - '&7'
-          - '&bNext Level: &e2'
+          - '&eNext Level: &e2'
           - '&7'
           - '&7Purchasing the spawner upgrade'
           - '&7gives all spawners within your island'
           - '&7increased spawn speed.'
           - '&7'
-          - '&bBoost: &fx2 Speed'
-          - '&bPrice: &f$500,000'
+          - '&eBoost: &7x2 Speed'
+          - '&ePrice: &7$500,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         flags:
           - HIDE_ATTRIBUTES
         sound:
@@ -343,19 +343,19 @@ upgrades:
           pitch: 0.2
       no-next-level:
         type: SPAWNER
-        name: '&b&lSpawner Boost &c(Unavailable)'
+        name: '&6&lSpawner Boost &6(Unavailable)'
         lore:
           - '&7'
-          - '&bNext Level: &e2'
+          - '&eNext Level: &e2'
           - '&7'
           - '&7Purchasing the spawner upgrade'
           - '&7gives all spawners within your island'
           - '&7increased spawn speed.'
           - '&7'
-          - '&bBoost: &fx2 Speed'
-          - '&bPrice: &f$500,000'
+          - '&eBoost: &7x2 Speed'
+          - '&ePrice: &7$500,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         flags:
           - HIDE_ATTRIBUTES
         sound:
@@ -365,19 +365,19 @@ upgrades:
     '2':
       has-next-level:
         type: SPAWNER
-        name: '&b&lSpawner Boost &a(Available)'
+        name: '&6&lSpawner Boost &e(Available)'
         lore:
           - '&7'
-          - '&bNext Level: &e3'
+          - '&eNext Level: &e3'
           - '&7'
           - '&7Purchasing the spawner upgrade'
           - '&7gives all spawners within your island'
           - '&7increased spawn speed.'
           - '&7'
-          - '&bBoost: &fx3 Speed'
-          - '&bPrice: &f$1,000,000'
+          - '&eBoost: &7x3 Speed'
+          - '&ePrice: &7$1,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         flags:
           - HIDE_ATTRIBUTES
         sound:
@@ -386,19 +386,19 @@ upgrades:
           pitch: 0.2
       no-next-level:
         type: SPAWNER
-        name: '&b&lSpawner Boost &c(Unavailable)'
+        name: '&6&lSpawner Boost &6(Unavailable)'
         lore:
           - '&7'
-          - '&bNext Level: &e3'
+          - '&eNext Level: &e3'
           - '&7'
           - '&7Purchasing the spawner upgrade'
           - '&7gives all spawners within your island'
           - '&7increased spawn speed.'
           - '&7'
-          - '&bBoost: &fx3 Speed'
-          - '&bPrice: &f$1,000,000'
+          - '&eBoost: &7x3 Speed'
+          - '&ePrice: &7$1,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         flags:
           - HIDE_ATTRIBUTES
         sound:
@@ -408,19 +408,19 @@ upgrades:
     '3':
       has-next-level:
         type: SPAWNER
-        name: '&b&lSpawner Boost &a(Available)'
+        name: '&6&lSpawner Boost &e(Available)'
         lore:
           - '&7'
-          - '&bNext Level: &e4'
+          - '&eNext Level: &e4'
           - '&7'
           - '&7Purchasing the spawner upgrade'
           - '&7gives all spawners within your island'
           - '&7increased spawn speed.'
           - '&7'
-          - '&bBoost: &fx4 Speed'
-          - '&bPrice: &f$2,500,000'
+          - '&eBoost: &7x4 Speed'
+          - '&ePrice: &7$2,500,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         flags:
           - HIDE_ATTRIBUTES
         sound:
@@ -429,19 +429,19 @@ upgrades:
           pitch: 0.2
       no-next-level:
         type: SPAWNER
-        name: '&b&lSpawner Boost &c(Unavailable)'
+        name: '&6&lSpawner Boost &6(Unavailable)'
         lore:
           - '&7'
-          - '&bNext Level: &e4'
+          - '&eNext Level: &e4'
           - '&7'
           - '&7Purchasing the spawner upgrade'
           - '&7gives all spawners within your island'
           - '&7increased spawn speed.'
           - '&7'
-          - '&bBoost: &fx4 Speed'
-          - '&bPrice: &f$2,500,000'
+          - '&eBoost: &7x4 Speed'
+          - '&ePrice: &7$2,500,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         flags:
           - HIDE_ATTRIBUTES
         sound:
@@ -451,7 +451,7 @@ upgrades:
     '4':
       has-next-level:
         type: SPAWNER
-        name: '&c&lMAX LEVEL'
+        name: '&6&lMAX LEVEL'
         lore:
           - '&7You have reached the maximum'
           - '&7level of the spawner rates!'
@@ -463,7 +463,7 @@ upgrades:
           pitch: 0.2
       no-next-level:
         type: SPAWNER
-        name: '&c&lMAX LEVEL'
+        name: '&6&lMAX LEVEL'
         lore:
           - '&7You have reached the maximum'
           - '&7level of the spawner rates!'
@@ -478,38 +478,38 @@ upgrades:
     '1':
       has-next-level:
         type: ROTTEN_FLESH
-        name: '&4&lPremium Drops &a(Available)'
+        name: '&6&lPremium Drops &e(Available)'
         lore:
           - '&7'
-          - '&4Next Level: &e2'
+          - '&6Next Level: &e2'
           - '&7'
           - '&7Purchasing the drops upgrade'
           - '&7gives all mobs within your island'
           - '&7increased loot drops.'
           - '&7'
-          - '&4Amount: &fx2 Drops'
-          - '&4Price: &f$1,000,000'
+          - '&6Amount: &7x2 Drops'
+          - '&6Price: &7$1,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: ROTTEN_FLESH
-        name: '&4&lPremium Drops &c(Unavailable)'
+        name: '&6&lPremium Drops &6(Unavailable)'
         lore:
           - '&7'
-          - '&4Next Level: &e2'
+          - '&6Next Level: &e2'
           - '&7'
           - '&7Purchasing the drops upgrade'
           - '&7gives all mobs within your island'
           - '&7increased loot drops.'
           - '&7'
-          - '&4Amount: &fx2 Drops'
-          - '&4Price: &f$1,000,000'
+          - '&6Amount: &7x2 Drops'
+          - '&6Price: &7$1,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -517,38 +517,38 @@ upgrades:
     '2':
       has-next-level:
         type: ROTTEN_FLESH
-        name: '&4&lPremium Drops &a(Available)'
+        name: '&6&lPremium Drops &e(Available)'
         lore:
           - '&7'
-          - '&4Next Level: &e3'
+          - '&6Next Level: &e3'
           - '&7'
           - '&7Purchasing the drops upgrade'
           - '&7gives all mobs within your island'
           - '&7increased loot drops.'
           - '&7'
-          - '&4Amount: &fx3 Drops'
-          - '&4Price: &f$2,000,000'
+          - '&6Amount: &7x3 Drops'
+          - '&6Price: &7$2,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: ROTTEN_FLESH
-        name: '&4&lPremium Drops &c(Unavailable)'
+        name: '&6&lPremium Drops &6(Unavailable)'
         lore:
           - '&7'
-          - '&4Next Level: &e3'
+          - '&6Next Level: &e3'
           - '&7'
           - '&7Purchasing the drops upgrade'
           - '&7gives all mobs within your island'
           - '&7increased loot drops.'
           - '&7'
-          - '&4Amount: &fx3 Drops'
-          - '&4Price: &f$2,000,000'
+          - '&6Amount: &7x3 Drops'
+          - '&6Price: &7$2,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -556,38 +556,38 @@ upgrades:
     '3':
       has-next-level:
         type: ROTTEN_FLESH
-        name: '&4&lPremium Drops &a(Available)'
+        name: '&6&lPremium Drops &e(Available)'
         lore:
           - '&7'
-          - '&4Next Level: &e4'
+          - '&6Next Level: &e4'
           - '&7'
           - '&7Purchasing the drops upgrade'
           - '&7gives all mobs within your island'
           - '&7increased loot drops.'
           - '&7'
-          - '&4Amount: &fx4 Drops'
-          - '&4Price: &f$5,000,000'
+          - '&6Amount: &7x4 Drops'
+          - '&6Price: &7$5,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: ROTTEN_FLESH
-        name: '&4&lPremium Drops &c(Unavailable)'
+        name: '&6&lPremium Drops &6(Unavailable)'
         lore:
           - '&7'
-          - '&4Next Level: &e4'
+          - '&6Next Level: &e4'
           - '&7'
           - '&7Purchasing the drops upgrade'
           - '&7gives all mobs within your island'
           - '&7increased loot drops.'
           - '&7'
-          - '&4Amount: &fx4 Drops'
-          - '&4Price: &f$5,000,000'
+          - '&6Amount: &7x4 Drops'
+          - '&6Price: &7$5,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -595,7 +595,7 @@ upgrades:
     '4':
       has-next-level:
         type: ROTTEN_FLESH
-        name: '&c&lMAX LEVEL'
+        name: '&6&lMAX LEVEL'
         lore:
           - '&7You have reached the maximum'
           - '&7level of the mob drops!'
@@ -605,7 +605,7 @@ upgrades:
           pitch: 0.2
       no-next-level:
         type: ROTTEN_FLESH
-        name: '&c&lMAX LEVEL'
+        name: '&6&lMAX LEVEL'
         lore:
           - '&7You have reached the maximum'
           - '&7level of the mob drops!'
@@ -618,38 +618,38 @@ upgrades:
     '1':
       has-next-level:
         type: PLAYER_HEAD
-        name: '&2&lMembers Size &a(Available)'
+        name: '&6&lMembers Size &e(Available)'
         lore:
           - '&7'
-          - '&2Next Level: &e2'
+          - '&eNext Level: &e2'
           - '&7'
           - '&7Purchasing the members upgrade'
           - '&7will increase the maximum allowed'
           - '&7members in your island.'
           - '&7'
-          - '&2Amount: &f8 Members'
-          - '&2Price: &f$100,000'
+          - '&eAmount: &78 Members'
+          - '&ePrice: &7$100,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: PLAYER_HEAD
-        name: '&2&lMembers Size &c(Unavailable)'
+        name: '&6&lMembers Size &6(Unavailable)'
         lore:
           - '&7'
-          - '&2Next Level: &e2'
+          - '&eNext Level: &e2'
           - '&7'
           - '&7Purchasing the members upgrade'
           - '&7will increase the maximum allowed'
           - '&7members in your island.'
           - '&7'
-          - '&2Amount: &f8 Members'
-          - '&2Price: &f$100,000'
+          - '&eAmount: &78 Members'
+          - '&ePrice: &7$100,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -657,38 +657,38 @@ upgrades:
     '2':
       has-next-level:
         type: PLAYER_HEAD
-        name: '&2&lMembers Size &a(Available)'
+        name: '&6&lMembers Size &e(Available)'
         lore:
           - '&7'
-          - '&2Next Level: &e3'
+          - '&eNext Level: &e3'
           - '&7'
           - '&7Purchasing the members upgrade'
           - '&7will increase the maximum allowed'
           - '&7members in your island.'
           - '&7'
-          - '&2Amount: &f16 Members'
-          - '&2Price: &f$300,000'
+          - '&eAmount: &716 Members'
+          - '&ePrice: &7$300,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: PLAYER_HEAD
-        name: '&2&lMembers Size &c(Unavailable)'
+        name: '&6&lMembers Size &6(Unavailable)'
         lore:
           - '&7'
-          - '&2Next Level: &e3'
+          - '&eNext Level: &e3'
           - '&7'
           - '&7Purchasing the members upgrade'
           - '&7will increase the maximum allowed'
           - '&7members in your island.'
           - '&7'
-          - '&2Amount: &f16 Members'
-          - '&2Price: &f$300,000'
+          - '&eAmount: &716 Members'
+          - '&ePrice: &7$300,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -696,38 +696,38 @@ upgrades:
     '3':
       has-next-level:
         type: PLAYER_HEAD
-        name: '&2&lMembers Size &a(Available)'
+        name: '&6&lMembers Size &e(Available)'
         lore:
           - '&7'
-          - '&2Next Level: &e4'
+          - '&eNext Level: &e4'
           - '&7'
           - '&7Purchasing the members upgrade'
           - '&7will increase the maximum allowed'
           - '&7members in your island.'
           - '&7'
-          - '&2Amount: &f32 Members'
-          - '&2Price: &f$500,000'
+          - '&eAmount: &732 Members'
+          - '&ePrice: &7$500,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: PLAYER_HEAD
-        name: '&2&lMembers Size &c(Unavailable)'
+        name: '&6&lMembers Size &6(Unavailable)'
         lore:
           - '&7'
-          - '&2Next Level: &e4'
+          - '&eNext Level: &e4'
           - '&7'
           - '&7Purchasing the members upgrade'
           - '&7will increase the maximum allowed'
           - '&7members in your island.'
           - '&7'
-          - '&2Amount: &f32 Members'
-          - '&2Price: &f$500,000'
+          - '&eAmount: &732 Members'
+          - '&ePrice: &7$500,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -735,7 +735,7 @@ upgrades:
     '4':
       has-next-level:
         type: PLAYER_HEAD
-        name: '&c&lMAX LEVEL'
+        name: '&6&lMAX LEVEL'
         lore:
           - '&7You have reached the maximum'
           - '&7level of the members limit!'
@@ -745,7 +745,7 @@ upgrades:
           pitch: 0.2
       no-next-level:
         type: PLAYER_HEAD
-        name: '&c&lMAX LEVEL'
+        name: '&6&lMAX LEVEL'
         lore:
           - '&7You have reached the maximum'
           - '&7level of the members limit!'
@@ -758,38 +758,38 @@ upgrades:
     '1':
       has-next-level:
         type: BARRIER
-        name: '&9&lBorder Size &a(Available)'
+        name: '&6&lBorder Size &e(Available)'
         lore:
           - '&7'
-          - '&9Next Level: &e2'
+          - '&6Next Level: &e2'
           - '&7'
           - '&7Purchasing the border upgrade'
           - '&7will increase the radius'
           - '&7of your island.'
           - '&7'
-          - '&9Radius: &f50 Blocks'
-          - '&9Price: &f$30,000'
+          - '&6Radius: &750 Blocks'
+          - '&6Price: &7$30,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: BARRIER
-        name: '&9&lBorder Size &c(Unavailable)'
+        name: '&6&lBorder Size &6(Unavailable)'
         lore:
           - '&7'
-          - '&9Next Level: &e2'
+          - '&6Next Level: &e2'
           - '&7'
           - '&7Purchasing the border upgrade'
           - '&7will increase the radius'
           - '&7of your island.'
           - '&7'
-          - '&9Radius: &f50 Blocks'
-          - '&9Price: &f$30,000'
+          - '&6Radius: &750 Blocks'
+          - '&6Price: &7$30,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -797,38 +797,38 @@ upgrades:
     '2':
       has-next-level:
         type: BARRIER
-        name: '&9&lBorder Size &a(Available)'
+        name: '&6&lBorder Size &e(Available)'
         lore:
           - '&7'
-          - '&9Next Level: &e3'
+          - '&6Next Level: &e3'
           - '&7'
           - '&7Purchasing the border upgrade'
           - '&7will increase the radius'
           - '&7of your island.'
           - '&7'
-          - '&9Radius: &f75 Blocks'
-          - '&9Price: &f$80,000'
+          - '&6Radius: &775 Blocks'
+          - '&6Price: &7$80,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: BARRIER
-        name: '&9&lBorder Size &c(Unavailable)'
+        name: '&6&lBorder Size &6(Unavailable)'
         lore:
           - '&7'
-          - '&9Next Level: &e3'
+          - '&6Next Level: &e3'
           - '&7'
           - '&7Purchasing the border upgrade'
           - '&7will increase the radius'
           - '&7of your island.'
           - '&7'
-          - '&9Radius: &f75 Blocks'
-          - '&9Price: &f$80,000'
+          - '&6Radius: &775 Blocks'
+          - '&6Price: &7$80,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -836,38 +836,38 @@ upgrades:
     '3':
       has-next-level:
         type: BARRIER
-        name: '&9&lBorder Size &a(Available)'
+        name: '&6&lBorder Size &e(Available)'
         lore:
           - '&7'
-          - '&9Next Level: &e4'
+          - '&6Next Level: &e4'
           - '&7'
           - '&7Purchasing the border upgrade'
           - '&7will increase the radius'
           - '&7of your island.'
           - '&7'
-          - '&9Radius: &f125 Blocks'
-          - '&9Price: &f$150,000'
+          - '&6Radius: &7125 Blocks'
+          - '&6Price: &7$150,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: BARRIER
-        name: '&9&lBorder Size &c(Unavailable)'
+        name: '&6&lBorder Size &6(Unavailable)'
         lore:
           - '&7'
-          - '&9Next Level: &e4'
+          - '&6Next Level: &e4'
           - '&7'
           - '&7Purchasing the border upgrade'
           - '&7will increase the radius'
           - '&7of your island.'
           - '&7'
-          - '&9Radius: &f125 Blocks'
-          - '&9Price: &f$150,000'
+          - '&6Radius: &7125 Blocks'
+          - '&6Price: &7$150,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -875,7 +875,7 @@ upgrades:
     '4':
       has-next-level:
         type: BARRIER
-        name: '&c&lMAX LEVEL'
+        name: '&6&lMAX LEVEL'
         lore:
           - '&7You have reached the maximum'
           - '&7level of the border size!'
@@ -885,7 +885,7 @@ upgrades:
           pitch: 0.2
       no-next-level:
         type: BARRIER
-        name: '&c&lMAX LEVEL'
+        name: '&6&lMAX LEVEL'
         lore:
           - '&7You have reached the maximum'
           - '&7level of the border size!'
@@ -898,46 +898,46 @@ upgrades:
     '1':
       has-next-level:
         type: COBBLESTONE
-        name: '&3&lGenerator Boost &a(Available)'
+        name: '&6&lGenerator Boost &e(Available)'
         lore:
           - '&7'
-          - '&3Next Level: &e2'
+          - '&6Next Level: &e2'
           - '&7'
           - '&7Purchasing the generator upgrade'
           - '&7will increase rates of ores from'
           - '&7cobblestone generators in your island.'
           - '&7'
-          - '&3Rates:'
-          - ' &7 - &f92% Stone'
-          - ' &7 - &f5% Coal Ore'
-          - ' &7 - &f3% Redstone Ore'
+          - '&6Rates:'
+          - ' &7 - &792% Stone'
+          - ' &7 - &75% Coal Ore'
+          - ' &7 - &73% Redstone Ore'
           - '&7'
-          - '&3Price: &f$25,000'
+          - '&6Price: &7$25,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: COBBLESTONE
-        name: '&3&lGenerator Boost &c(Unavailable)'
+        name: '&6&lGenerator Boost &6(Unavailable)'
         lore:
           - '&7'
-          - '&3Next Level: &e2'
+          - '&6Next Level: &e2'
           - '&7'
           - '&7Purchasing the generator upgrade'
           - '&7will increase rates of ores from'
           - '&7cobblestone generators in your island.'
           - '&7'
-          - '&3Rates:'
-          - ' &7 - &f92% Stone'
-          - ' &7 - &f5% Coal Ore'
-          - ' &7 - &f3% Redstone Ore'
+          - '&6Rates:'
+          - ' &7 - &792% Stone'
+          - ' &7 - &75% Coal Ore'
+          - ' &7 - &73% Redstone Ore'
           - '&7'
-          - '&3Price: &f$25,000'
+          - '&6Price: &7$25,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -945,50 +945,50 @@ upgrades:
     '2':
       has-next-level:
         type: COBBLESTONE
-        name: '&3&lGenerator Boost &a(Available)'
+        name: '&6&lGenerator Boost &e(Available)'
         lore:
           - '&7'
-          - '&3Next Level: &e3'
+          - '&6Next Level: &e3'
           - '&7'
           - '&7Purchasing the generator upgrade'
           - '&7will increase rates of ores from'
           - '&7cobblestone generators in your island.'
           - '&7'
-          - '&3Rates:'
-          - ' &7 - &f80% Stone'
-          - ' &7 - &f8% Coal Ore'
-          - ' &7 - &f6% Redstone Ore'
-          - ' &7 - &f4% Lapis Ore'
-          - ' &7 - &f2% Iron Ore'
+          - '&6Rates:'
+          - ' &7 - &780% Stone'
+          - ' &7 - &78% Coal Ore'
+          - ' &7 - &76% Redstone Ore'
+          - ' &7 - &74% Lapis Ore'
+          - ' &7 - &72% Iron Ore'
           - '&7'
-          - '&3Price: &f$75,000'
+          - '&6Price: &7$75,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: COBBLESTONE
-        name: '&3&lGenerator Boost &c(Unavailable)'
+        name: '&6&lGenerator Boost &6(Unavailable)'
         lore:
           - '&7'
-          - '&3Next Level: &e3'
+          - '&6Next Level: &e3'
           - '&7'
           - '&7Purchasing the generator upgrade'
           - '&7will increase rates of ores from'
           - '&7cobblestone generators in your island.'
           - '&7'
-          - '&3Rates:'
-          - ' &7 - &f80% Stone'
-          - ' &7 - &f8% Coal Ore'
-          - ' &7 - &f6% Redstone Ore'
-          - ' &7 - &f4% Lapis Ore'
-          - ' &7 - &f2% Iron Ore'
+          - '&6Rates:'
+          - ' &7 - &780% Stone'
+          - ' &7 - &78% Coal Ore'
+          - ' &7 - &76% Redstone Ore'
+          - ' &7 - &74% Lapis Ore'
+          - ' &7 - &72% Iron Ore'
           - '&7'
-          - '&3Price: &f$75,000'
+          - '&6Price: &7$75,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -996,56 +996,56 @@ upgrades:
     '3':
       has-next-level:
         type: COBBLESTONE
-        name: '&3&lGenerator Boost &a(Available)'
+        name: '&6&lGenerator Boost &e(Available)'
         lore:
           - '&7'
-          - '&3Next Level: &e4'
+          - '&6Next Level: &e4'
           - '&7'
           - '&7Purchasing the generator upgrade'
           - '&7will increase rates of ores from'
           - '&7cobblestone generators in your island.'
           - '&7'
-          - '&3Rates:'
-          - ' &7 - &f65% Stone'
-          - ' &7 - &f10% Coal Ore'
-          - ' &7 - &f9% Redstone Ore'
-          - ' &7 - &f6% Lapis Ore'
-          - ' &7 - &f4% Iron Ore'
-          - ' &7 - &f3% Gold Ore'
-          - ' &7 - &f2% Diamond Ore'
-          - ' &7 - &f1% Emerald Ore'
+          - '&6Rates:'
+          - ' &7 - &765% Stone'
+          - ' &7 - &710% Coal Ore'
+          - ' &7 - &79% Redstone Ore'
+          - ' &7 - &76% Lapis Ore'
+          - ' &7 - &74% Iron Ore'
+          - ' &7 - &73% Gold Ore'
+          - ' &7 - &72% Diamond Ore'
+          - ' &7 - &71% Emerald Ore'
           - '&7'
-          - '&3Price: &f$150,000'
+          - '&6Price: &7$150,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: COBBLESTONE
-        name: '&3&lGenerator Boost &c(Unavailable)'
+        name: '&6&lGenerator Boost &6(Unavailable)'
         lore:
           - '&7'
-          - '&3Next Level: &e4'
+          - '&6Next Level: &e4'
           - '&7'
           - '&7Purchasing the generator upgrade'
           - '&7will increase rates of ores from'
           - '&7cobblestone generators in your island.'
           - '&7'
-          - '&3Rates:'
-          - ' &7 - &f65% Stone'
-          - ' &7 - &f10% Coal Ore'
-          - ' &7 - &f9% Redstone Ore'
-          - ' &7 - &f6% Lapis Ore'
-          - ' &7 - &f4% Iron Ore'
-          - ' &7 - &f3% Gold Ore'
-          - ' &7 - &f2% Diamond Ore'
-          - ' &7 - &f1% Emerald Ore'
+          - '&6Rates:'
+          - ' &7 - &765% Stone'
+          - ' &7 - &710% Coal Ore'
+          - ' &7 - &79% Redstone Ore'
+          - ' &7 - &76% Lapis Ore'
+          - ' &7 - &74% Iron Ore'
+          - ' &7 - &73% Gold Ore'
+          - ' &7 - &72% Diamond Ore'
+          - ' &7 - &71% Emerald Ore'
           - '&7'
-          - '&3Price: &f$150,000'
+          - '&6Price: &7$150,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -1053,7 +1053,7 @@ upgrades:
     '4':
       has-next-level:
         type: COBBLESTONE
-        name: '&c&lMAX LEVEL'
+        name: '&6&lMAX LEVEL'
         lore:
           - '&7You have reached the maximum'
           - '&7level of the generator rates!'
@@ -1063,7 +1063,7 @@ upgrades:
           pitch: 0.2
       no-next-level:
         type: COBBLESTONE
-        name: '&c&lMAX LEVEL'
+        name: '&6&lMAX LEVEL'
         lore:
           - '&7You have reached the maximum'
           - '&7level of the generator rates!'
@@ -1076,38 +1076,38 @@ upgrades:
     '1':
       has-next-level:
         type: MINECART
-        name: '&d&lMinecart Increase &a(Available)'
+        name: '&6&lMinecart Increase &e(Available)'
         lore:
           - '&7'
-          - '&dNext Level: &e2'
+          - '&6Next Level: &e2'
           - '&7'
           - '&7Purchasing the minecart upgrade'
           - '&7will increase your island''s'
           - '&7max minecarts limit.'
           - '&7'
-          - '&dAmount: &f8x Minecarts'
-          - '&dPrice: &f$1,000,000'
+          - '&6Amount: &78x Minecarts'
+          - '&6Price: &7$1,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: MINECART
-        name: '&d&lHopper Increase &c(Unavailable)'
+        name: '&6&lHopper Increase &6(Unavailable)'
         lore:
           - '&7'
-          - '&dNext Level: &e2'
+          - '&6Next Level: &e2'
           - '&7'
           - '&7Purchasing the minecart upgrade'
           - '&7will increase your island''s'
           - '&7max minecarts limit.'
           - '&7'
-          - '&dAmount: &f8x Minecarts'
-          - '&dPrice: &f$1,000,000'
+          - '&6Amount: &78x Minecarts'
+          - '&6Price: &7$1,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -1115,38 +1115,38 @@ upgrades:
     '2':
       has-next-level:
         type: MINECART
-        name: '&d&lHopper Increase &a(Available)'
+        name: '&6&lHopper Increase &e(Available)'
         lore:
           - '&7'
-          - '&dNext Level: &e3'
+          - '&6Next Level: &e3'
           - '&7'
           - '&7Purchasing the minecart upgrade'
           - '&7will increase your island''s'
           - '&7max minecarts limit.'
           - '&7'
-          - '&dAmount: &f16x Minecarts'
-          - '&dPrice: &f$3,000,000'
+          - '&6Amount: &716x Minecarts'
+          - '&6Price: &7$3,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: MINECART
-        name: '&d&lHopper Increase &c(Unavailable)'
+        name: '&6&lHopper Increase &6(Unavailable)'
         lore:
           - '&7'
-          - '&dNext Level: &e3'
+          - '&6Next Level: &e3'
           - '&7'
           - '&7Purchasing the minecart upgrade'
           - '&7will increase your island''s'
           - '&7max minecarts limit.'
           - '&7'
-          - '&dAmount: &f16x Minecarts'
-          - '&dPrice: &f$3,000,000'
+          - '&6Amount: &716x Minecarts'
+          - '&6Price: &7$3,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -1154,38 +1154,38 @@ upgrades:
     '3':
       has-next-level:
         type: MINECART
-        name: '&d&lHopper Increase &a(Available)'
+        name: '&6&lHopper Increase &e(Available)'
         lore:
           - '&7'
-          - '&dNext Level: &e4'
+          - '&6Next Level: &e4'
           - '&7'
           - '&7Purchasing the minecart upgrade'
           - '&7will increase your island''s'
           - '&7max minecarts limit.'
           - '&7'
-          - '&dAmount: &f32x Minecarts'
-          - '&dPrice: &f$9,000,000'
+          - '&6Amount: &732x Minecarts'
+          - '&6Price: &7$9,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: ENTITY_EXPERIENCE_ORB_PICKUP
           volume: 0.2
           pitch: 0.2
       no-next-level:
         type: MINECART
-        name: '&d&lHopper Increase &c(Unavailable)'
+        name: '&6&lHopper Increase &6(Unavailable)'
         lore:
           - '&7'
-          - '&dNext Level: &e4'
+          - '&6Next Level: &e4'
           - '&7'
           - '&7Purchasing the minecart upgrade'
           - '&7will increase your island''s'
           - '&7max minecarts limit.'
           - '&7'
-          - '&dAmount: &f32x Minecarts'
-          - '&dPrice: &f$9,000,000'
+          - '&6Amount: &732x Minecarts'
+          - '&6Price: &7$9,000,000'
           - '&7'
-          - '&aClick to purchase upgrade.'
+          - '&eClick to purchase upgrade.'
         sound:
           type: BLOCK_ANVIL_PLACE
           volume: 0.2
@@ -1193,7 +1193,7 @@ upgrades:
     '4':
       has-next-level:
         type: MINECART
-        name: '&c&lMAX LEVEL'
+        name: '&6&lMAX LEVEL'
         lore:
           - '&7You have reached the maximum'
           - '&7level of the minecarts limit!'
@@ -1203,7 +1203,7 @@ upgrades:
           pitch: 0.2
       no-next-level:
         type: MINECART
-        name: '&c&lMAX LEVEL'
+        name: '&6&lMAX LEVEL'
         lore:
           - '&7You have reached the maximum'
           - '&7level of the minecarts limit!'

@@ -21,9 +21,9 @@ only-natural-blocks: true
 rewards:
   commands:
     - 'eco give %player% 250000'
-    - 'is admin msg %player% &e&lMiner | &7Successfully finished the mission Miner V!'
-    - 'is admin msg %player% &e&lMiner | &7Diamonds... diamonds... diamonds!'
-    - 'is admin msg %player% &e&lMiner | &7&oYou are now a professional Miner, congratz!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Successfully finished the mission Miner V!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Diamonds... diamonds... diamonds!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7&oYou are now a professional Miner, congratz!'
 
 # List of required missions that must be completed before completing this one.
 required-missions:
@@ -43,7 +43,7 @@ required-blocks:
 icons:
   locked:
     type: PAPER
-    name: '&aMiner V'
+    name: '&6Miner V'
     lore:
       - '&7It''s time to buy the best goodies.'
       - '&7Mine x32 diamond ores.'
@@ -55,11 +55,11 @@ icons:
       - '&8 - &7$250,000'
       - ''
       - '&6Diamond Ore Mined: &7{1}/32'
-      - '&c&l ✘ &7Locked'
+      - '&6&l ✘ &7Locked'
     amount: 5
   not-completed:
     type: PAPER
-    name: '&aMiner V'
+    name: '&6Miner V'
     lore:
       - '&7It''s time to buy the best goodies.'
       - '&7Mine x32 diamond ores.'
@@ -72,11 +72,11 @@ icons:
       - ''
       - '&6Diamond Ore Mined: &7{1}/32'
       - '&6Progress: &7{0}%'
-      - '&c&l ✘ &7Not Completed'
+      - '&6&l ✘ &7Not Completed'
     amount: 5
   can-complete:
     type: PAPER
-    name: '&aMiner V'
+    name: '&6Miner V'
     lore:
       - '&7It''s time to buy the best goodies.'
       - '&7Mine x32 diamond ores.'
@@ -89,12 +89,12 @@ icons:
       - ''
       - '&6Diamond Ore Mined: &732/32'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Click to redeem your reward.'
+      - '&e&l ✔ &7Click to redeem your reward.'
     amount: 5
     glow: true
   completed:
     type: MAP
-    name: '&aMiner V'
+    name: '&6Miner V'
     lore:
       - '&7It''s time to buy the best goodies.'
       - '&7Mine x32 diamond ores.'
@@ -104,5 +104,5 @@ icons:
       - ''
       - '&6Diamond Ore Mined: &732/32'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Already Claimed.'
+      - '&e&l ✔ &7Already Claimed.'
     amount: 5

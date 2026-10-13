@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&lCreate a new island...'
+title: '&6&lCreate a new island...'
 previous-menu: true
 
 pattern:
@@ -22,20 +22,20 @@ items:
       type: SKULL_ITEM
       data: 3
       skull: 'eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYzk1ZDM3OTkzZTU5NDA4MjY3ODQ3MmJmOWQ4NjgyMzQxM2MyNTBkNDMzMmEyYzdkOGM1MmRlNDk3NmIzNjIifX19'
-      name: '&eNormal Island &a(Available)'
+      name: '&6Normal Island &e(Available)'
       lore:
         - '&7Simple island with trees and a mining area!'
         - '&7 '
-        - '&7&o(( &f&oRight-Click &7&oto preview the island. ))'
+        - '&7&o(( &7&oRight-Click &7&oto preview the island. ))'
     no-access:
       type: SKULL_ITEM
       data: 3
       skull: 'eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYzk1ZDM3OTkzZTU5NDA4MjY3ODQ3MmJmOWQ4NjgyMzQxM2MyNTBkNDMzMmEyYzdkOGM1MmRlNDk3NmIzNjIifX19'
-      name: '&eNormal Island &c(Unavailable)'
+      name: '&6Normal Island &6(Unavailable)'
       lore:
         - '&7Simple island with trees and a mining area!'
         - '&7 '
-        - '&7&o(( &f&oRight-Click &7&oto preview the island. ))'
+        - '&7&o(( &7&oRight-Click &7&oto preview the island. ))'
   '^':
     schematic: 'mycel'
     biome: MUSHROOM_ISLAND
@@ -44,20 +44,20 @@ items:
       type: SKULL_ITEM
       data: 3
       skull: 'eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZWE0NWQxYjQxN2NiZGRjMjE3NjdiMDYwNDRlODk5YjI2NmJmNzhhNjZlMjE4NzZiZTNjMDUxNWFiNTVkNzEifX19'
-      name: '&eMycelium Island &a(Available)'
+      name: '&6Mycelium Island &e(Available)'
       lore:
         - '&7Customized island with lots of mycelium!'
         - '&7 '
-        - '&7&o(( &f&oRight-Click &7&oto preview the island. ))'
+        - '&7&o(( &7&oRight-Click &7&oto preview the island. ))'
     no-access:
       type: SKULL_ITEM
       data: 3
       skull: 'eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZWE0NWQxYjQxN2NiZGRjMjE3NjdiMDYwNDRlODk5YjI2NmJmNzhhNjZlMjE4NzZiZTNjMDUxNWFiNTVkNzEifX19'
-      name: '&eMycelium Island &c(Unavailable)'
+      name: '&6Mycelium Island &6(Unavailable)'
       lore:
         - '&7Customized island with lots of mycelium!'
         - '&7 '
-        - '&7&o(( &f&oRight-Click &7&oto preview the island. ))'
+        - '&7&o(( &7&oRight-Click &7&oto preview the island. ))'
   '$':
     schematic: 'desert'
     biome: DESERT
@@ -66,24 +66,24 @@ items:
       type: SKULL_ITEM
       data: 3
       skull: 'eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZjVkYjMxMjA2N2JlMWQ1YzRmMTQ3OGFmM2NhMmY2Y2Y4MTA0YWI0Y2NiZmY1NzkxN2M4NTc4ZGFhMTUwMDJjMiJ9fX0='
-      name: '&eDesert Island &a(Available)'
+      name: '&6Desert Island &e(Available)'
       lore:
         - '&7Customized island with lots of sand!'
         - '&7 '
-        - '&7&o(( &f&oRight-Click &7&oto preview the island. ))'
+        - '&7&o(( &7&oRight-Click &7&oto preview the island. ))'
     no-access:
       type: SKULL_ITEM
       data: 3
       skull: 'eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZjVkYjMxMjA2N2JlMWQ1YzRmMTQ3OGFmM2NhMmY2Y2Y4MTA0YWI0Y2NiZmY1NzkxN2M4NTc4ZGFhMTUwMDJjMiJ9fX0='
-      name: '&eDesert Island &c(Unavailable)'
+      name: '&6Desert Island &6(Unavailable)'
       lore:
         - '&7Customized island with lots of sand!'
         - '&7 '
-        - '&7&o(( &f&oRight-Click &7&oto preview the island. ))'
+        - '&7&o(( &7&oRight-Click &7&oto preview the island. ))'
   '~':
     type: STAINED_GLASS_PANE
     data: 15
-    name: '&f'
+    name: '&8'
 
 sounds:
   '@':

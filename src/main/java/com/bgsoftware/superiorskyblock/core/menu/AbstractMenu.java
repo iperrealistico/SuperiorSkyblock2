@@ -161,7 +161,7 @@ public abstract class AbstractMenu<V extends AbstractMenuView<V, A>, A extends V
 
     private boolean validateClickContext(ButtonClickContext<V> context) {
         if (!context.getMenuView().isIslandContextCurrent()) {
-            com.bgsoftware.superiorskyblock.core.messages.Message.CUSTOM.send(context.getPlayer(), "&cThis island view is no longer current. Open it again.", true); return false;
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(context.getPlayer(), "This island view is no longer current. Open it again."); return false;
         }
         return true;
     }

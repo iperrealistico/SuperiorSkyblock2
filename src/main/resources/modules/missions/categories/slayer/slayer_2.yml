@@ -19,9 +19,9 @@ rewards:
   commands:
     - 'eco give %player% 15000'
     - 'is admin unlockworld %player% nether true'
-    - 'is admin msg %player% &e&lSlayer | &7Successfully finished the mission Slayer II!'
-    - 'is admin msg %player% &e&lSlayer | &7Explore the nether, bring some goodies back home.'
-    - 'is admin msg %player% &e&lSlayer | &7&oFor more information about the next mission, checkout /is missions'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Successfully finished the mission Slayer II!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Explore the nether, bring some goodies back home.'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7&oFor more information about the next mission, checkout /is missions'
 
 # List of required missions that must be completed before completing this one.
 required-missions:
@@ -50,7 +50,7 @@ required-entities:
 icons:
   locked:
     type: PAPER
-    name: '&aSlayer II'
+    name: '&6Slayer II'
     lore:
       - '&7It is time you build a farm.'
       - '&7Kill 120 hostile mobs.'
@@ -69,11 +69,11 @@ icons:
       - '&6Zombies Killed: &7{value_zombie}/32'
       - '&6Spiders Killed: &7{value_spider}/32'
       - '&6Creepers Killed: &7{value_creeper}/24'
-      - '&c&l ✘ &7Locked'
+      - '&6&l ✘ &7Locked'
     amount: 2
   not-completed:
     type: PAPER
-    name: '&aSlayer II'
+    name: '&6Slayer II'
     lore:
       - '&7It is time you build a farm.'
       - '&7Kill 120 hostile mobs.'
@@ -93,11 +93,11 @@ icons:
       - '&6Spiders Killed: &7{value_spider}/32'
       - '&6Creepers Killed: &7{value_creeper}/24'
       - '&6Progress: &7{0}%'
-      - '&c&l ✘ &7Not Completed'
+      - '&6&l ✘ &7Not Completed'
     amount: 2
   can-complete:
     type: PAPER
-    name: '&aSlayer II'
+    name: '&6Slayer II'
     lore:
       - '&7It is time you build a farm.'
       - '&7Kill 120 hostile mobs.'
@@ -117,12 +117,12 @@ icons:
       - '&6Spiders Killed: &732/32'
       - '&6Creepers Killed: &724/24'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Click to redeem your reward.'
+      - '&e&l ✔ &7Click to redeem your reward.'
     amount: 2
     glow: true
   completed:
     type: MAP
-    name: '&aSlayer II'
+    name: '&6Slayer II'
     lore:
       - '&7It is time you build a farm.'
       - '&7Kill 120 hostile mobs.'
@@ -136,5 +136,5 @@ icons:
       - '&6Spiders Killed: &732/32'
       - '&6Creepers Killed: &724/24'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Already Claimed.'
+      - '&e&l ✔ &7Already Claimed.'
     amount: 2

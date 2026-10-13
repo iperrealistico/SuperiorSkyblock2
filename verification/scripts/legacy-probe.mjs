@@ -106,6 +106,10 @@ async function create() {
 
 async function run() {
   const ready = await legacy('ready', 'SUPERIOR_LEGACY_READY')
+  const brandingFrom = messages.length
+  await command('/pvcskyprobe branding-check', 'SUPERIOR_BRANDING_PASS')
+  assert(messages.slice(brandingFrom).some(text => text.startsWith('[Skyblock]') && text.includes('The server language is English')),
+    'An actual English Skyblock service reply must reach the client')
   assert.match(ready, /mode=LEGACY quota=1/)
   assert(Number(ready.match(/preserved=(\d+)/)?.[1]) > 0)
   const denial = Buffer.from(ready.match(/denial=([^ ]+)/)[1], 'base64').toString('utf8')

@@ -331,6 +331,7 @@ public enum Message {
     PVC_OWNERSHIP_LIMIT_REACHED,
     PVC_ISLAND_CREATION_QUEUE_FULL,
     PVC_OWNERSHIP_POLICY_UNAVAILABLE,
+    PVC_SERVER_LANGUAGE_FIXED,
     CREATE_WORLD_FAILURE,
     DANGEROUS_COMMAND_APPROVED,
     DANGEROUS_COMMAND_CANCELLED,
@@ -940,7 +941,7 @@ public enum Message {
 
     @Nullable
     public IMessageComponent getComponent(Locale locale) {
-        return messages.get(locale);
+        return messages.get(PlayerLocales.getPresentationLocale(locale));
     }
 
     @Nullable
@@ -950,7 +951,9 @@ public enum Message {
 
     @Nullable
     public String getMessage(Locale locale, Object... args) {
-        return isEmpty(locale) ? defaultMessage : messages.get(locale).getMessage(args);
+        IMessageComponent component = getComponent(locale);
+        return component == null || component.getType() == IMessageComponent.Type.EMPTY || component.getMessage(EMPTY_ARGS).isEmpty()
+                ? defaultMessage : component.getMessage(args);
     }
 
     public final void sendPlayerOrConsole(@Nullable SuperiorPlayer superiorPlayer) {

@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&lIsland Members ({0}/{1})'
+title: '&6&lIsland Members ({0}/{1})'
 previous-menu: true
 
 pattern:
@@ -32,7 +32,7 @@ items:
     name: '{0}Previous Page'
   '*':
     type: SUNFLOWER
-    name: '&aCurrent Page'
+    name: '&6Current Page'
     lore:
       - '&7Page {0}'
   '^':
@@ -40,7 +40,7 @@ items:
     name: '{0}Next Page'
   '$':
     type: BLACK_STAINED_GLASS_PANE
-    name: '&f'
+    name: '&8'
 
 sounds:
   '@':

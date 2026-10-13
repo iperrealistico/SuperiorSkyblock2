@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&lIsland Coop Players ({0}/{1})'
+title: '&6&lIsland Coop Players ({0}/{1})'
 previous-menu: true
 
 pattern:
@@ -33,7 +33,7 @@ items:
     name: '{0}Previous Page'
   '*':
     type: DOUBLE_PLANT
-    name: '&aCurrent Page'
+    name: '&6Current Page'
     lore:
       - '&7Page {0}'
   '^':
@@ -42,7 +42,7 @@ items:
   '$':
     type: STAINED_GLASS_PANE
     data: 15
-    name: '&f'
+    name: '&8'
 
 sounds:
   '@':

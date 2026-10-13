@@ -284,7 +284,7 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
             com.bgsoftware.superiorskyblock.api.island.Island subjectIsland = subject == null ? null :
                     com.bgsoftware.superiorskyblock.commands.arguments.CommandArguments.resolvePlayerIsland(subject, true);
             if (subjectIsland == null) {
-                Message.CUSTOM.send(player, "&cChoose an explicit --island target before requesting this operation.", true); return;
+                com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(player, "Choose an explicit &6--island &7target before requesting this operation."); return;
             }
             targets.add(subjectIsland);
         } else if (command instanceof com.bgsoftware.superiorskyblock.commands.admin.CmdAdminData && args.length > 4 && "island".equalsIgnoreCase(args[3])) {
@@ -552,7 +552,7 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
 
         private boolean executeWithPolicy(CommandSender sender, String label, String[] args, boolean resumed) {
             if (!plugin.getPvcIslandService().isReady()) {
-                Message.CUSTOM.send(sender, "&eIsland metadata is being initialized or recovered. Please wait.", true); return false;
+                com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "Island metadata is being initialized or recovered. Please wait."); return false;
             }
             if (sender instanceof Player) {
                 Player actor = (Player) sender;
@@ -603,7 +603,7 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
                 parsed = IslandSelectorParser.parse(args, advanced || administrative || !(sender instanceof Player),
                         this::playerFamily, this::adminFamily, false);
             } catch (IllegalArgumentException invalid) {
-                Message.CUSTOM.send(sender, "&cUse one --island <id|uuid|name> selector before message text.", true);
+                com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "Use one &6--island &e<id|uuid|name> &7selector before message text.");
                 return false;
             }
             com.bgsoftware.superiorskyblock.api.island.Island target = parsed.selector == null ? null :
@@ -622,7 +622,7 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
         }
 
         private void policyUnavailable(CommandSender sender) {
-            Message.CUSTOM.send(sender, "&eIsland commands are temporarily unavailable. Please try again shortly.", true);
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "Island commands are temporarily unavailable. Please try again shortly.");
         }
 
         private String playerFamily(String alias) {
@@ -676,7 +676,7 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
                         return false;
                     }
                     if (!(sender instanceof Player) && !command.canBeExecutedByConsole()) {
-                        Message.CUSTOM.send(sender, "&cCan be executed only by players!", true);
+                        com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "This command can only be executed by players.");
                         return false;
                     }
 

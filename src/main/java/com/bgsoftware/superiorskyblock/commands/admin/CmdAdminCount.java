@@ -74,7 +74,7 @@ public class CmdAdminCount implements IAdminIslandCommand {
     public void execute(SuperiorSkyblockPlugin plugin, CommandSender sender, @Nullable SuperiorPlayer targetPlayer, Island island, String[] args) {
         if (args.length == 3) {
             if (!(sender instanceof Player)) {
-                Message.CUSTOM.send(sender, "&cYou must be a player in order to open the counts menu.", true);
+                com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "You must be a player to open the counts menu.");
                 return;
             }
 

@@ -88,6 +88,32 @@ public final class SuperiorProbe extends JavaPlugin {
                     reply(player, "SUPERIOR_ADMIN_REQUESTED");
                 }, 0);
                 case "status" -> status(player);
+                case "branding-check" -> {
+                    if (!superior.getPvcConfig().isDefaultLanguageForced())
+                        throw new IllegalStateException("Branding observer requires the default-language policy");
+                    SuperiorPlayer subject = superior.getPlayers().getSuperiorPlayer(player);
+                    java.util.Locale saved = subject.getUserLocale();
+                    Object previousView = subject.getOpenedView();
+                    try {
+                        subject.setUserLocale(java.util.Locale.ITALY);
+                        String response = com.bgsoftware.superiorskyblock.core.messages.Message.PVC_OWNERSHIP_LIMIT_REACHED
+                                .getMessage(java.util.Locale.ITALY, 2);
+                        String plain = org.bukkit.ChatColor.stripColor(response);
+                        if (!plain.startsWith("[Skyblock]") || !plain.contains("You have reached your limit") || !plain.contains("2"))
+                            throw new IllegalStateException("Stored Italian locale did not render the English Skyblock response");
+                        java.util.regex.Matcher colors = java.util.regex.Pattern.compile("[\\u00a7&]([0-9a-f])", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(response);
+                        while (colors.find()) if (!"6e78".contains(colors.group(1).toLowerCase(java.util.Locale.ROOT)))
+                            throw new IllegalStateException("Response used a color outside the PVC palette");
+                        if (!subject.getUserLocale().equals(java.util.Locale.ITALY))
+                            throw new IllegalStateException("Presentation changed the stored locale preference");
+                        com.bgsoftware.superiorskyblock.core.messages.Message.PVC_SERVER_LANGUAGE_FIXED.send(player,
+                                com.bgsoftware.superiorskyblock.player.PlayerLocales.getDefaultLocale().getDisplayName(java.util.Locale.ENGLISH));
+                        superior.getMenus().openPlayerLanguage(subject, null);
+                        if (subject.getOpenedView() != previousView)
+                            throw new IllegalStateException("Forced-language policy opened a language selection menu");
+                    } finally { subject.setUserLocale(saved); }
+                    reply(player, "SUPERIOR_BRANDING_PASS language=en-US storedPreference=retained prefix=Skyblock palette=PVC");
+                }
                 case "geometry-size-regression" -> {
                     com.bgsoftware.superiorskyblock.island.SIsland island =
                             (com.bgsoftware.superiorskyblock.island.SIsland) owned(player).get(0);

@@ -33,19 +33,19 @@ public class CalcTask implements Runnable {
     public void run() {
         if (Bukkit.getOnlinePlayers().size() > 0) {
             announceToPlayers(false);
-            announceToOps("&7&o[SuperiorSkyblock] Calculating islands...");
+            announceToOps("Calculating islands...");
             plugin.getGrid().calcAllIslands(() -> {
                 announceToPlayers(true);
-                announceToOps("&7&o[SuperiorSkyblock] Calculating islands done!");
+                announceToOps("Island calculations completed.");
             });
         }
     }
 
     private void announceToOps(String message) {
         for (Player player : Bukkit.getOnlinePlayers()) {
-            BukkitExecutor.entity(player, () -> { if (player.isOp()) Message.CUSTOM.send(player, message, true); });
+            BukkitExecutor.entity(player, () -> { if (player.isOp()) com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(player, message); });
         }
-        Message.CUSTOM.send(Bukkit.getConsoleSender(), message, true);
+        com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(Bukkit.getConsoleSender(), message);
     }
 
     private void announceToPlayers(boolean done) {

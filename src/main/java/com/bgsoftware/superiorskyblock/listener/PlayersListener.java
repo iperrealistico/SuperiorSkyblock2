@@ -185,7 +185,7 @@ public class PlayersListener extends AbstractGameEventListener {
             }
 
             // Checking auto language detection
-            if (plugin.getSettings().isAutoLanguageDetection() && !player.hasPlayedBefore()) {
+            if (plugin.getSettings().isAutoLanguageDetection() && !PlayerLocales.isDefaultLanguageForced() && !player.hasPlayedBefore()) {
                 Locale playerLocale = plugin.getNMSPlayers().getPlayerLocale(player);
                 if (playerLocale != null && PlayerLocales.isValidLocale(playerLocale) &&
                         !superiorPlayer.getUserLocale().equals(playerLocale)) {

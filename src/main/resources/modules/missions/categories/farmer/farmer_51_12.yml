@@ -19,9 +19,9 @@ rewards:
   commands:
     - 'eco give %player% 1000000'
     - 'is admin rankup %player% crop-growth'
-    - 'is admin msg %player% &e&lFarmer | &7Successfully finished the mission Farmer V!'
-    - 'is admin msg %player% &e&lFarmer | &7There is nothing you don''t know how to grow.'
-    - 'is admin msg %player% &e&lFarmer | &7&oYou are now a professional Farmer, congratz!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Successfully finished the mission Farmer V!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7There is nothing you don''t know how to grow.'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7&oYou are now a professional Farmer, congratz!'
 
 # List of required missions that must be completed before completing this one.
 required-missions:
@@ -69,7 +69,7 @@ required-plants:
 icons:
   locked:
     type: PAPER
-    name: '&aFarmer V'
+    name: '&6Farmer V'
     lore:
       - '&7Let''s go one step further,'
       - '&7Plant 5 stacks of each crop.'
@@ -90,11 +90,11 @@ icons:
       - '&6Grown Melons: &7{value_melon}/320'
       - '&6Grown Sugar Canes: &7{value_sugar_cane}/320'
       - '&6Grown Cactus: &7{value_cactus}/320'
-      - '&c&l ✘ &7Locked'
+      - '&6&l ✘ &7Locked'
     amount: 5
   not-completed:
     type: PAPER
-    name: '&aFarmer V'
+    name: '&6Farmer V'
     lore:
       - '&7Let''s go one step further,'
       - '&7Plant 5 stacks of each crop.'
@@ -116,11 +116,11 @@ icons:
       - '&6Grown Sugar Canes: &7{value_sugar_cane}/320'
       - '&6Grown Cactus: &7{value_cactus}/320'
       - '&6Progress: &7{0}%'
-      - '&c&l ✘ &7Not Completed'
+      - '&6&l ✘ &7Not Completed'
     amount: 5
   can-complete:
     type: PAPER
-    name: '&aFarmer V'
+    name: '&6Farmer V'
     lore:
       - '&7Let''s go one step further,'
       - '&7Plant 5 stacks of each crop.'
@@ -142,12 +142,12 @@ icons:
       - '&6Grown Sugar Canes: &7320/320'
       - '&6Grown Cactus: &7320/320'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Click to redeem your reward.'
+      - '&e&l ✔ &7Click to redeem your reward.'
     amount: 5
     glow: true
   completed:
     type: MAP
-    name: '&aFarmer V'
+    name: '&6Farmer V'
     lore:
       - '&7Let''s go one step further,'
       - '&7Plant 5 stacks of each crop.'
@@ -165,5 +165,5 @@ icons:
       - '&6Grown Sugar Canes: &7320/320'
       - '&6Grown Cactus: &7320/320'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Already Claimed.'
+      - '&e&l ✔ &7Already Claimed.'
     amount: 5

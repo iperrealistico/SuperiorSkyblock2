@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&lPermissions Controller'
+title: '&6&lPermissions Controller'
 previous-menu: true
 
 pattern:
@@ -21,20 +21,20 @@ current-page: '*'
 next-page: '^'
 
 messages:
-  no-role-permission: '&8 - &c{}'
-  exact-role-permission: '&8 - &2{}'
-  higher-role-permission: '&8 - &a{}'
+  no-role-permission: '&8 - &6{}'
+  exact-role-permission: '&8 - &e{}'
+  higher-role-permission: '&8 - &e{}'
 
 items:
   '$':
     type: CYAN_STAINED_GLASS_PANE
-    name: '&f'
+    name: '&8'
   '%':
     type: PAPER
     name: '{0}Previous Page'
   '*':
     type: SUNFLOWER
-    name: '&aCurrent Page'
+    name: '&6Current Page'
     lore:
       - '&7Page {0}'
   '^':
@@ -49,13 +49,13 @@ permissions:
       name: '&6All'
       lore:
         - '&7Access to all the abilities of the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: BEDROCK
       name: '&6All'
       lore:
         - '&7Access to all the abilities of the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: BEDROCK
       name: '&6All'
@@ -82,13 +82,13 @@ permissions:
       name: '&6Allay Interact'
       lore:
         - '&7Access to interact with allays inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: ALLAY_SPAWN_EGG
       name: '&6Allay Interact'
       lore:
         - '&7Access to interact with allays inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: ALLAY_SPAWN_EGG
       name: '&6Allay Interact'
@@ -115,13 +115,13 @@ permissions:
       name: '&6Animal Breed'
       lore:
         - '&7Access to breed animals inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       name: '&6Animal Breed'
       type: WHEAT
       lore:
         - '&7Access to breed animals inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       name: '&6Animal Breed'
       type: WHEAT
@@ -148,7 +148,7 @@ permissions:
       name: '&6Animal Damage'
       lore:
         - '&7Access to damage animals inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
       flags:
         - HIDE_ATTRIBUTES
     permission-disabled:
@@ -156,7 +156,7 @@ permissions:
       name: '&6Animal Damage'
       lore:
         - '&7Access to damage animals inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
       flags:
         - HIDE_ATTRIBUTES
     role-permission:
@@ -187,13 +187,13 @@ permissions:
       name: '&6Animal Shear'
       lore:
         - '&7Access to shear animals inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: SHEARS
       name: '&6Animal Shear'
       lore:
         - '&7Access to shear animals inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: SHEARS
       name: '&6Animal Shear'
@@ -220,13 +220,13 @@ permissions:
       name: '&6Animal Spawn'
       lore:
         - '&7Access to spawn animals inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: CHICKEN_SPAWN_EGG
       name: '&6Animal Spawn'
       lore:
         - '&7Access to spawn animals inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: CHICKEN_SPAWN_EGG
       name: '&6Animal Spawn'
@@ -253,13 +253,13 @@ permissions:
       name: '&6Ban Member'
       lore:
         - '&7Access to ban members from the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: SKELETON_SKULL
       name: '&6Ban Member'
       lore:
         - '&7Access to ban members from the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: SKELETON_SKULL
       name: '&6Ban Member'
@@ -286,7 +286,7 @@ permissions:
       name: '&6Break'
       lore:
         - '&7Access to break blocks inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
       flags:
         - HIDE_ATTRIBUTES
     permission-disabled:
@@ -294,7 +294,7 @@ permissions:
       name: '&6Break'
       lore:
         - '&7Access to break blocks inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
       flags:
         - HIDE_ATTRIBUTES
     role-permission:
@@ -325,13 +325,13 @@ permissions:
       name: '&6Brush'
       lore:
         - '&7Access to brush suspicious blocks inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: BRUSH
       name: '&6Brush'
       lore:
         - '&7Access to brush suspicious blocks inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: BRUSH
       name: '&6Brush'
@@ -358,13 +358,13 @@ permissions:
       name: '&6Build'
       lore:
         - '&7Access to place blocks inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: COBBLESTONE
       name: '&6Build'
       lore:
         - '&7Access to place blocks inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: COBBLESTONE
       name: '&6Build'
@@ -391,13 +391,13 @@ permissions:
       name: '&6Change Name'
       lore:
         - '&7Access to change the island''s name.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: NAME_TAG
       name: '&6Change Name'
       lore:
         - '&7Access to change the island''s name.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: NAME_TAG
       name: '&6Change Name'
@@ -424,13 +424,13 @@ permissions:
       name: '&6Chest Access'
       lore:
         - '&7Access to open chests inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: CHEST
       name: '&6Chest Access'
       lore:
         - '&7Access to open chests inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: CHEST
       name: '&6Chest Access'
@@ -457,13 +457,13 @@ permissions:
       name: '&6Chorus Fruit'
       lore:
         - '&7Access to consume chorus fruits inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: CHORUS_FRUIT
       name: '&6Chorus Fruit'
       lore:
         - '&7Access to consume chorus fruits inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: CHORUS_FRUIT
       name: '&6Chorus Fruit'
@@ -490,13 +490,13 @@ permissions:
       name: '&6Locked Bypass'
       lore:
         - '&7Access to bypass the island''s lock.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: TRIPWIRE_HOOK
       name: '&6Locked Bypass'
       lore:
         - '&7Access to bypass the island''s lock.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: TRIPWIRE_HOOK
       name: '&6Locked Bypass'
@@ -523,13 +523,13 @@ permissions:
       name: '&6Lock Island'
       lore:
         - '&7Access to lock the island from public.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: BARRIER
       name: '&6Lock Island'
       lore:
         - '&7Access to lock the island from public.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: BARRIER
       name: '&6Lock Island'
@@ -556,13 +556,13 @@ permissions:
       name: '&6Coop Member'
       lore:
         - '&7Access to add a player as a co-op member.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: GOLDEN_APPLE
       name: '&6Coop Member'
       lore:
         - '&7Access to add a player as a co-op member.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: GOLDEN_APPLE
       name: '&6Coop Member'
@@ -589,13 +589,13 @@ permissions:
       name: '&6Delete Warp'
       lore:
         - '&7Access to delete island warps.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: ENDER_PEARL
       name: '&6Delete Warp'
       lore:
         - '&7Access to delete island warps.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: ENDER_PEARL
       name: '&6Delete Warp'
@@ -622,13 +622,13 @@ permissions:
       name: '&6Demote Members'
       lore:
         - '&7Access to demote members inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: IRON_INGOT
       name: '&6Demote Members'
       lore:
         - '&7Access to demote members inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: IRON_INGOT
       name: '&6Demote Members'
@@ -652,19 +652,19 @@ permissions:
     display-menu: true
     permission-enabled:
       type: MAP
-      name: '&6Deposit Money'
+      name: '&eDeposit Money'
       lore:
         - '&7Access to deposit money into the island''s bank.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: MAP
-      name: '&6Deposit Money'
+      name: '&eDeposit Money'
       lore:
         - '&7Access to deposit money into the island''s bank.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: MAP
-      name: '&6Deposit Money'
+      name: '&eDeposit Money'
       lore:
         - '&7Access to deposit money into the island''s bank.'
         - '&7Role: &e{}&7.'
@@ -688,13 +688,13 @@ permissions:
       name: '&6Disband Island'
       lore:
         - '&7Access to disband the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: TNT
       name: '&6Disband Island'
       lore:
         - '&7Access to disband the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: TNT
       name: '&6Disband Island'
@@ -721,13 +721,13 @@ permissions:
       name: '&6Discord Show'
       lore:
         - '&7Access to check the island''s linked discord.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: LIGHT_BLUE_TERRACOTTA
       name: '&6Discord Show'
       lore:
         - '&7Access to check the island''s linked discord.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: LIGHT_BLUE_TERRACOTTA
       name: '&6Discord Show'
@@ -754,13 +754,13 @@ permissions:
       name: '&6Drop Items'
       lore:
         - '&7Access to drop items inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: ARROW
       name: '&6Drop Items'
       lore:
         - '&7Access to drop items inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: ARROW
       name: '&6Drop Items'
@@ -787,13 +787,13 @@ permissions:
       name: '&6Dye Sheep'
       lore:
         - '&7Access to dye sheep inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: SHEEP_SPAWN_EGG
       name: '&6Dye Sheep'
       lore:
         - '&7Access to dye sheep inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: SHEEP_SPAWN_EGG
       name: '&6Dye Sheep'
@@ -820,13 +820,13 @@ permissions:
       name: '&6Ender Pearl'
       lore:
         - '&7Access to use ender pearls inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: ENDER_PEARL
       name: '&6Ender Pearl'
       lore:
         - '&7Access to use ender pearls inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: ENDER_PEARL
       name: '&6Ender Pearl'
@@ -853,13 +853,13 @@ permissions:
       name: '&6Entity Ride'
       lore:
         - '&7Access to ride entities inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: SADDLE
       name: '&6Entity Ride'
       lore:
         - '&7Access to ride entities inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: SADDLE
       name: '&6Entity Ride'
@@ -886,13 +886,13 @@ permissions:
       name: '&6Expel Bypass'
       lore:
         - '&7Access to bypass from being expelled.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: FEATHER
       name: '&6Expel Bypass'
       lore:
         - '&7Access to bypass from being expelled.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: FEATHER
       name: '&6Expel Bypass'
@@ -919,13 +919,13 @@ permissions:
       name: '&6Expel Players'
       lore:
         - '&7Access to expel players from the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: DISPENSER
       name: '&6Expel Players'
       lore:
         - '&7Access to expel players from the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: DISPENSER
       name: '&6Expel Players'
@@ -952,13 +952,13 @@ permissions:
       name: '&6Farm Tramping'
       lore:
         - '&7Access to tramp farmlands inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: FARMLAND
       name: '&6Farm Tramping'
       lore:
         - '&7Access to tramp farmlands inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: FARMLAND
       name: '&6Farm Tramping'
@@ -985,13 +985,13 @@ permissions:
       name: '&6Fertilize'
       lore:
         - '&7Access to fertilize blocks around the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: BONE_MEAL
       name: '&6Fertilize'
       lore:
         - '&7Access to fertilize blocks around the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: BONE_MEAL
       name: '&6Fertilize'
@@ -1018,13 +1018,13 @@ permissions:
       name: '&6Fish'
       lore:
         - '&7Access fishing around the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: FISHING_ROD
       name: '&6Fish'
       lore:
         - '&7Access fishing around the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: FISHING_ROD
       name: '&6Fish'
@@ -1051,13 +1051,13 @@ permissions:
       name: '&6Fly'
       lore:
         - '&7Access fly around the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: FEATHER
       name: '&6Fly'
       lore:
         - '&7Access fly around the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: FEATHER
       name: '&6Fly'
@@ -1084,13 +1084,13 @@ permissions:
       name: '&6Horse Interact'
       lore:
         - '&7Access to interact with horses inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: HORSE_SPAWN_EGG
       name: '&6Horse Interact'
       lore:
         - '&7Access to interact with horses inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: HORSE_SPAWN_EGG
       name: '&6Horse Interact'
@@ -1117,13 +1117,13 @@ permissions:
       name: '&6Ignite Creepers'
       lore:
         - '&7Access to ignite creepers with flint and steel inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: CREEPER_SPAWN_EGG
       name: '&6Ignite Creepers'
       lore:
         - '&7Access to ignite creepers with flint and steel inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: CREEPER_SPAWN_EGG
       name: '&6Ignite Creepers'
@@ -1150,13 +1150,13 @@ permissions:
       name: '&6Interact'
       lore:
         - '&7Access to interact with blocks inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: PISTON
       name: '&6Interact'
       lore:
         - '&7Access to interact with blocks inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: PISTON
       name: '&6Interact'
@@ -1184,13 +1184,13 @@ permissions:
       name: '&6Invite Member'
       lore:
         - '&7Access to invite new members to the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: PLAYER_HEAD
       name: '&6Invite Member'
       lore:
         - '&7Access to invite new members to the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: PLAYER_HEAD
       name: '&6Invite Member'
@@ -1217,13 +1217,13 @@ permissions:
       name: '&6Community Chest'
       lore:
         - '&7Access to the community chest of the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: ENDER_CHEST
       name: '&6Community Chest'
       lore:
         - '&7Access to the community chest of the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: ENDER_CHEST
       name: '&6Community Chest'
@@ -1250,13 +1250,13 @@ permissions:
       name: '&6Item Frame'
       lore:
         - '&7Access to interact with item frames inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: ITEM_FRAME
       name: '&6Item Frame'
       lore:
         - '&7Access to interact with item frames inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: ITEM_FRAME
       name: '&6Item Frame'
@@ -1283,13 +1283,13 @@ permissions:
       name: '&6Kick Member'
       lore:
         - '&7Access to kick members from the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: SKELETON_SKULL
       name: '&6Kick Member'
       lore:
         - '&7Access to kick members from the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: SKELETON_SKULL
       name: '&6Kick Member'
@@ -1316,13 +1316,13 @@ permissions:
       name: '&6Leash Mobs'
       lore:
         - '&7Access to leash mobs inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: LEAD
       name: '&6Leash Mobs'
       lore:
         - '&7Access to leash mobs inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: LEAD
       name: '&6Leash Mobs'
@@ -1349,13 +1349,13 @@ permissions:
       name: '&6Minecart Damage'
       lore:
         - '&7Access to damage minecarts inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: TNT_MINECART
       name: '&6Minecart Damage'
       lore:
         - '&7Access to damage minecarts inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: TNT_MINECART
       name: '&6Minecart Damage'
@@ -1382,13 +1382,13 @@ permissions:
       name: '&6Minecart Enter'
       lore:
         - '&7Access to enter minecarts inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: HOPPER_MINECART
       name: '&6Minecart Enter'
       lore:
         - '&7Access to enter minecarts inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: HOPPER_MINECART
       name: '&6Minecart Enter'
@@ -1415,13 +1415,13 @@ permissions:
       name: '&6Minecart Open'
       lore:
         - '&7Access to open minecarts inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: CHEST_MINECART
       name: '&6Minecart Open'
       lore:
         - '&7Access to open minecarts inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: CHEST_MINECART
       name: '&6Minecart Open'
@@ -1448,13 +1448,13 @@ permissions:
       name: '&6Minecart Place'
       lore:
         - '&7Access to place minecarts inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: MINECART
       name: '&6Minecart Place'
       lore:
         - '&7Access to place minecarts inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: MINECART
       name: '&6Minecart Place'
@@ -1481,13 +1481,13 @@ permissions:
       name: '&6Monster Damage'
       lore:
         - '&7Access to damage monsters inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: ZOMBIE_HEAD
       name: '&6Monster Damage'
       lore:
         - '&7Access to damage monsters inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: ZOMBIE_HEAD
       name: '&6Monster Damage'
@@ -1514,13 +1514,13 @@ permissions:
       name: '&6Monster Spawn'
       lore:
         - '&7Access to spawn monsters inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: CAVE_SPIDER_SPAWN_EGG
       name: '&6Monster Spawn'
       lore:
         - '&7Access to spawn monsters inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: CAVE_SPIDER_SPAWN_EGG
       name: '&6Monster Spawn'
@@ -1547,13 +1547,13 @@ permissions:
       name: '&6Name Entity'
       lore:
         - '&7Access to name-tag entities inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: NAME_TAG
       name: '&6Name Entity'
       lore:
         - '&7Access to name-tag entities inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: NAME_TAG
       name: '&6Name Entity'
@@ -1580,13 +1580,13 @@ permissions:
       name: '&6Open Island'
       lore:
         - '&7Access to open the island to the public.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: REDSTONE_TORCH
       name: '&6Open Island'
       lore:
         - '&7Access to open the island to the public.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: REDSTONE_TORCH
       name: '&6Open Island'
@@ -1613,13 +1613,13 @@ permissions:
       name: '&6Painting'
       lore:
         - '&7Access to interact with paintings inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: PAINTING
       name: '&6Painting'
       lore:
         - '&7Access to interact with paintings inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: PAINTING
       name: '&6Painting'
@@ -1646,13 +1646,13 @@ permissions:
       name: '&6Paypal Show'
       lore:
         - '&7Access to check the island''s linked paypal.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: BLUE_WOOL
       name: '&6Paypal Show'
       lore:
         - '&7Access to check the island''s linked paypal.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: BLUE_WOOL
       name: '&6Paypal Show'
@@ -1679,13 +1679,13 @@ permissions:
       name: '&6Pickup Axolotls'
       lore:
         - '&7Access to pickup axolotls using a water bucket inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: AXOLOTL_SPAWN_EGG
       name: '&6Pickup Axolotls'
       lore:
         - '&7Access to pickup axolotls using a water bucket inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: AXOLOTL_SPAWN_EGG
       name: '&6Pickup Axolotls'
@@ -1712,13 +1712,13 @@ permissions:
       name: '&6Pickup Drops'
       lore:
         - '&7Access to pickup items inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: HOPPER
       name: '&6Pickup Drops'
       lore:
         - '&7Access to pickup items inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: HOPPER
       name: '&6Pickup Drops'
@@ -1745,13 +1745,13 @@ permissions:
       name: '&6Pickup Fish'
       lore:
         - '&7Access to pickup fish using buckets inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: COD
       name: '&6Pickup Fish'
       lore:
         - '&7Access to pickup fish using buckets inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: COD
       name: '&6Pickup Fish'
@@ -1778,13 +1778,13 @@ permissions:
       name: '&6Pickup Lectern Book'
       lore:
         - '&7Access to pickup books out of lecterns inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: LECTERN
       name: '&6Pickup Lectern Book'
       lore:
         - '&7Access to pickup books out of lecterns inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: LECTERN
       name: '&6Pickup Lectern Book'
@@ -1811,13 +1811,13 @@ permissions:
       name: '&6Promote Members'
       lore:
         - '&7Access to promote members inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: DIAMOND
       name: '&6Promote Members'
       lore:
         - '&7Access to promote members inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: DIAMOND
       name: '&6Promote Members'
@@ -1844,13 +1844,13 @@ permissions:
       name: '&6Upgrades Rankup'
       lore:
         - '&7Access to rankup island''s upgrades.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: GOLD_INGOT
       name: '&6Upgrades Rankup'
       lore:
         - '&7Access to rankup island''s upgrades.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: GOLD_INGOT
       name: '&6Upgrades Rankup'
@@ -1877,13 +1877,13 @@ permissions:
       name: '&6Ratings Show'
       lore:
         - '&7Access to see all island''s ratings.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: NETHER_STAR
       name: '&6Ratings Show'
       lore:
         - '&7Access to see all island''s ratings.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: NETHER_STAR
       name: '&6Ratings Show'
@@ -1910,13 +1910,13 @@ permissions:
       name: '&6Saddle Entity'
       lore:
         - '&7Access to add saddle to entities inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: SADDLE
       name: '&6Saddle Entity'
       lore:
         - '&7Access to add saddle to entities inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: SADDLE
       name: '&6Saddle Entity'
@@ -1943,13 +1943,13 @@ permissions:
       name: '&6Sculk Sensor'
       lore:
         - '&7Access to trigger sculk sensors inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: SCULK_SENSOR
       name: '&6Sculk Sensor'
       lore:
         - '&7Access to trigger sculk sensors inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: SCULK_SENSOR
       name: '&6Sculk Sensor'
@@ -1976,13 +1976,13 @@ permissions:
       name: '&6Set Biome'
       lore:
         - '&7Access to change the island''s biome.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: GRASS_BLOCK
       name: '&6Set Biome'
       lore:
         - '&7Access to change the island''s biome.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: GRASS_BLOCK
       name: '&6Set Biome'
@@ -2009,13 +2009,13 @@ permissions:
       name: '&6Set Discord'
       lore:
         - '&7Access to change the discord linked to the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: LIGHT_BLUE_TERRACOTTA
       name: '&6Set Discord'
       lore:
         - '&7Access to change the discord linked to the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: LIGHT_BLUE_TERRACOTTA
       name: '&6Set Discord'
@@ -2042,13 +2042,13 @@ permissions:
       name: '&6Set Home'
       lore:
         - '&7Access to change the home location of the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: RED_BED
       name: '&6Set Home'
       lore:
         - '&7Access to change the home location of the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: RED_BED
       name: '&6Set Home'
@@ -2075,13 +2075,13 @@ permissions:
       name: '&6Set Paypal'
       lore:
         - '&7Access to change the paypal linked to the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: BLUE_WOOL
       name: '&6Set Paypal'
       lore:
         - '&7Access to change the paypal linked to the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: BLUE_WOOL
       name: '&6Set Paypal'
@@ -2108,13 +2108,13 @@ permissions:
       name: '&6Set Permission'
       lore:
         - '&7Access to change permissions for island members.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: REPEATER
       name: '&6Set Permission'
       lore:
         - '&7Access to change permissions for island members.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: REPEATER
       name: '&6Set Permission'
@@ -2141,7 +2141,7 @@ permissions:
       name: '&6Set Role'
       lore:
         - '&7Access to change roles for island members.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
       flags:
         - HIDE_ATTRIBUTES
     permission-disabled:
@@ -2149,7 +2149,7 @@ permissions:
       name: '&6Set Role'
       lore:
         - '&7Access to change roles for island members.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
       flags:
         - HIDE_ATTRIBUTES
     role-permission:
@@ -2180,13 +2180,13 @@ permissions:
       name: '&6Set Settings'
       lore:
         - '&7Access to change settings for islands.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: LEVER
       name: '&6Set Settings'
       lore:
         - '&7Access to change settings for islands.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: LEVER
       name: '&6Set Settings'
@@ -2213,13 +2213,13 @@ permissions:
       name: '&6Set Warp'
       lore:
         - '&7Access to set new warps for the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: ENDER_EYE
       name: '&6Set Warp'
       lore:
         - '&7Access to set new warps for the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: ENDER_EYE
       name: '&6Set Warp'
@@ -2246,13 +2246,13 @@ permissions:
       name: '&6Sign Interact'
       lore:
         - '&7Access to interact with signs inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: OAK_SIGN
       name: '&6Sign Interact'
       lore:
         - '&7Access to interact with signs inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: OAK_SIGN
       name: '&6Sign Interact'
@@ -2279,7 +2279,7 @@ permissions:
       name: '&6Spawner Break'
       lore:
         - '&7Access to break spawners inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
       flags:
         - HIDE_ADDITIONAL_TOOLTIP
     permission-disabled:
@@ -2287,7 +2287,7 @@ permissions:
       name: '&6Spawner Break'
       lore:
         - '&7Access to break spawners inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
       flags:
         - HIDE_ADDITIONAL_TOOLTIP
     role-permission:
@@ -2318,13 +2318,13 @@ permissions:
       name: '&6Turtle Eggs Tramping'
       lore:
         - '&7Access to tramp turtle eggs inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: TURTLE_EGG
       name: '&6Turtle Eggs Tramping'
       lore:
         - '&7Access to tramp turtle eggs inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: TURTLE_EGG
       name: '&6Turtle Eggs Tramping'
@@ -2351,13 +2351,13 @@ permissions:
       name: '&6Tamed Animal Damage'
       lore:
         - '&7Access to damage tamed animals inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: BONE
       name: '&6Tamed Animal Damage'
       lore:
         - '&7Access to damage tamed animals inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: BONE
       name: '&6Tamed Animal Damage'
@@ -2384,13 +2384,13 @@ permissions:
       name: '&6Uncoop Member'
       lore:
         - '&7Access to remove co-op members from the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: GOLDEN_APPLE
       name: '&6Uncoop Member'
       lore:
         - '&7Access to remove co-op members from the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: GOLDEN_APPLE
       name: '&6Uncoop Member'
@@ -2417,13 +2417,13 @@ permissions:
       name: '&6Use'
       lore:
         - '&7Access to use different blocks inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: STONE_BUTTON
       name: '&6Use'
       lore:
         - '&7Access to use different blocks inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: STONE_BUTTON
       name: '&6Use'
@@ -2450,13 +2450,13 @@ permissions:
       name: '&6Valuable Blocks Break'
       lore:
         - '&7Access to break valuable blocks inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: GOLD_INGOT
       name: '&6Valuable Blocks Break'
       lore:
         - '&7Access to break valuable blocks inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: GOLD_INGOT
       name: '&6Valuable Blocks Break'
@@ -2484,14 +2484,14 @@ permissions:
       name: '&6Villagers Trading'
       lore:
         - '&7Access to trade with villagers inside the island.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: PLAYER_HEAD
       skull: 'eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDFiODMwZWI0MDgyYWNlYzgzNmJjODM1ZTQwYTExMjgyYmI1MTE5MzMxNWY5MTE4NDMzN2U4ZDM1NTU1ODMifX19'
       name: '&6Villagers Trading'
       lore:
         - '&7Access to trade with villagers inside the island.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: PLAYER_HEAD
       skull: 'eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNDFiODMwZWI0MDgyYWNlYzgzNmJjODM1ZTQwYTExMjgyYmI1MTE5MzMxNWY5MTE4NDMzN2U4ZDM1NTU1ODMifX19'
@@ -2516,19 +2516,19 @@ permissions:
     display-menu: true
     permission-enabled:
       type: EMERALD
-      name: '&6Withdraw Money'
+      name: '&eWithdraw Money'
       lore:
         - '&7Access to withdraw money from the island''s bank.'
-        - '&7Currently &aENABLED&7.'
+        - '&7Currently &eENABLED&7.'
     permission-disabled:
       type: EMERALD
-      name: '&6Withdraw Money'
+      name: '&eWithdraw Money'
       lore:
         - '&7Access to withdraw money from the island''s bank.'
-        - '&7Currently &cDISABLED&7.'
+        - '&7Currently &6DISABLED&7.'
     role-permission:
       type: EMERALD
-      name: '&6Withdraw Money'
+      name: '&eWithdraw Money'
       lore:
         - '&7Access to withdraw money from the island''s bank.'
         - '&7Role: &e{}&7.'

@@ -28,7 +28,7 @@ rewards:
       amount: 1
   commands:
     - 'eco give %player% 2500'
-    - 'is admin msg %player% &e&lFarmer | &7Successfully finished the mission Farmer I!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Successfully finished the mission Farmer I!'
 
 # List of all required plants must be gathered in order to complete the mission.
 required-plants:
@@ -49,7 +49,7 @@ required-plants:
 icons:
   not-completed:
     type: PAPER
-    name: '&aFarmer I'
+    name: '&6Farmer I'
     lore:
       - '&7Plant a small farm.'
       - ''
@@ -68,10 +68,10 @@ icons:
       - '&6Grown Potatoes: &7{value_potato}/10'
       - '&6Grown Wheat: &7{value_wheat}/10'
       - '&6Progress: &7{0}%'
-      - '&c&l ✘ &7Not Completed'
+      - '&6&l ✘ &7Not Completed'
   can-complete:
     type: PAPER
-    name: '&aFarmer I'
+    name: '&6Farmer I'
     lore:
       - '&7Plant a small farm.'
       - ''
@@ -90,11 +90,11 @@ icons:
       - '&6Grown Potatoes: &710/10'
       - '&6Grown Wheat: &710/10'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Click to redeem your reward.'
+      - '&e&l ✔ &7Click to redeem your reward.'
     glow: true
   completed:
     type: MAP
-    name: '&aFarmer I'
+    name: '&6Farmer I'
     lore:
       - '&7Plant a small farm.'
       - ''
@@ -108,4 +108,4 @@ icons:
       - '&6Grown Potatoes: &710/10'
       - '&6Grown Wheat: &710/10'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Already Claimed.'
+      - '&e&l ✔ &7Already Claimed.'

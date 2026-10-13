@@ -5,7 +5,7 @@ import com.bgsoftware.superiorskyblock.api.island.Island;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import com.bgsoftware.superiorskyblock.pvc.entitlement.PvcEntitlementService;
-import org.bukkit.ChatColor;
+import com.bgsoftware.superiorskyblock.pvc.PvcMessages;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -18,7 +18,7 @@ public final class PvcSizeCommands {
     private PvcSizeCommands() { }
 
     static void feedback(SuperiorSkyblockPlugin plugin, CommandSender sender, String text) {
-        Runnable deliver = () -> sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&6[SuperiorSkyblock] &7" + text));
+        Runnable deliver = () -> PvcMessages.send(sender, text);
         if (sender instanceof Player) BukkitExecutor.entity((Player) sender, deliver);
         else BukkitExecutor.global(deliver);
     }
@@ -68,7 +68,7 @@ public final class PvcSizeCommands {
             });
         }
         work.whenComplete((ignored, error) -> feedback(plugin, sender, error == null ?
-                "Owner-wide size override saved for " + owners.size() + " owner(s), including future islands." :
-                "Size update failed or a bulk update stopped. Inspect /is admin sizepolicy for the affected owner(s)."));
+                "Owner-wide size override saved for &e" + owners.size() + " &7owner(s), including future islands." :
+                "Size update failed or a bulk update stopped. Inspect &6/is admin sizepolicy &7for the affected owner(s)."));
     }
 }

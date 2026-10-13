@@ -22,14 +22,14 @@ public final class CmdIslandsList implements ISuperiorCommand {
         SuperiorPlayer player = plugin.getPlayers().getSuperiorPlayer(sender);
         List<Island> islands = player.getIslands(); int page = 1;
         try { if (args.length == 2) page = Integer.parseInt(args[1]); }
-        catch (NumberFormatException error) { Message.CUSTOM.send(sender, "&cInvalid page.", true); return; }
+        catch (NumberFormatException error) { com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "Invalid page."); return; }
         int pages = Math.max(1, (islands.size() + 9) / 10);
-        if (page < 1 || page > pages) { Message.CUSTOM.send(sender, "&cPage must be between 1 and " + pages + ".", true); return; }
-        Message.CUSTOM.send(sender, "&6Your islands &7(" + page + "/" + pages + ")", true);
+        if (page < 1 || page > pages) { com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "Page must be between &e1 &7and &e" + pages + "&7."); return; }
+        com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "&6Your islands &8(&e" + page + "&8/&e" + pages + "&8)");
         for (int i = (page - 1) * 10; i < Math.min(page * 10, islands.size()); i++) {
             Island island = islands.get(i);
-            Message.CUSTOM.send(sender, "&e#" + island.getShortId() + " &7" + island.getName() + " &8[" +
-                    (island.getOwner().equals(player) ? "Owner" : player.getPlayerRole(island).getName()) + "] &7/is select " + island.getShortId(), true);
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "&e#" + island.getShortId() + " &8| &e" + island.getName() + " &8[&7" +
+                    (island.getOwner().equals(player) ? "Owner" : player.getPlayerRole(island).getName()) + "&8] &6/is select &e" + island.getShortId());
         }
     }
     @Override public List<String> tabComplete(SuperiorSkyblockPlugin plugin, CommandSender sender, String[] args) { return Collections.emptyList(); }
