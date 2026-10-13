@@ -2,8 +2,8 @@
 
 This GPL-3.0 maintained source fork preserves upstream identity and adds
 multiple owned islands, highest-grant owner quotas/radii, durable operations
-and region-aware Folia execution. The exact `2026.3-pvc.2` artifact passed
-172 automated tests, 95 native phase runs and
+and region-aware Folia execution. The exact `2026.3-pvc.3` artifact passed
+242 automated tests, 95 native phase runs and
 two identical full clean main-JAR builds on the fixed Leaf/Folia 1.21.11 and
 26.2 builds in [VERIFICATION.md](VERIFICATION.md). The previous release's
 sanitized qualification ledger remains unchanged as historical evidence.
@@ -14,7 +14,8 @@ Operators should read [installation/rollback](INSTALLATION.md),
 [all command contracts](COMMANDS.md) and [owner policy](ENTITLEMENTS.md).
 Maintainers should read [Folia architecture](FOLIA.md),
 [upstream integration](UPSTREAM.md), [patch families](PATCHES.md) and
-[API/addon migration](API-MIGRATION.md).
+[API/addon migration](API-MIGRATION.md). The command and shared-state follow-up
+is summarized in [PVC3 corrections](CORRECTIONS-PVC3.md).
 
 An existing configuration receives only missing PVC/language keys and retains
 its existing values. Missing size mode defaults to `LEGACY`; automatic sizing

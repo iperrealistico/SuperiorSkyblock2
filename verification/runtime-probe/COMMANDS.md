@@ -99,8 +99,10 @@ and public visitor warps are fixture prerequisites only.
 
 The extension exercises public counts/values GUI and team reports on a foreign
 island, literal Discord/warp names, captured and explicitly targeted cmdall,
-configured menu hooks, stale hook rejection, membership-epoch invalidation,
-current ban hierarchy, cancelled console expulsion and setrate event authors.
+configured menu hooks, stale kick confirmation rejection, membership-epoch
+invalidation, current ban hierarchy, mismatched console expulsion without a
+move, matching console expulsion to spawn and setrate event authors. Hook
+rejection and post-hook revalidation are covered by `MenuClickValidationTest`.
 Global/personal menu behavior is checked independently of incidental selection.
 
 The private fixture retains a one-second entitlement TTL. The maintained source

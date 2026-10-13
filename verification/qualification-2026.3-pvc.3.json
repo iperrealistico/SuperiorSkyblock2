@@ -1,0 +1,971 @@
+{
+  "version": "2026.3-pvc.3",
+  "completedUTC": "2026-10-13T15:35:57.626986+00:00",
+  "codeCommit": "d4f61702d134b2d406d25d6eb450c56590419dfe",
+  "upstreamCommit": "868bebf41df19615621828619f59e2d8386f7ace",
+  "mainSHA256": "D8831EB080FE4836501DACD1A23D583E5EE77C9023C32A6B3C08F777E25685C1",
+  "mainBytes": 8947273,
+  "unitTests": 242,
+  "unitFailures": 0,
+  "unitErrors": 0,
+  "reproducibleCleanBuilds": 2,
+  "exportedApiClasses": 363,
+  "dependencyArtifacts": 695,
+  "dependencyUses": 5731,
+  "nativePhases": 95,
+  "nativePassed": 95,
+  "observerVariants": [
+    {
+      "sha256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "profiles": [
+        "missions",
+        "domain"
+      ],
+      "passed": 64,
+      "identicalProfileClassSHA256": {
+        "club/peacefulvanilla/superior/probe/NativeMissionProbe$1.class": "ADB9B6D08109C970F0006B5AA43D0D8CD58F14CE0C794C73221B7D158E449FAD",
+        "club/peacefulvanilla/superior/probe/NativeMissionProbe$Snapshot.class": "13C0C1264FEFBAA7FDC5C4ACADC37CE2A837A4BEE37CEAB74541593A7D941C87",
+        "club/peacefulvanilla/superior/probe/NativeMissionProbe.class": "9C163F1BB92E5C8E3F78460F8A1AFD9E6F1991FF12D719C93AF2752755CDE7E0",
+        "club/peacefulvanilla/superior/probe/SuperiorDomainProbe$1.class": "F82D1ACC1AE58FF73E62FE337A6C4B4E7BB6F96D00E244EE3AFB930740FD031F",
+        "club/peacefulvanilla/superior/probe/SuperiorDomainProbe$IOAction.class": "17CC907300B63083ADEA932D8B75F72CDAD86822FAC4D1DFA0BF24151533B01F",
+        "club/peacefulvanilla/superior/probe/SuperiorDomainProbe.class": "D1BDEC379CDC9F869CA0C7B219B685996B51A0095BFA1D5223BDDD63ABE6897E"
+      },
+      "retentionBasis": "Identical main JAR and byte-identical mission/domain observer implementation classes, including nested classes."
+    },
+    {
+      "sha256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "profiles": [
+        "commands",
+        "core",
+        "legacy",
+        "end",
+        "upgrade"
+      ],
+      "passed": 31,
+      "retentionBasis": "Final reproducible observer build; fresh phase runs."
+    }
+  ],
+  "nativeInputs": [
+    {
+      "id": "leaf-12111",
+      "minecraft": "1.21.11",
+      "platform": "Leaf",
+      "build": 174,
+      "channel": "default",
+      "java": "21",
+      "sha256": "1E38B84653381B63640829312D8EE209E94D6A12D660DD47787A59871ECA7B4C",
+      "metadataURL": "https://api.leafmc.one/v2/projects/leaf/versions/1.21.11/builds/174"
+    },
+    {
+      "id": "leaf-262",
+      "minecraft": "26.2",
+      "platform": "Leaf",
+      "build": 123,
+      "channel": "experimental",
+      "java": "25",
+      "sha256": "AA84A1816829721F3C48E918E3A06236470570E4BA575BD4191FB2CA6D461C07",
+      "metadataURL": "https://api.leafmc.one/v2/projects/leaf/versions/26.2/builds/123"
+    },
+    {
+      "id": "folia-262",
+      "minecraft": "26.2",
+      "platform": "Folia",
+      "build": 7,
+      "channel": "BETA",
+      "java": "25",
+      "sha256": "128A634192261CD38BB4A5DC54075018A0F896FD6C6F529E37DCA6E99E32B3B3",
+      "metadataURL": "https://fill.papermc.io/v3/projects/folia/versions/26.2/builds/7"
+    },
+    {
+      "id": "folia-12111",
+      "minecraft": "1.21.11",
+      "platform": "Folia",
+      "build": 14,
+      "channel": "STABLE",
+      "java": "21",
+      "sha256": "F52C408490A0225611E67907A3CA19F7E6DA2C6BC899E715D5F46844E7103C39",
+      "metadataURL": "https://fill.papermc.io/v3/projects/folia/versions/1.21.11/builds/14"
+    }
+  ],
+  "profileCounts": [
+    {
+      "lane": "folia-12111",
+      "profile": "commands",
+      "passed": 2
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "core",
+      "passed": 2
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "passed": 14
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "end",
+      "passed": 2
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "legacy",
+      "passed": 2
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "missions",
+      "passed": 2
+    },
+    {
+      "lane": "folia-262",
+      "profile": "commands",
+      "passed": 2
+    },
+    {
+      "lane": "folia-262",
+      "profile": "core",
+      "passed": 2
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "passed": 14
+    },
+    {
+      "lane": "folia-262",
+      "profile": "end",
+      "passed": 2
+    },
+    {
+      "lane": "folia-262",
+      "profile": "legacy",
+      "passed": 2
+    },
+    {
+      "lane": "folia-262",
+      "profile": "missions",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "commands",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "core",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "passed": 14
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "legacy",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "missions",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "commands",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "core",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "passed": 14
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "legacy",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "missions",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "upgrade",
+      "passed": 3
+    }
+  ],
+  "phases": [
+    {
+      "lane": "leaf-12111",
+      "profile": "commands",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "commands",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "commands",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "commands",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "commands",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "commands",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "commands",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "commands",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "core",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "core",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "core",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "core",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "core",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "core",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "core",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "core",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "legacy",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "legacy",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "legacy",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "legacy",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "legacy",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "legacy",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "legacy",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "legacy",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "missions",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "missions",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "missions",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "missions",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "missions",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "missions",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "missions",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "missions",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "cold-reset-intent",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "reset-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "cold-transfer-intent",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "transfer-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "cold-delete-intent",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "delete-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "storage-reset-failure",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "storage-reset-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "storage-reset-hold",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": true
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "storage-reset-crash-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "storage-delete-failure",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "storage-delete-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "cold-reset-intent",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "reset-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "cold-transfer-intent",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "transfer-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "cold-delete-intent",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "delete-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "storage-reset-failure",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "storage-reset-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "storage-reset-hold",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": true
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "storage-reset-crash-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "storage-delete-failure",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "storage-delete-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "cold-reset-intent",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "reset-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "cold-transfer-intent",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "transfer-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "cold-delete-intent",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "delete-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "storage-reset-failure",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "storage-reset-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "storage-reset-hold",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": true
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "storage-reset-crash-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "storage-delete-failure",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "storage-delete-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "cold-reset-intent",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "reset-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "cold-transfer-intent",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "transfer-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "cold-delete-intent",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "delete-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "storage-reset-failure",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "storage-reset-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "storage-reset-hold",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": true
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "storage-reset-crash-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "storage-delete-failure",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "storage-delete-restart",
+      "result": "PASS",
+      "observerSHA256": "078E89AC11D5674923C03F31B8523C107324C9DC3C7C6B535BA13AA957A86A9C",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "end",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "end",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "end",
+      "phase": "initial",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "end",
+      "phase": "restart",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "upgrade",
+      "phase": "upstream-seed",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "upgrade",
+      "phase": "fork-upgrade",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "upgrade",
+      "phase": "fork-upgrade-restart",
+      "result": "PASS",
+      "observerSHA256": "B79F0B98F9641B885CC29CFE0814A55240185FA672D6CC530348F6C7DF981EF8",
+      "intentionalIsolatedJvmTermination": false
+    }
+  ],
+  "productionWrites": false,
+  "scope": "Isolated offline loopback fixtures, retained restarts and up to two actual native protocol clients. Controlled storage adapter errors/holds; selected owned JVM termination, not hardware power-loss testing. No population/TPS benchmark or whole production plugin-stack qualification. See docs/pvc/VERIFICATION.md."
+}

@@ -105,12 +105,12 @@ nodes are retained against upstream `868bebf` by a source inventory comparison.
 | --- | --- | --- |
 | R01 | Public `counts`, `values`, `team` selection without weakening member-only commands | `PublicIslandSelectorsTest`, `PublicReportingIslandTest`; native foreign-island GUIs/report |
 | R02 | Discord and warp payload boundaries | `IslandSelectorParserTest`; native literal links/warp names |
-| R03 | Captured `executeCommand` / `cmdall`, explicit target precedence | Native same-handler bonus mutations and explicit foreign destination; captured-dispatch unit tests |
+| R03 | Captured `executeCommand` / `cmdall`, explicit target precedence | Native same-handler bonus mutations and explicit foreign destination; `InheritedIslandScopeTest` verifies inherited context |
 | R04 | Own hooks in menu, bank and placeholder paths | Native configured menu mutation; configured-upgrade tests; async bank completion contract |
-| R05 | Stale-menu validation before hooks, paged super guard and post-hook revalidation | `MenuClickValidationTest`, `IslandActionGuardTest`; native stale hook rejection |
+| R05 | Stale-menu validation before hooks, paged super guard and post-hook revalidation | `MenuClickValidationTest` verifies hook rejection and post-hook revalidation; `IslandActionGuardTest`; native stale kick confirmation rejection |
 | R06 | Ordinary confirmations include membership epoch | `IslandActionGuardTest`; native remove/rejoin invalidation |
 | R07 | Ban confirmation rechecks current hierarchy | Guard unit tests; native current-role rejection |
-| R08 | Console expulsion honors explicit destination | Native mismatched/matching target with cancelled observer teleport |
+| R08 | Console expulsion honors explicit destination | Native mismatched target leaves the player in place; matching target moves the player to spawn |
 | R09 | Console team report avoids a Player cast | Native console team report; `PublicReportingIslandTest` |
 | R10 | Wildcard generator percentage argument isolation | Native exact 25%/35% on three islands with nonzero baseline weights |
 | R11 | Rating event uses actual addressed author | Native event observer compares auxiliary UUID |

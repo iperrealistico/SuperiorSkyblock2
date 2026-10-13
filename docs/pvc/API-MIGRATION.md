@@ -12,6 +12,11 @@ its recorded Minecraft 1.21.11 and 26.2 native lanes before deployment.
 withdrawal hooks on Folia. Built-in GUI withdrawals use its completion; legacy
 synchronous configured-hook calls cannot safely wait on a global scheduler.
 Normal external economy calls retain the provider's required caller context.
+Without configured commands, this method preserves the synchronous provider
+path and returns its result as a completed future; that future does not await
+the physical SQL write. Configured-hook completion includes the ordered SQL
+acknowledgement. Use `quiesceTransactions()` when all accepted operations and
+their storage writes must have drained.
 Configured `{1}` is the reserved withdrawal amount, rather than the whole
 balance that another transaction might already have reserved.
 
@@ -28,7 +33,9 @@ the fork does not provide a distributed transaction with third-party plugins.
 Disband refund admission additionally records `DELETE_REFUND_PENDING` before
 payout and `DELETE_REFUND_HOLD` for an uncertain acknowledgement in the existing
 operation journal. Both states block automatic deletion/refund replay after a
-restart. Staff must inspect the provider and consistent stored bank/island state
+restart and prevent the entire island service from becoming ready until
+operator reconciliation; this is not a hold limited to the affected island.
+Staff must inspect the provider and consistent stored bank/island state
 before resolving such a hold. No new configuration keys or SQL columns are
 required for these operation phases.
 

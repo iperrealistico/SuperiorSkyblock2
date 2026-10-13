@@ -5,25 +5,31 @@ All 95 selected native phase runs completed successfully; every
 phase running the fork used the exact identified main JAR. The populated upstream
 seed deliberately ran the unchanged original JAR. Two full clean builds,
 automated/API/artifact gates and retained restarts passed. The portable
-[qualification ledger](../../verification/qualification-2026.3-pvc.2.json) records
+[qualification ledger](../../verification/qualification-2026.3-pvc.3.json) records
 the exact artifact, native inputs and sanitized phase results. This does not
 authorize a production installation, permission change or restart.
 
-The [preceding qualification](../../verification/qualification-2026.3-pvc.1.json)
-is retained unchanged as historical evidence for `2026.3-pvc.1`; its outcomes do
+The [preceding qualification](../../verification/qualification-2026.3-pvc.2.json)
+is retained unchanged as historical evidence for `2026.3-pvc.2`; its outcomes do
 not substitute for the new exact-artifact matrix.
+
+The [PVC3 correction matrix](CORRECTIONS-PVC3.md) maps R01–R12, S1–S6 and O1–O5
+to maintained source and focused evidence. Unit tests qualify finite metadata,
+reservation and reconciliation interleavings; the native observer qualifies
+actual scheduler ownership, command effects and physical SQL readback on its
+declared bounded cases. Neither layer is a population/load benchmark.
 
 ## Artifact and provenance
 
 | Property | Recorded value |
 | --- | --- |
-| Plugin version | `2026.3-pvc.2` |
-| Compiled code commit | `21ee0ecd44fe07d5a114d6fda2b405a2563e121b` |
-| Release source tree reference | `pvc/2026.3-pvc.2` |
+| Plugin version | `2026.3-pvc.3` |
+| Compiled code commit | `d4f61702d134b2d406d25d6eb450c56590419dfe` |
+| Release source tree reference | `pvc/2026.3-pvc.3` |
 | Qualification date | 2026-10-13 |
 | Upstream baseline | `868bebf41df19615621828619f59e2d8386f7ace`, version `2026.3` |
-| Main JAR SHA-256 | `A860A1DD9A56C250FA805204D79D7F0254DD4319D4183245DEF5203461D2AF2D` |
-| Main JAR size | 8,866,847 bytes |
+| Main JAR SHA-256 | `D8831EB080FE4836501DACD1A23D583E5EE77C9023C32A6B3C08F777E25685C1` |
+| Main JAR size | 8,947,273 bytes |
 | Full clean builds | Two independent main JAR outputs match byte for byte |
 | License | Original GPL-3.0 and upstream package/API identity retained |
 
@@ -37,7 +43,7 @@ compiled-code revision is the one recorded above.
 
 | Gate | Result |
 | --- | --- |
-| JUnit | PASS: 172 tests across 37 reports, zero failures/errors |
+| JUnit | PASS: 242 tests across 59 reports, zero failures/errors |
 | Strict dependency provenance | PASS: 695 artifact identities, 5,731 recorded uses |
 | API artifact inspection | PASS: 363 inspected API classes |
 | Embedded platform resources | PASS: original platform resources and both modern Folia adapters inspected |
@@ -57,7 +63,7 @@ Artifact inspection recorded this class-version distribution:
 
 | Class major | Java version | Class count |
 | --- | --- | ---: |
-| 52 | 8 | 2,607 |
+| 52 | 8 | 2,636 |
 | 55 | 11 | 4 |
 | 61 | 17 | 28 |
 | 65 | 21 | 60 |
@@ -219,6 +225,66 @@ actual-level acknowledgement, cancellation, external-only ordering and partial
 failure. Purge targeting is covered by focused source tests, not by invoking
 destructive native purge in this retained-evidence profile.
 
+**Commands: eight additional phase runs.** Two actual native clients execute
+commands and click real rating GUI buttons. Help text and TAB replies preserve
+ordinary quota-one presentation, including retained properties after revocation;
+quota above one with only one membership still hides personal ID-management tools.
+Actual creation of another island exposes those tools. Selection, UUIDs and
+short IDs survive revocation and retained restart. Actual command-tree packets
+are recorded; Bukkit's opaque greedy argument tree is not described as fabricated
+literal command nodes. The negative hidden-selector case accepts only the
+documented bounded TAB-event timeout and then requires another actual ordinary
+completion to prove the listener remains responsive.
+
+The profile requires an external client to reach a public warp; real rating GUI
+clicks and console approvals distinguish author-wide removal from explicit
+island clearing; localchat keeps the actual member actor. Player/admin rankup
+hooks use unchanged `%player%` commands against the captured island. A real
+Items mission consumes that actor's inventory and its scheduled reward advances
+only the completed island's upgrade. The formal `CapturedCommandDispatch` path
+recognizes the plugin's actually registered labels/aliases and its own namespace,
+executes the same registered handlers and validation, and leaves other plugins'
+commands with Bukkit. Explicit configured destinations override the inherited
+fallback. Successful dispatch alone cannot acknowledge level advancement.
+
+Optional dangerous approvals retain owner UUID intent for zero/multiple/future
+properties, member targets and frozen player sets. Selection changes do not
+retarget requests; actual intervening role changes and remove/rejoin cycles
+invalidate them. `msgall`/`cmdall` retain literal nested selector tokens. Restart
+checks native identities, selection, roles, ratings, levels, mission completion,
+owner overrides and disband counters. See the
+[command observer](../../verification/runtime-probe/COMMANDS.md) and
+[command contract](COMMANDS.md).
+
+The PVC3 extension exercises actual public counts/values GUI and team reports,
+literal Discord/warp arguments, inherited and explicit `cmdall` targets,
+configured menu hooks and stale ordinary member confirmations, live ban
+hierarchy and console expulsion with mismatched/matching explicit destinations.
+Unit tests separately cover validation before configured hooks and revalidation
+after a hook changes the captured intent.
+Generator percentage approvals use a fixed nonzero-weight fixture and separate
+argument copies. Personal/global menus remain usable after incidental selection
+changes; global island destinations retain UUID intent.
+
+The bounded shared-state observer uses two real actors, separated by 4,096
+blocks on Folia, with verified entity-owner execution. It performs four block
+and four entity metadata receipts and restores their exact counters, validates
+feeding-item refund actor/clone attribution, then admits four administrator
+bank adjustments. Bank quiescence waits for physical SQL acknowledgements;
+a fresh uncached history reader must see unique monotonically increasing log
+positions and the persisted balance. The observer restores actor position and
+bank admission. It is not a live breeder stress test, full island-recalculation
+throughput test or Vault/provider payout qualification. Source tests cover
+last-slot reservations, reconciliation versions, cancellation and uncertain
+refund settlement. Core/End profiles also verify that clearing a legacy size
+exception restores actual protected bounds as well as the radius getter.
+
+The upgrade fixture uses zero price. Real economy settlement and arbitrary
+third-party commands are not qualified; source tests cover deferred charging,
+actual-level acknowledgement, cancellation, external-only ordering and partial
+failure. Purge targeting is covered by focused source tests, not by invoking
+destructive native purge in this retained-evidence profile.
+
 ## Earlier diagnostics and corrective work
 
 The preceding release's Folia arrival, retained FULL-chunk ticket/storage,
@@ -234,6 +300,41 @@ kick confirmation for its direct kick-command assertion. Production settings,
 ordinary handler behavior and main plugin bytes were not patched to fabricate
 success. Native ownership, actual mutations, retained state and phase outcomes
 remain required.
+
+PVC3 diagnostics also exposed an early static world-biome initialization
+regression and a report resolver that lost a non-member's explicitly selected
+public island. Both were corrected in maintained source before the final
+candidate. Incorrect observer permission guesses were replaced with registered
+command permissions; the test generator module and a nonzero baseline weight
+are enabled only in the private command fixture. Earlier failed diagnostic
+records are retained and do not count as successful final qualification.
+
+The uncached bank-history diagnostic also exposed a filter concatenation error
+in the newly maintained query path. Cursor and history now share a parameterized
+query boundary, tested through the actual Common SQL session with SQLite,
+nonempty table prefixes, empty histories and bound-value isolation; final native
+readback remains mandatory.
+
+An earlier Folia 26.2 retained restart reported a generic shared-metadata
+observer mismatch. Four owned-data replays with the unchanged main JAR passed;
+three detailed traces restored block/entity counts and raw/total worth exactly.
+Its cause was not established. Precise baseline/add/remove tracing was added
+while keeping the original acceptance assertions, followed by the fresh final
+matrix recorded above. The failed earlier phase remains diagnostic evidence
+and contributes no successful result to this release ledger.
+
+The command fixture deliberately uses a one-second entitlement TTL. Its
+positive TAB tests now await an authoritative refresh on the actor scheduler
+and log freshness plus actual request/response packets; they still require the
+expected suggestions and never accept a positive timeout. Source inspection
+proves the conservative expiry window, while its attribution to an earlier
+single timeout remains an inference. That failed command phase is excluded.
+The TAB correction affects command observers only. A separate observer routing
+error sent the geometry regression into the intentionally guarded legacy
+observer; its case name was corrected before fresh core and End qualification.
+The portable ledger records each phase's observer digest. The 64 retained
+mission/domain phases use the identical main JAR and byte-identical profile
+implementation classes; the other 31 phases use the final observer build.
 
 ## Limits and operator handoff
 
@@ -264,3 +365,16 @@ Follow [INSTALLATION.md](INSTALLATION.md) for a separately authorized normal sto
 JAR replacement, consistent SQL/world/plugin-data backup and rollback. Avoid
 PlugMan/hot replacement. Returning to upstream after multi-island state requires
 the complete consistent pre-upgrade snapshot rather than a JAR-only rollback.
+
+PVC3 bank integration adds an asynchronous configured-withdrawal API and
+quiescence contract. The old synchronous configured-hook path rejects unsafe
+Folia execution; addons must adopt the new contract. Uncertain external payouts
+pause settlement rather than guess compensation. Deletion persists a refund
+intent before payout: pending/uncertain refund journal states deliberately
+require operator reconciliation and prevent the entire island service from
+becoming ready on restart; they are not replayed automatically. A withdrawal
+without configured hooks retains the synchronous provider path, and its future
+does not await SQL; quiescence supplies the complete storage drain. New
+config keys and SQL columns are unnecessary for these corrections. Actual
+external economy plugins, custom trackers/banks and arbitrary hooks retain
+their own ownership/receipt requirements and need separate qualification.
