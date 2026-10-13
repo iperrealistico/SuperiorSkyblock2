@@ -288,6 +288,7 @@ try {
             $config=[regex]::Replace($config,'(?ms)^disabled-commands:.*?(?=^[a-zA-Z][a-zA-Z0-9-]*:)', 'disabled-commands: []'+"`n")
             $config=$config.Replace('dangerous-commands: []','dangerous-commands: [demote, kick, setsize, addsize, removeratings, adddisbands]')
             $config=$config.Replace('public-warps: false','public-warps: true')
+            $config=$config.Replace('kick-confirm: true','kick-confirm: false')
             $privateDatabase=[IO.Path]::GetFullPath((Join-Path $root 'plugins/SuperiorSkyblock2/datastore/database.db'))
             if(-not$privateDatabase.StartsWith($root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'Unsafe fresh command database path.'}
             if(Test-Path -LiteralPath $privateDatabase){Remove-Item -LiteralPath $privateDatabase -Force}

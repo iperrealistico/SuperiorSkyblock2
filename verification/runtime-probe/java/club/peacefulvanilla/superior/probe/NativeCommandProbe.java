@@ -354,7 +354,7 @@ public final class NativeCommandProbe implements Listener {
                 first().getUpgradeLevel(upgrade()).getLevel() != 3 || second().getUpgradeLevel(upgrade()).getLevel() != 2 ||
                 !first().hasCompletedMission(mission()) || second().hasCompletedMission(mission()) ||
                 first().getIslandSize() != 52 || second().getIslandSize() != 52 ||
-                first().getRatingAmount() != 0 || second().getRatingAmount() != 1)
+                first().getRatingAmount() != 0 || second().getRatingAmount() != 0)
             throw new IllegalStateException("Native command state is not the expected durable checkpoint");
         Properties state = new Properties();
         for (Island island : owned()) {

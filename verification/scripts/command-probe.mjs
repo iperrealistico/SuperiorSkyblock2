@@ -129,7 +129,7 @@ async function run() {
   await auxiliarySpawned
   if (phase === 'restart') {
     await until(state => state.count === 2 && state.levelA === 3 && state.levelB === 2 && state.sizeA === 52 && state.sizeB === 52
-      && state.memberA && state.memberB && state.missionA && !state.missionB && state.ratingsA === 0 && state.ratingsB === 1)
+      && state.memberA && state.memberB && state.missionA && !state.missionB && state.ratingsA === 0 && state.ratingsB === 0)
     await probe('restartfinish', 'SUPERIOR_COMMAND_RESTART_PASS')
     console.log('SUPERIOR_COMMAND_CLIENT_PASS restart actors=2 ids=durable commands=persisted'); finish(); return
   }

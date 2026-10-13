@@ -7,6 +7,7 @@ updates. Record exact release commits in the verification record once qualified.
 | --- | --- | --- | --- |
 | PVC-EXECUTION | Entity, region, global metadata and asynchronous execution; startup world adoption | `core/threads`, `Hooks/Folia`, worlds, listeners, tasks, NMS templates and Folia adapters | Folia 1.21.11/26.2 ownership, split/merge, player retirement, Paper/Leaf behavior, Java 8 lazy linkage |
 | PVC-ISLANDS | Multiple owned islands, per-island roles, stable IDs, selected context, quota reservations | API, player/island/grid/container, commands, menus, missions, `pvc/island` | Default quota 1, highest grant, concurrent create/transfer, command selectors, mission isolation, restart |
+| PVC-COMMANDS | Precise per-island command intent and conditional ordinary/multiple-island presentation | `commands`, island execution scopes, configured upgrade/reward chains, per-island team roles | All retained aliases, quota/actual-membership visibility, singleton fallback, opaque payloads, explicit versus inherited targets, frozen approval intent and membership changes |
 | PVC-DURABILITY | Real SQL commit barriers and operation recovery | `core/database/sql`, database bridges, creation/reset/delete/transfer journals | SQL failure/rollback, admission saturation, crash boundaries, no cell overlap, never reuse IDs |
 | PVC-ENTITLEMENTS | Owner permission radius, persistent administrative overrides and bounded reconciliation | `pvc/entitlement`, LuckPerms hook, sizing commands, geometry | Donor maximum without sums, grant/revoke/offline/restart, unknown provider, bounded memory, all current/future islands |
 | PVC-CONFIG | Add missing keys while preserving current operator configuration | `pvc/PvcConfig`, atomic files, settings, bundled config, reload preflight | Exact existing values/comments retained, idempotence, invalid input retained, current Cielo fixture |
@@ -32,6 +33,33 @@ capability admission. Keep these choices separate in review and release notes.
 An upstream generic fix is not a reason to remove a PVC policy or its retained
 data. Mixed classes contain both categories: resolve conflicts by behavior,
 not by discarding the entire upstream or fork version of a file.
+
+## Command audit corrections in 2026.3-pvc.2
+
+The source audit of `2026.3-pvc.1` retained the original command inventory but
+found twelve unqualified paths. Their maintained corrections are specified in
+[COMMANDS.md](COMMANDS.md#corrections-from-the-command-audit): actual local-chat
+actor; explicit rating clear versus author-wide removal; inherited upgrade
+target and recognized level acknowledgement before cost/success; entity-owned
+mission reward context; explicit public warp and identifier-aware private-filtered
+completion; opaque nested/free-form selector payloads; owner-UUID approval;
+member/role/remove-rejoin approval epochs; per-island team ordering;
+administrative member/new-leader completion; explicit-only purge narrowing.
+
+Single-island presentation is a PVC policy change: personal multiple-island tools
+require a verified quota above one and more than one actual membership.
+List/select plugin defaults are true but respect that gate and explicit denies;
+no LuckPerms data is written. Granting a larger quota with one membership does
+not expose ID management prematurely. Revocation hides tools while retaining
+properties/UUIDs/short IDs and chooses the selected owned or oldest owned
+fallback. A sole property has priority over other team memberships.
+
+Actor identity, target preservation, payload parsing, cost acknowledgement,
+role-correct completion and global purge behavior are generic correctness fixes.
+Keep those fixes separable from the presentation policy during upstream merges.
+Configured external economy/reward commands still lack a universal rollback or
+exactly-once contract. Qualification of the earlier JAR is historical; record
+new test/native acceptance only after it completes on the new exact artifact.
 
 ## Retirement conditions
 
@@ -64,6 +92,7 @@ removed fork changes and any data/API migration in the integration record.
 | --- | --- | --- |
 | PVC-EXECUTION | Upstream callbacks and world work need correct owning schedulers, bounded load and retirement/shutdown fences | Upstream provides equivalent ownership and lifecycle guarantees on all retained platforms; remove duplicate generic adapters only after both mandatory Folia versions and Paper/Leaf pass, preserving additive execution API compatibility |
 | PVC-ISLANDS | PVC permits several owned/team islands and independent roles, selection and mission subjects | Upstream supplies the same ownership/context semantics and a tested migration for native/PVC state and stable IDs; generic counter/receipt/coordinate fixes may retire independently when exact upstream replacements preserve progress and cleanup |
+| PVC-COMMANDS | Command intent must survive nested dispatch, asynchronous reward work and optional approvals while limited players retain ordinary presentation | Upstream supplies equivalent actor/target/role/payload and approval guarantees; retain the PVC quota/membership visibility policy unless deliberately migrated, and repeat original-command and revocation regressions on the resulting artifact |
 | PVC-DURABILITY | Queued writes and success-shaped SQL failures cannot acknowledge durable world/database operations | The replacement supplies real commit/failure outcomes, ordered physical storage acknowledgments, collision-free reservations and idempotent recovery for every retained operation; migrate or finish existing journals before retiring their reader |
 | PVC-ENTITLEMENTS | Operator policy requires owner maximum grants, override precedence, conservative unknown-provider behavior and bounded reconciliation | A replacement implements the same current/future-island and offline/revoke behavior, and explicitly migrates persisted overrides/legacy exceptions without freezing derived permission snapshots into sizes |
 | PVC-CONFIG | Existing operator values, comments, private entries and backups must survive missing-key upgrades | The replacement preserves the same idempotent, validated, backup-producing migration and understands all retained PVC keys; keep readers/migrations while old supported data formats remain in use |

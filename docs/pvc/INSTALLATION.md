@@ -3,8 +3,9 @@
 This guide describes the PVC source fork. It does not authorize installation,
 permission changes or a production restart. Use the exact JAR, compiled source
 commit, hash and native build scope in the completed release
-[verification record](VERIFICATION.md): 110 automated tests and 87 native phases
-passed on the recorded Leaf/Folia 1.21.11 and 26.2 builds. Rehearse your actual
+[verification record](VERIFICATION.md). This guide describes `2026.3-pvc.2`;
+the completed qualification of `2026.3-pvc.1` remains historical evidence for
+that exact older artifact and does not qualify a replacement. Rehearse your actual
 backend/plugin stack before rollout. Later Minecraft/Folia versions need their
 own maintained-source adapter and qualification before deployment.
 
@@ -53,7 +54,8 @@ Perform a planned upgrade in this order:
 Current Leaf behavior remains `LEGACY`: existing default radius, compatible
 border-size upgrades and per-island fixed sizes retain their upstream meaning.
 Additional ownership quotas are available independently of automatic sizing;
-owners without an effective quota grant can own at most one island.
+owners without an effective quota grant can acquire at most one island.
+Previously retained properties are preserved if a larger quota is later revoked.
 
 ## Opt in to automatic owner sizing
 
@@ -117,14 +119,31 @@ usable boundary; quota reduction preserves already owned islands and blocks
 further acquisition until the owner is within the limit.
 
 For one island, existing commands such as `/is home` remain argument-free.
-For several islands, `/is list` shows durable short IDs and team islands,
+Personal multiple-island presentation becomes available only with both a
+verified ownership quota above one and several actual owned/team memberships.
+A higher quota with only one membership keeps ordinary presentation while
+permitting another creation when all normal checks succeed. Once unlocked,
+`/is list` shows durable short IDs and team islands,
 `/is select <id|uuid|name>` (alias `/is use`) sets persistent selection, and
 `--island <id|uuid|name>` targets one command without changing that selection.
 Use short IDs when names are absent or change. IDs are not reused after deletion.
 Selection, ownership and each island's member role are separate state. Ordinary
 commands still require their normal permissions; list/select require
-`superior.island.list` and `superior.island.select`. A quota/radius grant does not
+`superior.island.list` and `superior.island.select`, whose plugin defaults are
+true while their handlers/help/completion remain conditionally gated. Explicit
+permission denies remain effective; the fork writes no LuckPerms permission
+data. A quota/radius grant does not
 grant create, home, membership management or any other command.
+
+Reducing the quota hides the extra personal tools without deleting retained
+islands or identifiers. Limited implicit targeting prefers an owned property,
+then a still-valid selected owned property or the oldest retained owned ID;
+with no property it falls back to the selected/oldest team membership. A sole
+owned island has priority over other team memberships. Staff targeting remains
+explicit where needed and independent of the staff member's personal quota.
+Selectors must precede free-form text; nested command payloads retain their own
+selectors, and `--` starts an escaped literal payload. Required upstream
+positional arguments remain required. See [all command contracts](COMMANDS.md).
 
 In automatic mode, the size precedence is: persistent owner override, explicit
 legacy fixed-size exception on that island, highest owner radius grant, then
@@ -142,6 +161,15 @@ In LEGACY mode, existing `setsize`/`addsize` retain per-island upstream behavior
 Legacy `Island#setIslandSize` API calls remain per-island in either mode; they do
 not silently change another island belonging to the same owner. Clearing a
 legacy exception is deliberate administration, not a permission revoke.
+
+The optional upstream `dangerous-commands` list remains empty by default.
+Configured approvals freeze island/member generations or owner UUID intent,
+including owners with zero or several properties; they do not require a
+nickname to identify one arbitrary island for an owner-wide override. Role and
+remove/rejoin changes invalidate pending member operations. Nickname
+`removeratings` remains author-wide, while an explicit island clear remains an
+island clear at approval. Consult [COMMANDS.md](COMMANDS.md) before configuring
+approval rules or nested upgrade/reward commands.
 
 ## Additional Folia prerequisites
 

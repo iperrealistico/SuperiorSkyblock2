@@ -19,10 +19,10 @@ arbitrary console command.
 The `commands` profile needs `.superior-owned` and `.superior-commands-owned`,
 fresh SQLite data, `max-island-size: 96`, default radius 32, team limit 4 and warp
 limit 4. Clear only the private fixture's disabled-command list. Configure
-`dangerous-commands: [demote, kick, setsize, addsize, removeratings, adddisbands]`, a zero upgrade cooldown,
+`dangerous-commands: [demote, kick, setsize, addsize, removeratings, adddisbands]`, a zero upgrade cooldown, player kick-confirm disabled for the direct command case,
 the existing zero teleport warmups, and `pvc.size-mode: PERMISSION_AUTOMATIC`.
-Copy the official `island-rate.yml` menu to the private fixture without editing
-it: the client clicks its real five-star button at slot 7.
+Keep the official `island-rate.yml` layout and handler, replacing only its
+legacy `SKULL_ITEM` material with native `PLAYER_HEAD` for modern fixtures: the client clicks its real five-star button at slot 7.
 
 Copy the three adjacent test fixture YAML files to:
 
@@ -54,7 +54,11 @@ actual wrapper/JDK versions and private phase results.
 - An actual external client reaches a public island warp.
 - Actual rating GUI clicks populate both islands. Nickname author removal clears
   both after real console approval; an explicit island clear, also approved by
-  the console, leaves the other island's rating intact.
+  the console, leaves the other island's rating intact. These assertions run
+  before the auxiliary joins either island. Joining subsequently removes that
+  member's vote under the original island membership semantics; the final
+  checkpoint therefore requires both rating counts to be zero, and the empty
+  rating state must survive the normal restart.
 - The member's localchat event and toggle retain that member's UUID, while the
   owner's global chat state remains unchanged. Only after the member joins both
   real islands does its fixed `auxlimit3` action grant quota 3; its explicit

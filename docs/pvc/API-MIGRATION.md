@@ -46,13 +46,18 @@ must not infer its target from a later selection.
 
 ## Commands, events and delayed callbacks
 
-The ordinary single-island command syntax remains valid. `/is list` displays
+The ordinary single-island command syntax remains valid. In `2026.3-pvc.2`,
+personal multiple-island presentation requires both a verified ownership quota
+above one and more than one actual owned/team membership. `/is list` displays
 short IDs, `/is select <selector>` (alias `/is use`) changes persistent selection,
-and `--island <selector>` targets one command without changing selection. A
-selector can be a short ID, UUID or name; typed forms `id:`, `#`, `uuid:` and
+and `--island <selector>` targets one command without changing selection when
+that presentation is unlocked; permitted administrative selectors are independent
+of the administrator's personal quota. A selector can be a short ID, UUID or
+name; typed forms `id:`, `#`, `uuid:` and
 `name:` disambiguate them. A plain numeric selector is an ID, even when an island
 has a numeric name. Island-scoped named administration must reject several owned
-islands rather than silently choosing one; intentionally owner-wide commands,
+islands rather than silently choosing one. A sole owned island takes priority
+over other team memberships. Intentionally owner-wide commands,
 such as automatic-mode size overrides, operate on that owner's policy instead.
 
 `IslandExecutionScope` is lexical and thread-local:
@@ -70,6 +75,20 @@ and island privilege separately. `open(target, false)` supplies implicit context
 suppresses automatic physical fallback. Always close a scope, including on
 failure; nested scopes restore the preceding scope.
 
+`IslandExecutionScope.openInherited(target)` provides a captured console-chain
+fallback with `isInheritedTarget()`. Unlike an explicit target, this fallback
+does not override a configured island ID/name/UUID or nested selector. Legacy
+nickname mutations can inherit it when the subject belongs to the captured
+island. Restore a captured scope on the owning executor; do not turn arbitrary
+external commands into forced origin-island operations.
+
+Put temporary selectors before free-form payloads. Nested command strings,
+message/title text and `data set` values remain opaque after their payload starts;
+use `--` to start a literal payload whose first word resembles a selector.
+Ordinary required positional parameters are not removed by a temporary selector.
+The precise routing, invitation, completion and approval contracts are in
+[COMMANDS.md](COMMANDS.md).
+
 A scope does not cross an executor or future boundary. Capture the island UUID
 and relevant owner/operation state, then re-resolve and revalidate the target
 inside the scheduled action before opening a new scope. Never retain only a
@@ -77,6 +96,14 @@ player nickname or call `getIsland()` later to rediscover a destructive target.
 Confirmations and menus also need an expiry, one-shot consumption and current
 permission checks. A selection or owner change must not redirect an already
 displayed action to another island.
+
+The fork's optional dangerous-command requests additionally capture a transient
+membership revision. Per-island role changes and remove/rejoin cycles invalidate
+old member operations even if the final role is equal to its original value.
+Automatic-size approval records owner UUIDs rather than a nickname's single
+island; rating-author approval records the author UUID and original operation
+kind. These are command-intent fences, not a durable external-command replay or
+transaction protocol.
 
 For block/entity events, derive the target from the event's actual location.
 For inventory actions, retain the intended island and acting player's identity.
@@ -180,6 +207,11 @@ without overwriting uncertain retained progress. See
 quarantine and backup rules. Arbitrary reward commands/economy providers lack a
 general exactly-once contract across process loss; recovery does not replay
 their external effects.
+
+The maintained island-mission reward path captures the mission's island before
+crossing the entity scheduler and restores that context for configured console
+commands. Delayed callbacks must still revalidate availability, generation and
+membership; changing persistent selection cannot redirect the pending reward.
 
 ## Migration and rollback boundaries
 

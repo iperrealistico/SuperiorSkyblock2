@@ -2,6 +2,9 @@
 
 The fork resolves island ownership and radius from the owner's effective
 permissions, not from rank names, OP state, a Jets command, or a member's rank.
+This policy and the conditional command presentation below describe
+`2026.3-pvc.2`; completed qualification is recorded separately in
+[VERIFICATION.md](VERIFICATION.md).
 
 ## Nodes
 
@@ -22,6 +25,30 @@ ownership wildcard can grant the distinct `unlimited` node unless denied.
 Assign the donor a larger radius grant than every playtime rank. Grants never
 sum. Removing donor restores the highest remaining grant, unless a documented
 administrative override or legacy per-island fixed-size exception takes priority.
+
+## Conditional command presentation
+
+Personal list/select tools, ID suggestions and temporary island selectors require
+both a verified ownership quota above one and more than one current published
+owned/team membership. A larger quota with only one membership still presents
+ordinary commands; it permits another `/is create` only when the ordinary create
+permission, quota reservation and other creation checks succeed. Team membership
+is an available command target but does not consume an ownership slot.
+
+`superior.island.list` and `superior.island.select` have plugin `default: true`
+and remain subject to that visibility/handler gate. Explicit permission denies
+remain effective. This metadata change writes no LuckPerms rank, user, node or
+assignment. The ownership/radius namespaces still default to false; personal
+tools do not grant other ordinary or administrative commands. Permitted staff
+commands can address islands regardless of the staff member's own quota.
+
+Revoking the larger quota hides personal multiple-island tools without deleting
+islands, worlds, UUIDs, short IDs or memberships. The implicit limited target
+prefers the sole owned island; with retained multiple properties it uses a valid
+selected owned island, otherwise the oldest owned short ID. With no property,
+it uses a valid selected team membership, then the oldest team membership.
+Admission still refuses further ownership while the user is above the current
+quota. See [command routing](COMMANDS.md).
 
 ## Modes and commands
 
@@ -45,6 +72,14 @@ override for every current and future owned island. An owner nickname means
 that UUID's properties, never the unrelated island of which they are a member.
 Island names resolve to their actual owner. `*` deduplicates owners and admits
 one durable write at a time.
+
+When an automatic-size command is included in the optional `dangerous-commands`
+list, approval freezes owner UUID intent instead of resolving one island by
+nickname. A known owner with zero or several current properties can therefore
+receive the same durable current/future-island override. A wildcard request
+captures its addressed owner set. Rename or incidental membership must not
+redirect the approved policy to another owner. The list is empty by default;
+the fork does not impose approvals unless the operator configures them.
 
 `/is admin addsize OWNER AMOUNT` uses the owner's current policy radius as its
 base, not an arbitrary selected island's legacy exception. Without an owner
