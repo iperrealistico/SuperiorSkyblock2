@@ -194,6 +194,7 @@ async function run() {
       assert(!bossTrace[client].some(packet => packet.id === ids[1 - client]), 'Foreign arena boss packet delivered')
     }
     await advanced('endreactivate', 'SUPERIOR_ADV_REACTIVATED_PASS')
+    await advanced('native-topology', 'SUPERIOR_NATIVE_TOPOLOGY_PASS', 230000)
     await advanced('occupiedendreset', 'SUPERIOR_ADV_OCCUPIED_END_RESET_PASS', 300000)
     await advanced('finish', 'SUPERIOR_ADVANCED_PROBE_PASS')
     await advanced('endleave', 'SUPERIOR_ADV_END_LEFT')

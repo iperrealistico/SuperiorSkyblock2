@@ -58,15 +58,21 @@ Run the actions in this order, waiting for each matching observer signal:
    intentionally restores its visibility every tick, so it cannot qualify a
    persistent explicit hide; no native tick or state is artificially suspended.
 10. `endreactivate`: re-enter both arenas and verify native ownership/ticket
-    reacquisition. Wait for actual Folia merge/split callbacks; `status` records
-    the monotonic native counters, fight identities and ticket counts.
+    reacquisition. Then run `native-topology` while both actual clients remain
+    in the End. The bounded [topology helper](TOPOLOGY.md) uses four real tickets
+    in the reserved normal-world cell, actual owner identities and genuine
+    merge/split callbacks, and releases its own tickets before completing.
+    `status` records the monotonic native counters, fight identities and ticket
+    counts. This proves normal-world topology changes while both End battles
+    stay active; it does not claim the independent End arenas merged.
 11. `occupiedendreset`: require the primary physically in End A and auxiliary
     in End B, persist distinct bedrock sentinels, then call the real
     `((SIsland) A).resetWorldAsync(End)` path. Require its completed future, actual
     `RESET_DONE` SQL acknowledgement, available source cell, increased generation,
     unchanged UUID/short ID, ungenerated End and an AIR source sentinel. Verify
     actual primary evacuation to the configured common spawn, unchanged auxiliary
-    position/island, same live B dragon UUID and captured native B terrain.
+    position/island, same live B dragon UUID and captured actual B terrain,
+    including all nine previously storage-acknowledged waiting-platform blocks.
     The main implementation must remove the A fight and release all its actual
     tickets; the observer never repairs it. Initial sentinel writes are native
     storage-acknowledged, and reset completion includes native storage ACKs.

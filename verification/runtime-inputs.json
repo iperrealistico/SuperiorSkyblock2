@@ -1,6 +1,6 @@
 {
   "verifiedUTC": "2026-10-12",
-  "scope": "Unmodified runtime wrappers; each native run verifies SHA-256 before copying only wrapper, libraries and cache into an owned private loopback fixture. Server configurations, credentials, plugins and worlds are never copied from production.",
+  "scope": "Unmodified runtime wrappers; each native run verifies SHA-256 before copying wrapper, libraries and cache into an owned private loopback fixture. Superior configuration fixtures and unmodified plugin inputs are supplied separately; permissions use fresh isolated data. No production credentials, backend world data or unrelated plugins are copied.",
   "lanes": [
     {
       "id": "leaf-12111",

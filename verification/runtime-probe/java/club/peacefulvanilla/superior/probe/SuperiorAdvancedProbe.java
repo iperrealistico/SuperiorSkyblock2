@@ -54,7 +54,9 @@ public final class SuperiorAdvancedProbe {
     private volatile boolean opBaseline, wildcard, wildcardRevoked;
     private volatile boolean prepared, active, hidden, shown, killed, respawned, released, reactivated;
     private volatile boolean occupiedEndReset;
+    private volatile boolean nativeTopology;
     private volatile Object resetFirstFight;
+    private NativeTopologyProbe topology;
     private volatile Dimension end;
     private volatile List<Island> arenas = Collections.emptyList();
     private volatile UUID killedDragon;
@@ -88,6 +90,7 @@ public final class SuperiorAdvancedProbe {
                 case "endleave" -> leaveArenas(primary);
                 case "released" -> assertReleased(primary);
                 case "endreactivate" -> enterArenas(primary, true);
+                case "native-topology" -> qualifyNativeTopology(primary);
                 case "occupiedendreset" -> resetOccupiedEnd(primary);
                 case "status" -> status(primary);
                 case "finish" -> finish(primary);
@@ -410,7 +413,7 @@ public final class SuperiorAdvancedProbe {
     }
 
     private void resetOccupiedEnd(Player primary) {
-        if (!reactivated || !hidden || !shown || !killed || !respawned || occupiedEndReset)
+        if (!reactivated || !nativeTopology || !hidden || !shown || !killed || !respawned || occupiedEndReset)
             throw new IllegalStateException("Complete the real fight, inactive boss component and reactivation gates first");
         Island source = arenas.get(0), neighbour = arenas.get(1);
         UUID identity = source.getUniqueId(); long shortId = source.getShortId();
@@ -490,6 +493,31 @@ public final class SuperiorAdvancedProbe {
         }).whenComplete((unused, error) -> { if (error != null) fail(primary, error); });
     }
 
+    private void qualifyNativeTopology(Player primary) {
+        if (!reactivated || occupiedEndReset || nativeTopology)
+            throw new IllegalStateException("Qualify native topology after actual End reactivation and before occupied reset");
+        if (topology == null) topology = new NativeTopologyProbe(observer, superior);
+        players(primary).thenCompose(visitors -> {
+            List<CompletableFuture<Void>> present = new ArrayList<>();
+            for (int index = 0; index < 2; ++index) {
+                Player visitor = visitors.get(index); Island expected = arenas.get(index);
+                present.add(onActor(visitor, () -> {
+                    if (visitor.getWorld() != expected.getCenter(end).getWorld() || superior.getGrid().getIslandAt(visitor.getLocation()) != expected)
+                        throw new IllegalStateException("Topology fixture requires both actual clients in their separate End arenas");
+                    return null;
+                }));
+            }
+            return CompletableFuture.allOf(present.toArray(new CompletableFuture[0]));
+        }).thenCompose(unused -> topology.run(primary)).whenComplete((unused, error) -> {
+            if (error != null) fail(primary, error);
+            else {
+                nativeTopology = true;
+                observer.getLogger().info("SUPERIOR_NATIVE_TOPOLOGY_PASS realRegions=true realMergeSplit=true observerTicketsReleased=true");
+                reply(primary, "SUPERIOR_NATIVE_TOPOLOGY_PASS");
+            }
+        });
+    }
+
     private CompletableFuture<Void> seedEndSentinel(Island island, Location location) {
         ChunkPosition position = ChunkPosition.of(location.getWorld(), location.getBlockX() >> 4, location.getBlockZ() >> 4, false);
         return ((SIsland) island).prepareWorldWriteIntent(List.of(position))
@@ -507,6 +535,19 @@ public final class SuperiorAdvancedProbe {
                     if (type == Material.BEDROCK || type == Material.OBSIDIAN)
                         samples.add(new BlockSnapshot(at, at.getBlock().getBlockData().getAsString()));
                 }
+        // The genuine Classic terrain can contain only dirt/grass after native
+        // dragon block destruction. Include the previously built and storage-
+        // acknowledged waiting platform; capture its actual blocks, not an
+        // invented expectation or an AIR-only sample.
+        Location floor = safeEndPosition(island).subtract(0, 1, 0);
+        for (int x = -1; x <= 1; ++x) for (int z = -1; z <= 1; ++z) {
+            Location at = floor.clone().add(x, 0, z);
+            if (!BukkitExecutor.owns(at.getWorld(), at.getBlockX() >> 4, at.getBlockZ() >> 4))
+                throw new IllegalStateException("End B waiting-platform terrain is foreign to the actual arena owner");
+            if (at.getBlock().getType() != Material.BEDROCK)
+                throw new IllegalStateException("The real persisted End B waiting platform is missing at " + at);
+            samples.add(new BlockSnapshot(at, at.getBlock().getBlockData().getAsString()));
+        }
         if (samples.isEmpty()) throw new IllegalStateException("No actual stable native End B terrain samples in the real schematic");
         return List.copyOf(samples);
     }
@@ -835,7 +876,7 @@ public final class SuperiorAdvancedProbe {
 
     private void finish(Player primary) {
         if (failed || !opBaseline || !wildcard || !wildcardRevoked || !prepared || !active || !hidden || !shown ||
-                !killed || !respawned || !released || !reactivated || !occupiedEndReset)
+                !killed || !respawned || !released || !reactivated || !nativeTopology || !occupiedEndReset)
             throw new IllegalStateException("Advanced native sequence is incomplete");
         if (trackingCounter("getMergeCount") <= mergesBefore || trackingCounter("getSplitCount") <= splitsBefore)
             throw new IllegalStateException("Actual merge/split callbacks were not both observed");
