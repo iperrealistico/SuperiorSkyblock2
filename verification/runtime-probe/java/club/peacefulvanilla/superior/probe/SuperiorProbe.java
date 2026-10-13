@@ -101,6 +101,10 @@ public final class SuperiorProbe extends JavaPlugin {
                         String plain = org.bukkit.ChatColor.stripColor(response);
                         if (!plain.startsWith("[Skyblock]") || !plain.contains("You have reached your limit") || !plain.contains("2"))
                             throw new IllegalStateException("Stored Italian locale did not render the English Skyblock response");
+                        String legacy = org.bukkit.ChatColor.stripColor(com.bgsoftware.superiorskyblock.core.messages.Message.ISLAND_ALREADY_EXIST
+                                .getMessage(java.util.Locale.ITALY));
+                        if (!legacy.startsWith("[Skyblock]") || !legacy.contains("An island with that name already exists"))
+                            throw new IllegalStateException("Existing translated messages did not follow the English presentation policy");
                         java.util.regex.Matcher colors = java.util.regex.Pattern.compile("[\\u00a7&]([0-9a-f])", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(response);
                         while (colors.find()) if (!"6e78".contains(colors.group(1).toLowerCase(java.util.Locale.ROOT)))
                             throw new IllegalStateException("Response used a color outside the PVC palette");
