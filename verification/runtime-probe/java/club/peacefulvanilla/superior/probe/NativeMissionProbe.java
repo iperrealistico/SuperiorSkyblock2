@@ -146,7 +146,7 @@ public final class NativeMissionProbe implements Listener {
         }, 0L, () -> result.completeExceptionally(new IllegalStateException("Actual mission client retired")));
         return result;
     }
-    private CompletableFuture<Void> ordinaryPermissions(Player player, boolean owner) {
+    private CompletableFuture<Void> ordinaryPermissions(Player player) {
         var api = LuckPermsProvider.get();
         return entity(player, () -> {
             if (player.isOp()) throw new IllegalStateException("Native mission clients must not be OP");
@@ -154,13 +154,14 @@ public final class NativeMissionProbe implements Listener {
         }).thenCompose(unused -> api.getUserManager().loadUser(player.getUniqueId())).thenCompose(user -> {
             for (String node : List.of("superior.island", "superior.island.mission", "superior.island.teleport", "superior.island.select"))
                 user.data().add(PermissionNode.builder(node).build());
-            if (owner) user.data().add(PermissionNode.builder(EntitlementPolicy.OWNERSHIP_PREFIX + "2").build());
+            // Both actual clients have two memberships and must be allowed to use explicit selectors.
+            user.data().add(PermissionNode.builder(EntitlementPolicy.OWNERSHIP_PREFIX + "2").build());
             return api.getUserManager().saveUser(user);
         }).thenCompose(unused -> {
             superior.getPvcEntitlements().invalidate(player.getUniqueId());
             return superior.getPvcEntitlements().refreshOwnershipLimit(player.getUniqueId());
         }).thenAccept(limit -> {
-            if (owner && limit != 2) throw new IllegalStateException("Fixture owner did not receive the explicit two-island limit");
+            if (limit != 2) throw new IllegalStateException("Native mission client did not receive the explicit two-island limit");
         });
     }
     private String schematic() {
@@ -264,7 +265,7 @@ public final class NativeMissionProbe implements Listener {
     }
     private void prepare(Player actor) {
         if (!owned().isEmpty() || !superior.getGrid().getIslands().isEmpty()) throw new IllegalStateException("Use an empty separate mission fixture");
-        players(actor).thenCompose(pair -> CompletableFuture.allOf(ordinaryPermissions(pair.get(0), true), ordinaryPermissions(pair.get(1), false)))
+        players(actor).thenCompose(pair -> CompletableFuture.allOf(ordinaryPermissions(pair.get(0)), ordinaryPermissions(pair.get(1))))
                 .thenCompose(unused -> create(actor, "MissionA", 1)).thenCompose(unused -> advancePrivateCursor())
                 .thenCompose(unused -> create(actor, "MissionB", 2))
                 .thenCompose(unused -> players(actor)).thenCompose(pair -> {

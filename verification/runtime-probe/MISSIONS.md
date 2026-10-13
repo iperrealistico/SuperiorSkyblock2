@@ -33,8 +33,12 @@ The driver independently validates the owned fixture, listener and maintained
 client module. Versions are restricted to 1.21.11 and 26.2. Actual clients
 `PVCSkyProbe` and `PVCSkyProbeB` connect normally to the private offline listener.
 Permissions are assigned only to these fixed fixture accounts: ordinary island,
-mission completion, home and selection access, plus the primary's explicit
-ownership limit of two. No group or wildcard/OP permission is assigned.
+mission completion, home and selection access, plus an explicit ownership
+limit of two for each real client. The auxiliary owns no island but
+joins both subjects; its explicit quota grant allows the temporary selector
+under the current multi-island command gate. The separate commands profile
+retains the quota-one presentation and revocation checks. No group or
+wildcard/OP permission is assigned.
 
 The helper creates two real schematic islands A/B, adds the auxiliary as a
 member of both through acknowledged metadata writes, and places small platforms
