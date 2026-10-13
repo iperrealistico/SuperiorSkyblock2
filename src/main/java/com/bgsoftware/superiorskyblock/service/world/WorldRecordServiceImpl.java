@@ -233,7 +233,7 @@ public class WorldRecordServiceImpl implements WorldRecordService, IService {
             int chunkX = block.getX() >> 4;
             int chunkZ = block.getZ() >> 4;
 
-            BukkitExecutor.sync(() -> {
+            BukkitExecutor.region(world, chunkX, chunkZ, () -> {
                 if (dirtyChunks && world.isChunkLoaded(chunkX, chunkZ)) {
                     if (plugin.getNMSChunks().isChunkEmpty(block.getChunk())) {
                         island.markChunkEmpty(world, chunkX, chunkZ, true);

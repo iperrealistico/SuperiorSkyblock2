@@ -39,7 +39,7 @@ public class UniqueVisitorPagedObjectButton extends AbstractPagedMenuButton<Menu
     @Override
     public ItemStack modifyViewItem(ItemBuilder itemBuilder) {
         SuperiorPlayer visitor = pagedObject.getVisitor();
-        Island island = visitor.getIsland();
+        Island island = visitor.getSelectedIsland();
         Locale locale = menuView.getInventoryViewer().getUserLocale();
 
         String islandOwner = island != null ? island.getOwner().getName() : Message.ISLAND_OWNER_NONE.getMessage(locale);

@@ -98,8 +98,8 @@ public class NMSPlayersImpl implements NMSPlayers {
 
         @Override
         public void removeAll() {
+            new java.util.ArrayList<>(this.bossBar.getPlayers()).forEach(this.bossBarTask::unregisterTask);
             this.bossBar.removeAll();
-            this.bossBar.getPlayers().forEach(this.bossBarTask::unregisterTask);
         }
 
         @Override

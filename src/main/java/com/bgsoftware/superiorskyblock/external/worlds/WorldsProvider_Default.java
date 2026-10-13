@@ -13,6 +13,8 @@ import com.bgsoftware.superiorskyblock.core.collections.EnumerateMap;
 import com.bgsoftware.superiorskyblock.core.events.plugin.PluginEventType;
 import com.bgsoftware.superiorskyblock.core.events.plugin.PluginEventsDispatcher;
 import com.bgsoftware.superiorskyblock.world.WorldGenerator;
+import com.bgsoftware.superiorskyblock.world.generator.IslandsGenerator;
+import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import org.bukkit.Bukkit;
@@ -36,7 +38,7 @@ public class WorldsProvider_Default implements WorldsProvider {
     private static final int SUPPORTED_LOAD_FLAGS = WorldLoadFlags.END_DRAGON_FIGHT | WorldLoadFlags.REMOVE_ANTI_XRAY |
             WorldLoadFlags.UPDATE_OCEAN_LEVEL | WorldLoadFlags.LISTEN_BLOCK_CHANGES;
 
-    private final Set<BlockPosition> servedPositions = Sets.newHashSet();
+    private final Set<BlockPosition> servedPositions = java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
     private final EnumerateMap<Dimension, World> islandWorlds = new EnumerateMap<>(Dimension.values());
     private final Map<UUID, Dimension> islandWorldsToDimensions = new HashMap<>();
     private final List<IWorldLoadListener> worldLoadListenerList = new LinkedList<>();
@@ -47,6 +49,15 @@ public class WorldsProvider_Default implements WorldsProvider {
     public WorldsProvider_Default(SuperiorSkyblockPlugin plugin) {
         this.plugin = plugin;
     }
+
+    @Override
+    public boolean supportsFoliaExecution() { return true; }
+
+    @Override
+    public boolean supportsMultipleOwnedIslands() { return true; }
+
+    @Override
+    public boolean supportsAutomaticIslandSizePolicy() { return true; }
 
     @Override
     public void prepareWorlds() {
@@ -81,14 +92,14 @@ public class WorldsProvider_Default implements WorldsProvider {
     }
 
     @Override
-    public Location getNextLocation(BlockPosition previousPosition, int islandsHeight, int maxIslandSize, UUID islandOwner, UUID islandUUID) {
+    public synchronized Location getNextLocation(BlockPosition previousPosition, int islandsHeight, int maxIslandSize, UUID islandOwner, UUID islandUUID) {
         Preconditions.checkNotNull(previousPosition, "previousPosition parameter cannot be null.");
 
         BlockFace islandFace = getIslandFace(previousPosition);
 
         BlockPosition nextPosition;
 
-        int islandRange = maxIslandSize * 3;
+        int islandRange = Math.multiplyExact(maxIslandSize, 3);
 
         if (islandFace == BlockFace.NORTH) {
             nextPosition = nextPosition(previousPosition, islandsHeight, islandRange, 0);
@@ -114,6 +125,9 @@ public class WorldsProvider_Default implements WorldsProvider {
         }
 
         Location nextLocation = nextPosition.toLocation(this.islandsWorld);
+        if (Math.abs((long) nextPosition.getX()) + maxIslandSize >= 29999984L ||
+                Math.abs((long) nextPosition.getZ()) + maxIslandSize >= 29999984L)
+            throw new IllegalStateException("Island grid reached the supported Minecraft coordinate limit");
 
         if (servedPositions.contains(nextPosition) || plugin.getGrid().getIslandAt(nextLocation) != null) {
             return getNextLocation(nextPosition, islandsHeight, maxIslandSize, islandOwner, islandUUID);
@@ -174,6 +188,29 @@ public class WorldsProvider_Default implements WorldsProvider {
     }
 
     private World loadWorld(String worldName, Difficulty difficulty, Dimension dimension) {
+        if (BukkitExecutor.isFolia()) {
+            World loaded = Bukkit.getWorld(worldName);
+            if (loaded == null)
+                throw new IllegalStateException("Folia requires the shared islands world '" + worldName +
+                        "' to be created by the server at startup. Configure level-name and bukkit.yml generator before starting; dynamic WorldCreator loading is unsupported.");
+            if (loaded.getEnvironment() != dimension.getEnvironment())
+                throw new IllegalStateException("Folia shared world environment mismatch: " + worldName);
+            if (!(loaded.getGenerator() instanceof IslandsGenerator))
+                throw new IllegalStateException("Folia shared world '" + worldName + "' must use the SuperiorSkyblock2 void generator at server startup");
+            islandWorlds.put(dimension, loaded);
+            islandWorldsToDimensions.put(loaded.getUID(), dimension);
+            notifyWorldLoadListeners(loaded, dimension);
+            // The server loaded spawn chunks before plugin listeners were ready.
+            // Only coordinate identities are read here; live installation is regional.
+            for (org.bukkit.Chunk chunk : loaded.getLoadedChunks()) {
+                final int x = chunk.getX(), z = chunk.getZ();
+                BukkitExecutor.region(loaded, x, z, () -> {
+                    if (loaded.isChunkLoaded(x, z))
+                        com.bgsoftware.superiorskyblock.core.threads.FoliaRegionTrackers.install(loaded);
+                }, 1L);
+            }
+            return loaded;
+        }
         if (Bukkit.getWorld(worldName) != null) {
             throw new RuntimeException("The world " + worldName + " is already loaded. This can occur by one of the following reasons:\n" +
                     "- Another plugin loaded it manually before SuperiorSkyblock.\n" +
@@ -201,7 +238,7 @@ public class WorldsProvider_Default implements WorldsProvider {
     }
 
     private static BlockPosition nextPosition(BlockPosition previousPosition, int islandsHeight, int offsetX, int offsetZ) {
-        return SBlockPosition.of(previousPosition.getX() + offsetX, islandsHeight, previousPosition.getZ() + offsetZ);
+        return SBlockPosition.of(Math.addExact(previousPosition.getX(), offsetX), islandsHeight, Math.addExact(previousPosition.getZ(), offsetZ));
     }
 
     public static void registerListeners(PluginEventsDispatcher dispatcher) {

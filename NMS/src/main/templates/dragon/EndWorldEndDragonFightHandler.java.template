@@ -1,37 +1,48 @@
 package com.bgsoftware.superiorskyblock.nms.${NMS_VERSION}.dragon;
 
 import com.bgsoftware.common.annotations.Nullable;
+import com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin;
+import com.bgsoftware.superiorskyblock.api.island.Island;
 import com.bgsoftware.superiorskyblock.api.island.cache.IslandCache;
 import com.bgsoftware.superiorskyblock.api.island.cache.IslandCacheKey;
 import com.bgsoftware.superiorskyblock.island.cache.IslandCacheKeys;
+import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import com.bgsoftware.superiorskyblock.nms.${NMS_VERSION}.dragon.IslandEndDragonFight;
 import net.minecraft.core.BlockPos;
+import org.bukkit.World;
+import org.bukkit.Location;
 
 import java.util.Collections;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
+import java.util.UUID;
 
 public class EndWorldEndDragonFightHandler {
 
     private static final IslandCacheKey<IslandEndDragonFight> CACHE_KEY = IslandCacheKeys.register("DRAGON_FIGHT", IslandEndDragonFight.class);
 
-    private final List<IslandEndDragonFight> worldDragonFightsList = new LinkedList<>();
+    private final Map<UUID, IslandEndDragonFight> worldDragonFights = new ConcurrentHashMap<>();
+    private volatile World world;
 
     EndWorldEndDragonFightHandler() {
     }
 
     public void tick() {
-        this.worldDragonFightsList.forEach(IslandEndDragonFight::tick);
+        if (!BukkitExecutor.isFolia())
+            this.worldDragonFights.values().forEach(IslandEndDragonFight::tick);
     }
 
     public void addDragonFight(IslandCache islandCache, IslandEndDragonFight endDragonFight) {
+        this.world = endDragonFight.getBukkitWorld();
         IslandEndDragonFight oldDragonFight = islandCache.store(CACHE_KEY, endDragonFight);
         if (oldDragonFight != null && oldDragonFight != endDragonFight) {
-            this.worldDragonFightsList.remove(oldDragonFight);
+            this.worldDragonFights.remove(oldDragonFight.getIsland().getUniqueId(), oldDragonFight);
             // The old fight is no longer ticked, so its boss bar would stay visible to its players forever.
-            oldDragonFight.removeBattlePlayers();
+            oldDragonFight.stop();
         }
-        this.worldDragonFightsList.add(endDragonFight);
+        this.worldDragonFights.put(endDragonFight.getIsland().getUniqueId(), endDragonFight);
     }
 
     @Nullable
@@ -41,10 +52,16 @@ public class EndWorldEndDragonFightHandler {
 
     @Nullable
     public IslandEndDragonFight getDragonFightAt(BlockPos blockPos) {
+        World world = this.world;
+        if (world != null) {
+            Island island = SuperiorSkyblockPlugin.getPlugin().getGrid().getIslandAt(
+                    new Location(world, blockPos.getX(), blockPos.getY(), blockPos.getZ()));
+            return island == null ? null : worldDragonFights.get(island.getUniqueId());
+        }
         int chunkX = blockPos.getX() >> 4;
         int chunkZ = blockPos.getZ() >> 4;
 
-        for (IslandEndDragonFight endDragonFight : this.worldDragonFightsList) {
+        for (IslandEndDragonFight endDragonFight : this.worldDragonFights.values()) {
             if (endDragonFight.getIsland().isInside(chunkX, chunkZ))
                 return endDragonFight;
         }
@@ -53,14 +70,14 @@ public class EndWorldEndDragonFightHandler {
     }
 
     public List<IslandEndDragonFight> getDragonFights() {
-        return Collections.unmodifiableList(this.worldDragonFightsList);
+        return Collections.unmodifiableList(new ArrayList<>(this.worldDragonFights.values()));
     }
 
     @Nullable
     public IslandEndDragonFight removeDragonFight(IslandCache islandCache) {
         IslandEndDragonFight endDragonFight = islandCache.remove(CACHE_KEY);
         if (endDragonFight != null)
-            this.worldDragonFightsList.remove(endDragonFight);
+            this.worldDragonFights.remove(endDragonFight.getIsland().getUniqueId(), endDragonFight);
         return endDragonFight;
     }
 

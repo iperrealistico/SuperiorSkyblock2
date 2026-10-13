@@ -25,10 +25,10 @@ public class BanButton extends AbstractMenuViewButton<MenuConfirmBan.View> {
     public void onButtonClick(ButtonClickContext<MenuConfirmBan.View> context) {
         SuperiorPlayer clickedPlayer = plugin.getPlayers().getSuperiorPlayer(context.getPlayer());
 
-        if (getTemplate().banPlayer)
+        if (getTemplate().banPlayer && menuView.claimIslandAction(menuView.getIsland(), com.bgsoftware.superiorskyblock.island.privilege.IslandPrivileges.BAN_MEMBER))
             IslandUtils.handleBanPlayer(clickedPlayer, menuView.getIsland(), menuView.getSuperiorPlayer());
 
-        BukkitExecutor.sync(menuView::closeView, 1L);
+        plugin.executePlayer(menuView.getInventoryViewer(), menuView::closeView, 1L);
     }
 
     public static class Builder extends AbstractMenuTemplateButton.AbstractBuilder<MenuConfirmBan.View> {

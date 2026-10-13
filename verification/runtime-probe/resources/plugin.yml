@@ -1,0 +1,9 @@
+name: SuperiorSkyblockPVCProbe
+version: 1.0
+main: club.peacefulvanilla.superior.probe.SuperiorProbe
+api-version: '1.13'
+folia-supported: true
+depend: [SuperiorSkyblock2, LuckPerms]
+commands:
+  pvcskyprobe:
+    description: Guarded native qualification observer

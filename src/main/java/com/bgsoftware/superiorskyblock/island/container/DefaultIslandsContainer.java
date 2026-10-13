@@ -62,7 +62,8 @@ public class DefaultIslandsContainer implements IslandsContainer {
         addIslandToGrid(island);
 
         this.islandsByUUID.put(island.getUniqueId(), island);
-        this.islandsByNames.put(IslandNames.getNameForLookup(island.getStrippedName()), island);
+        plugin.getPvcIslandService().register(island);
+        if (!island.getStrippedName().isEmpty()) this.islandsByNames.put(IslandNames.getNameForLookup(island.getStrippedName()), island);
 
         sortedIslands.values().forEach(sortedIslands -> {
             sortedIslands.write(_sortedIslands -> _sortedIslands.add(island));
@@ -106,7 +107,8 @@ public class DefaultIslandsContainer implements IslandsContainer {
         }
 
         this.islandsByUUID.remove(island.getUniqueId());
-        this.islandsByNames.remove(IslandNames.getNameForLookup(island.getStrippedName()));
+        plugin.getPvcIslandService().unregister(island);
+        this.islandsByNames.remove(IslandNames.getNameForLookup(island.getStrippedName()), island);
 
         sortedIslands.values().forEach(sortedIslands -> {
             sortedIslands.write(_sortedIslands -> _sortedIslands.remove(island));
@@ -126,9 +128,8 @@ public class DefaultIslandsContainer implements IslandsContainer {
 
     @Override
     public void updateIslandName(Island island, String oldName) {
-        Island currentIsland = this.islandsByNames.remove(IslandNames.getNameForLookup(oldName));
-        if (currentIsland == island)
-            this.islandsByNames.put(IslandNames.getNameForLookup(island.getStrippedName()), island);
+        this.islandsByNames.remove(IslandNames.getNameForLookup(oldName), island);
+        if (!island.getStrippedName().isEmpty()) this.islandsByNames.put(IslandNames.getNameForLookup(island.getStrippedName()), island);
     }
 
     @Nullable

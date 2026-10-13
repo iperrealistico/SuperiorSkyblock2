@@ -75,11 +75,6 @@ public class CmdCreate implements ISuperiorCommand {
     public void execute(SuperiorSkyblockPlugin plugin, CommandSender sender, String[] args) {
         SuperiorPlayer superiorPlayer = plugin.getPlayers().getSuperiorPlayer(sender);
 
-        if (superiorPlayer.getIsland() != null) {
-            Message.ALREADY_IN_ISLAND.send(superiorPlayer);
-            return;
-        }
-
         if (plugin.getGrid().hasActiveCreateRequest(superiorPlayer)) {
             Message.ISLAND_CREATE_PROCESS_FAIL.send(superiorPlayer);
             return;

@@ -91,7 +91,7 @@ public class CmdTeam implements ISuperiorCommand {
             members.stream()
                     .sorted(Collections.reverseOrder(SortingComparators.ISLAND_ROLES_COMPARATOR))
                     .forEach(islandMember -> {
-                        PlayerRole playerRole = islandMember.getPlayerRole();
+                        PlayerRole playerRole = islandMember.getPlayerRole(island);
                         long time = islandMember.getLastTimeStatus() == -1 ? -1 : ((System.currentTimeMillis() / 1000) - islandMember.getLastTimeStatus());
                         boolean onlinePlayer = islandMember.isOnline() && islandMember.isShownAsOnline();
                         Message.ISLAND_TEAM_STATUS_ROLES.sendPlayerOrConsole(superiorPlayer,

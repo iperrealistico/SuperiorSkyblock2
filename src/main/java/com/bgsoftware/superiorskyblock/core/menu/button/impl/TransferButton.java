@@ -25,10 +25,11 @@ public class TransferButton extends AbstractMenuViewButton<MenuConfirmTransfer.V
     public void onButtonClick(ButtonClickContext<MenuConfirmTransfer.View> context) {
         SuperiorPlayer clickedPlayer = plugin.getPlayers().getSuperiorPlayer(context.getPlayer());
 
-        if (getTemplate().newOwner)
+        if (getTemplate().newOwner && IslandUtils.checkTransferRestrictions(clickedPlayer, menuView.getIsland(), menuView.getSuperiorPlayer()) &&
+                menuView.claimIslandAction(menuView.getIsland(), null))
             IslandUtils.handleTransferIsland(clickedPlayer, menuView.getIsland(), menuView.getSuperiorPlayer());
 
-        BukkitExecutor.sync(menuView::closeView, 1L);
+        plugin.executePlayer(menuView.getInventoryViewer(), menuView::closeView, 1L);
     }
 
     public static class Builder extends AbstractMenuTemplateButton.AbstractBuilder<MenuConfirmTransfer.View> {

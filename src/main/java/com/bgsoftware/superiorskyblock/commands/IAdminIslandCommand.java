@@ -19,8 +19,12 @@ public interface IAdminIslandCommand extends ISuperiorCommand {
     default void execute(SuperiorSkyblockPlugin plugin, CommandSender sender, String[] args) {
         if (!supportMultipleIslands()) {
             IslandArgument arguments = CommandArguments.getIsland(plugin, sender, args[2]);
-            if (arguments.getIsland() != null)
-                execute(plugin, sender, arguments.getSuperiorPlayer(), arguments.getIsland(), args);
+            if (arguments.getIsland() != null) {
+                try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope scope =
+                             com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.open(arguments.getIsland())) {
+                    execute(plugin, sender, arguments.getSuperiorPlayer(), arguments.getIsland(), args);
+                }
+            }
         } else {
             IslandsListArgument arguments = CommandArguments.getMultipleIslands(plugin, sender, args[2]);
             if (!arguments.getIslands().isEmpty())
@@ -41,7 +45,9 @@ public interface IAdminIslandCommand extends ISuperiorCommand {
                 tabVariables = adminTabComplete(plugin, sender, null, args);
             } else {
                 SuperiorPlayer targetPlayer = plugin.getPlayers().getSuperiorPlayer(args[2]);
-                Island island = targetPlayer == null ? plugin.getGrid().getIsland(args[2]) : targetPlayer.getIsland();
+                Island island = com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isExplicitTarget() ?
+                        com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current() : targetPlayer == null ?
+                        plugin.getPvcIslandService().resolve(args[2]) : targetPlayer.getIslands().size() == 1 ? targetPlayer.getIslands().get(0) : null;
                 if (island != null) {
                     tabVariables = adminTabComplete(plugin, sender, island, args);
                     if (tabVariables.isEmpty())

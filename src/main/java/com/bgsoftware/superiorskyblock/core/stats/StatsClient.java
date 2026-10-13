@@ -46,7 +46,7 @@ public class StatsClient {
     }
 
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1, new ThreadFactoryBuilder()
-            .setNameFormat("SuperiorSkyblock Stats").build());
+            .setNameFormat("SuperiorSkyblock Stats").setDaemon(true).build());
 
     private ScheduledFuture<?> scheduledTask;
 
@@ -95,6 +95,8 @@ public class StatsClient {
         statsObject.addProperty("server", serverUUID.toString());
 
         HttpsURLConnection conn = (HttpsURLConnection) new URL(API_ENDPOINT).openConnection();
+        conn.setConnectTimeout(10000);
+        conn.setReadTimeout(10000);
         conn.setRequestMethod("POST");
         conn.setRequestProperty("Content-Type", "application/json");
         conn.setDoOutput(true);

@@ -64,7 +64,7 @@ public class CmdLeave implements ISuperiorCommand {
 
         SuperiorPlayer superiorPlayer = arguments.getSuperiorPlayer();
 
-        if (superiorPlayer.getPlayerRole().getNextRole() == null) {
+        if (superiorPlayer.getPlayerRole(island).getNextRole() == null) {
             Message.LEAVE_ISLAND_AS_LEADER.send(superiorPlayer);
             return;
         }

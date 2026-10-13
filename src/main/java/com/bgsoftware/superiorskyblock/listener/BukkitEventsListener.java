@@ -963,7 +963,8 @@ public class BukkitEventsListener implements Listener {
         public GameEvent<GameEventArgs.EntityDeathEvent> execute(GameEventType<GameEventArgs.EntityDeathEvent> eventType, GameEventPriority priority, com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent e) {
             Location entityLocation = e.getEntity().getLocation();
 
-            BukkitExecutor.sync(() -> {
+            BukkitExecutor.region(entityLocation.getWorld(), entityLocation.getBlockX() >> 4,
+                    entityLocation.getBlockZ() >> 4, () -> {
                 if (e.getEntity().isValid() && !e.getEntity().isDead())
                     return;
 

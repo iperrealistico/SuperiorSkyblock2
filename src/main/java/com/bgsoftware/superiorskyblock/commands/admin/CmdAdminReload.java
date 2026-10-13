@@ -54,6 +54,9 @@ public class CmdAdminReload implements ISuperiorCommand {
 
         try {
             plugin.reloadPlugin(PluginReloadReason.COMMAND);
+        } catch (com.bgsoftware.superiorskyblock.pvc.PvcReloadRejectedException rejected) {
+            Message.CUSTOM.send(sender, "&c" + rejected.getMessage(), true);
+            return;
         } catch (ManagerLoadException error) {
             Log.error(error, "An unexpected error occurred while reloading the plugin:");
             if (!ManagerLoadException.handle(error))

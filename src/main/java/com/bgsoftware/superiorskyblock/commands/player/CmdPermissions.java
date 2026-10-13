@@ -86,7 +86,7 @@ public class CmdPermissions implements IPermissibleCommand {
                 return;
             }
 
-            if (island.isMember(targetPlayer) && !superiorPlayer.getPlayerRole().isHigherThan(targetPlayer.getPlayerRole())) {
+            if (island.isMember(targetPlayer) && !superiorPlayer.getPlayerRole(island).isHigherThan(targetPlayer.getPlayerRole(island))) {
                 Message.CHANGE_PERMISSION_FOR_HIGHER_ROLE.send(superiorPlayer);
                 return;
             }

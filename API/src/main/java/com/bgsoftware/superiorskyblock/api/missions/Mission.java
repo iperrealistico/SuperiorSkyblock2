@@ -23,6 +23,53 @@ public abstract class Mission<V> {
     private final List<String> requiredMissions = new LinkedList<>();
     private final List<String> requiredChecks = new LinkedList<>();
     private final Map<SuperiorPlayer, V> missionData = new ConcurrentHashMap<>();
+    private final Map<java.util.UUID, V> islandData = new ConcurrentHashMap<>();
+
+    /** Opt in only after migrating persistence and event targets to island UUID subjects. */
+    public boolean supportsIslandSubjects() { return false; }
+
+    /** False only for subjects whose retained legacy progress cannot be resolved safely. */
+    public boolean isProgressAvailable(SuperiorPlayer player) { return true; }
+
+    /** A migration quarantine must never overwrite or delete the original progress file. */
+    public boolean canPersistProgress() { return true; }
+
+    protected Set<Map.Entry<java.util.UUID, V>> subjectEntrySet() {
+        if (islandMission && supportsIslandSubjects()) return islandData.entrySet();
+        Map<java.util.UUID, V> result = new java.util.HashMap<>();
+        missionData.forEach((player, value) -> result.put(player.getUniqueId(), value));
+        return result.entrySet();
+    }
+
+    protected void loadSubjectData(java.util.UUID id, V value) {
+        if (!islandMission || !supportsIslandSubjects()) {
+            SuperiorPlayer player = com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI.getPlayer(id);
+            if (player != null) insertData(player, value);
+            return;
+        }
+        com.bgsoftware.superiorskyblock.api.island.Island island = com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI.getIslandByUUID(id);
+        if (island != null) { islandData.put(id, value); return; }
+        if (com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI.getGrid().isKnownIslandUUID(id)) return;
+        SuperiorPlayer owner = null;
+        for (SuperiorPlayer candidate : com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI.getPlayers().getAllPlayers())
+            if (candidate.getUniqueId().equals(id)) { owner = candidate; break; }
+        if (owner == null) throw new IllegalStateException("Unknown island mission subject: " + id);
+        java.util.List<com.bgsoftware.superiorskyblock.api.island.Island> properties = owner.getOwnedIslands();
+        if (properties.isEmpty()) return;
+        if (properties.size() != 1) throw new IllegalStateException("Ambiguous legacy island mission owner: " + id);
+        islandData.put(properties.get(0).getUniqueId(), value);
+    }
+
+    private java.util.UUID islandSubject(SuperiorPlayer player) {
+        com.bgsoftware.superiorskyblock.api.island.Island island = player.getIsland();
+        return island == null ? null : island.getUniqueId();
+    }
+
+    public void clearIslandData(com.bgsoftware.superiorskyblock.api.island.Island island) {
+        if (!islandMission || !supportsIslandSubjects()) { clearData(island.getOwner()); return; }
+        V data = islandData.remove(island.getUniqueId());
+        if (data != null && clearMethod != null) clearMethod.accept(data);
+    }
 
     private String name = null;
     private MissionCategory missionCategory = null;
@@ -225,6 +272,12 @@ public abstract class Mission<V> {
      */
     public void clearData(SuperiorPlayer superiorPlayer) {
         Preconditions.checkNotNull(superiorPlayer, "superiorPlayer parameter cannot be null.");
+        if (islandMission && supportsIslandSubjects()) {
+            java.util.UUID key = islandSubject(superiorPlayer);
+            V data = key == null ? null : islandData.remove(key);
+            if (data != null && clearMethod != null) clearMethod.accept(data);
+            return;
+        }
         SuperiorPlayer dataKey = getDataKey(superiorPlayer);
         if (dataKey != null) {
             V data = missionData.remove(dataKey);
@@ -242,6 +295,7 @@ public abstract class Mission<V> {
     public void transferData(SuperiorPlayer oldPlayer, SuperiorPlayer newPlayer) {
         Preconditions.checkNotNull(oldPlayer, "oldPlayer parameter cannot be null.");
         Preconditions.checkNotNull(newPlayer, "newPlayer parameter cannot be null.");
+        if (islandMission && supportsIslandSubjects()) return;
         V data = missionData.remove(oldPlayer);
         if (data != null)
             missionData.put(newPlayer, data);
@@ -267,6 +321,9 @@ public abstract class Mission<V> {
     public void insertData(SuperiorPlayer superiorPlayer, V value) {
         Preconditions.checkNotNull(superiorPlayer, "superiorPlayer parameter cannot be null.");
         Preconditions.checkNotNull(value, "value parameter cannot be null.");
+        if (islandMission && supportsIslandSubjects()) {
+            java.util.UUID key = islandSubject(superiorPlayer); if (key != null) islandData.put(key, value); return;
+        }
         SuperiorPlayer dataKey = getDataKey(superiorPlayer);
         if (dataKey != null)
             missionData.put(dataKey, value);
@@ -282,6 +339,10 @@ public abstract class Mission<V> {
     public V getOrCreate(SuperiorPlayer superiorPlayer, Function<SuperiorPlayer, ? extends V> createFunction) {
         Preconditions.checkNotNull(superiorPlayer, "superiorPlayer parameter cannot be null.");
         Preconditions.checkNotNull(createFunction, "createFunction parameter cannot be null.");
+        if (islandMission && supportsIslandSubjects()) {
+            java.util.UUID key = islandSubject(superiorPlayer);
+            return key == null ? null : islandData.computeIfAbsent(key, id -> createFunction.apply(superiorPlayer));
+        }
 
         SuperiorPlayer dataKey = getDataKey(superiorPlayer);
 
@@ -299,6 +360,9 @@ public abstract class Mission<V> {
     @Nullable
     public V get(SuperiorPlayer superiorPlayer) {
         Preconditions.checkNotNull(superiorPlayer, "superiorPlayer parameter cannot be null.");
+        if (islandMission && supportsIslandSubjects()) {
+            java.util.UUID key = islandSubject(superiorPlayer); return key == null ? null : islandData.get(key);
+        }
 
         SuperiorPlayer dataKey = getDataKey(superiorPlayer);
 

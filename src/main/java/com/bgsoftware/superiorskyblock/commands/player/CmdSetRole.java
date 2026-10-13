@@ -84,7 +84,11 @@ public class CmdSetRole implements IPermissibleCommand {
         if (playerRole == null)
             return;
 
-        Island targetIsland = targetPlayer.getIsland();
+        Island targetIsland = superiorPlayer == null ? CommandArguments.getIsland(plugin, sender, args[1]).getIsland() : playerIsland;
+        if (targetIsland != null && !targetIsland.isMember(targetPlayer)) {
+            Message.PLAYER_NOT_INSIDE_ISLAND.send(sender);
+            return;
+        }
 
         // Checking requirements for players
         if (superiorPlayer != null) {
@@ -95,8 +99,8 @@ public class CmdSetRole implements IPermissibleCommand {
 
             targetIsland = playerIsland;
 
-            if (targetPlayer.getPlayerRole().isHigherThan(superiorPlayer.getPlayerRole()) ||
-                    !playerRole.isLessThan(superiorPlayer.getPlayerRole())) {
+            if (targetPlayer.getPlayerRole(playerIsland).isHigherThan(superiorPlayer.getPlayerRole(playerIsland)) ||
+                    !playerRole.isLessThan(superiorPlayer.getPlayerRole(playerIsland))) {
                 Message.CANNOT_SET_ROLE.send(sender, playerRole);
                 return;
             }
@@ -112,7 +116,7 @@ public class CmdSetRole implements IPermissibleCommand {
             }
         }
 
-        if (targetPlayer.getPlayerRole().equals(playerRole)) {
+        if (targetPlayer.getPlayerRole(targetIsland).equals(playerRole)) {
             Message.PLAYER_ALREADY_IN_ROLE.send(sender, targetPlayer.getName(), playerRole);
             return;
         }
@@ -124,19 +128,19 @@ public class CmdSetRole implements IPermissibleCommand {
             return;
         }
 
-        PlayerRole currentRole = targetPlayer.getPlayerRole();
+        PlayerRole currentRole = targetPlayer.getPlayerRole(targetIsland);
 
         if (!PluginEventsFactory.callPlayerChangeRoleEvent(targetPlayer, playerRole))
             return;
 
-        targetPlayer.setPlayerRole(playerRole);
+        targetPlayer.setPlayerRole(targetIsland, playerRole);
 
         if (currentRole.isLessThan(playerRole)) {
-            Message.PROMOTED_MEMBER.send(sender, targetPlayer.getName(), targetPlayer.getPlayerRole());
-            Message.GOT_PROMOTED.send(targetPlayer, targetPlayer.getPlayerRole());
+            Message.PROMOTED_MEMBER.send(sender, targetPlayer.getName(), targetPlayer.getPlayerRole(targetIsland));
+            Message.GOT_PROMOTED.send(targetPlayer, targetPlayer.getPlayerRole(targetIsland));
         } else {
-            Message.DEMOTED_MEMBER.send(sender, targetPlayer.getName(), targetPlayer.getPlayerRole());
-            Message.GOT_DEMOTED.send(targetPlayer, targetPlayer.getPlayerRole());
+            Message.DEMOTED_MEMBER.send(sender, targetPlayer.getName(), targetPlayer.getPlayerRole(targetIsland));
+            Message.GOT_DEMOTED.send(targetPlayer, targetPlayer.getPlayerRole(targetIsland));
         }
     }
 

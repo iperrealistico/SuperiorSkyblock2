@@ -19,6 +19,16 @@ import java.util.List;
 public class CmdAdminSetSize implements IAdminIslandCommand {
 
     @Override
+    public void execute(SuperiorSkyblockPlugin plugin, CommandSender sender, String[] args) {
+        if (plugin.getPvcEntitlements() != null && plugin.getPvcEntitlements().isAutomaticSize()) {
+            NumberArgument<Integer> size = CommandArguments.getSize(sender, args[3]);
+            if (size.isSucceed()) PvcSizeCommands.set(plugin, sender, args[2], size.getNumber(), false);
+        } else {
+            IAdminIslandCommand.super.execute(plugin, sender, args);
+        }
+    }
+
+    @Override
     public List<String> getAliases() {
         return Arrays.asList("setsize", "setislandsize", "setbordersize");
     }

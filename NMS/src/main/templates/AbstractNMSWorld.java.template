@@ -132,7 +132,9 @@ public abstract class AbstractNMSWorld implements NMSWorld {
 
         ServerLevel serverLevel = (ServerLevel) spawnerBlockEntity.getLevel();
 
-        List<TickingBlockEntity> blockEntityTickers = LEVEL_BLOCK_ENTITY_TICKERS.get(serverLevel);
+        List<TickingBlockEntity> blockEntityTickers = com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.isFolia()
+                ? com.bgsoftware.superiorskyblock.core.threads.FoliaRegionData.blockEntityTickers(serverLevel)
+                : LEVEL_BLOCK_ENTITY_TICKERS.get(serverLevel);
         Iterator<TickingBlockEntity> blockEntityTickersIterator = blockEntityTickers.iterator();
         List<TickingBlockEntity> tickersToAdd = new LinkedList<>();
 

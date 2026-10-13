@@ -4,6 +4,7 @@ import com.bgsoftware.common.annotations.Nullable;
 import com.bgsoftware.common.reflection.ReflectField;
 import com.bgsoftware.superiorskyblock.api.island.Island;
 import com.bgsoftware.superiorskyblock.api.world.Dimension;
+import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import com.bgsoftware.superiorskyblock.nms.NMSDragonFight;
 import com.bgsoftware.superiorskyblock.nms.${NMS_VERSION}.dragon.EndDragonFightWrapper;
 import com.bgsoftware.superiorskyblock.nms.${NMS_VERSION}.dragon.IslandEndDragonFight;
@@ -24,6 +25,10 @@ import ${CRAFTBUKKIT_PACKAGE}.CraftWorld;
 import org.bukkit.entity.Player;
 
 import java.lang.reflect.Modifier;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class NMSDragonFightImpl implements NMSDragonFight {
 
@@ -35,6 +40,7 @@ public class NMSDragonFightImpl implements NMSDragonFight {
             ServerLevel.class, ${END_DRAGON_FIGHT_CLASS}.class, Modifier.PRIVATE, 1);
 
     private static boolean firstWorldPreparation = true;
+    private final Map<UUID, CompletableFuture<EndDragonFightWrapper>> regionalWorlds = new ConcurrentHashMap<>();
 
     static {
         ENTITY_TYPES_BUILDER.set(${ENTITY_TYPE_VALUES_CLASS}.ENDER_DRAGON, (EntityType.EntityFactory<EnderDragon>) IslandEntityEnderDragon::fromEntityTypes);
@@ -43,6 +49,23 @@ public class NMSDragonFightImpl implements NMSDragonFight {
     @Override
     public void prepareEndWorld(World bukkitWorld) {
         ServerLevel serverLevel = ((CraftWorld) bukkitWorld).getHandle();
+        if (BukkitExecutor.isFolia()) {
+            CompletableFuture<EndDragonFightWrapper> ready = new CompletableFuture<>();
+            CompletableFuture<EndDragonFightWrapper> previous = regionalWorlds.putIfAbsent(bukkitWorld.getUID(), ready);
+            if (previous != null)
+                return;
+            synchronized (NMSDragonFightImpl.class) {
+                if (firstWorldPreparation) { firstWorldPreparation = false; SpikesCache.install(); }
+            }
+            BukkitExecutor.region(bukkitWorld, 0, 0, () -> {
+                try {
+                    EndDragonFightWrapper wrapper = new EndDragonFightWrapper(serverLevel, BlockPos.ZERO);
+                    WORLD_DRAGON_BATTLE.set(serverLevel, wrapper);
+                    ready.complete(wrapper);
+                } catch (Throwable failure) { ready.completeExceptionally(failure); }
+            });
+            return;
+        }
         WORLD_DRAGON_BATTLE.set(serverLevel, new EndDragonFightWrapper(serverLevel, BlockPos.ZERO));
 
         if (firstWorldPreparation) {
@@ -58,6 +81,14 @@ public class NMSDragonFightImpl implements NMSDragonFight {
 
         if (bukkitWorld == null)
             return null;
+
+        if (BukkitExecutor.isFolia()) {
+            CompletableFuture<EndDragonFightWrapper> ready = regionalWorlds.get(bukkitWorld.getUID());
+            if (ready == null || !ready.isDone() || ready.isCompletedExceptionally())
+                return null;
+            IslandEndDragonFight fight = ready.getNow(null).HANDLER.getDragonFight(island.getCache());
+            return fight == null || fight.getEnderDragon() == null ? null : fight.getEnderDragon().getBukkitEntity();
+        }
 
         ServerLevel serverLevel = ((CraftWorld) bukkitWorld).getHandle();
 
@@ -75,6 +106,19 @@ public class NMSDragonFightImpl implements NMSDragonFight {
         if (bukkitWorld == null)
             return;
 
+        if (BukkitExecutor.isFolia()) {
+            Location target = location.clone();
+            CompletableFuture<EndDragonFightWrapper> ready = regionalWorlds.get(bukkitWorld.getUID());
+            if (ready == null)
+                throw new IllegalStateException("End world was not prepared for regional dragon fights");
+            ready.thenAccept(wrapper -> BukkitExecutor.region(bukkitWorld, target.getBlockX() >> 4, target.getBlockZ() >> 4, () -> {
+                IslandEndDragonFight fight = new IslandEndDragonFight(island, ((CraftWorld) bukkitWorld).getHandle(), target);
+                wrapper.HANDLER.addDragonFight(island.getCache(), fight);
+                fight.wake();
+            }));
+            return;
+        }
+
         ServerLevel serverLevel = ((CraftWorld) bukkitWorld).getHandle();
 
         if (!(NMSUtilsVersioned.getEndDragonFight(serverLevel) instanceof EndDragonFightWrapper dragonFight))
@@ -89,6 +133,21 @@ public class NMSDragonFightImpl implements NMSDragonFight {
 
         if (bukkitWorld == null)
             return;
+
+        if (BukkitExecutor.isFolia()) {
+            CompletableFuture<EndDragonFightWrapper> ready = regionalWorlds.get(bukkitWorld.getUID());
+            if (ready != null)
+                ready.thenAccept(wrapper -> {
+                    IslandEndDragonFight fight = wrapper.HANDLER.removeDragonFight(island.getCache());
+                    if (fight != null) {
+                        fight.stop();
+                        IslandEntityEnderDragon dragon = fight.getEnderDragon();
+                        if (dragon != null)
+                            BukkitExecutor.entity(dragon.getBukkitEntity(), () -> dragon.getBukkitEntity().remove());
+                    }
+                });
+            return;
+        }
 
         ServerLevel serverLevel = ((CraftWorld) bukkitWorld).getHandle();
 
@@ -105,9 +164,27 @@ public class NMSDragonFightImpl implements NMSDragonFight {
 
     @Override
     public void awardTheEndAchievement(Player player) {
+        if (BukkitExecutor.isFolia() && !BukkitExecutor.owns(player)) {
+            BukkitExecutor.entity(player, () -> awardTheEndAchievement(player));
+            return;
+        }
         Advancement advancement = Bukkit.getAdvancement(NamespacedKey.minecraft("end/root"));
         if (advancement != null)
             player.getAdvancementProgress(advancement).awardCriteria("");
+    }
+
+    @Override
+    public void onPlayerEnteredIsland(Island island, Dimension dimension) {
+        if (!BukkitExecutor.isFolia() || dimension.getEnvironment() != World.Environment.THE_END)
+            return;
+        World world = island.getCenter(dimension).getWorld();
+        CompletableFuture<EndDragonFightWrapper> ready = world == null ? null : regionalWorlds.get(world.getUID());
+        if (ready != null)
+            ready.thenAccept(wrapper -> {
+                IslandEndDragonFight fight = wrapper.HANDLER.getDragonFight(island.getCache());
+                if (fight != null)
+                    fight.wake();
+            });
     }
 
 }

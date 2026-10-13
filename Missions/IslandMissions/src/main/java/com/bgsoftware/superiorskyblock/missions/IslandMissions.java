@@ -157,9 +157,14 @@ public final class IslandMissions extends BuiltinMission<Boolean> implements Lis
         if (success) {
             SuperiorPlayer rewardedPlayer = isTarget ? targetPlayer : superiorPlayer;
             if (rewardedPlayer != null) {
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    insertData(rewardedPlayer, true);
-                    this.plugin.getMissions().rewardMission(this, rewardedPlayer, true);
+                com.bgsoftware.superiorskyblock.api.island.Island island = event instanceof IslandEvent ?
+                        ((IslandEvent) event).getIsland() : com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current();
+                plugin.executeAsync(() -> {
+                    try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope ignored =
+                                 com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.open(island)) {
+                        insertData(rewardedPlayer, true);
+                        this.plugin.getMissions().rewardMission(this, rewardedPlayer, true);
+                    }
                 }, 5L);
             }
         }

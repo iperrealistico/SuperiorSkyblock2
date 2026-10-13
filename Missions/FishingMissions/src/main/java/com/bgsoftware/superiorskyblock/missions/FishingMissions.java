@@ -92,8 +92,8 @@ public final class FishingMissions extends BuiltinMission<KeyDataTracker> implem
 
     @Override
     public void saveProgress(ConfigurationSection section) {
-        for (Map.Entry<SuperiorPlayer, KeyDataTracker> entry : entrySet()) {
-            String uuid = entry.getKey().getUniqueId().toString();
+        for (Map.Entry<UUID, KeyDataTracker> entry : subjectEntrySet()) {
+            String uuid = entry.getKey().toString();
             int index = 0;
             for (Map.Entry<Key, Counter> craftedEntry : entry.getValue().getCounts().entrySet()) {
                 section.set(uuid + "." + index + ".item", craftedEntry.getKey().toString());
@@ -111,9 +111,8 @@ public final class FishingMissions extends BuiltinMission<KeyDataTracker> implem
 
             KeyDataTracker fishingTracker = new KeyDataTracker();
             UUID playerUUID = UUID.fromString(uuid);
-            SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(playerUUID);
 
-            insertData(superiorPlayer, fishingTracker);
+            loadSubjectData(UUID.fromString(uuid), fishingTracker);
 
             for (String key : section.getConfigurationSection(uuid).getKeys(false)) {
                 Key typeKey;
@@ -186,7 +185,7 @@ public final class FishingMissions extends BuiltinMission<KeyDataTracker> implem
 
         blocksTracker.track(itemKey, count);
 
-        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(player -> {
+        laterPlayer(superiorPlayer, () -> superiorPlayer.runIfOnline(player -> {
             if (canComplete(superiorPlayer))
                 this.plugin.getMissions().rewardMission(this, superiorPlayer, true);
         }), 2L);

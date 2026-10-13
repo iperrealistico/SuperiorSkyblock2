@@ -151,9 +151,6 @@ public class NMSChunksImpl implements NMSChunks {
         if (chunkPositions.isEmpty())
             return;
 
-        chunkPositions.forEach(chunkPosition -> island.markChunkEmpty(chunkPosition.getWorld(),
-                chunkPosition.getX(), chunkPosition.getZ(), false));
-
         NMSUtils.runActionOnChunks(chunkPositions, true, new NMSUtils.ChunkCallback(
                 ChunkLoadReason.DELETE_CHUNK, false) {
             @Override

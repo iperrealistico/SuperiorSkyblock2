@@ -24,8 +24,20 @@ public interface NMSChunks {
 
     void deleteChunks(Island island, List<ChunkPosition> chunkPositions, @Nullable Runnable onFinish);
 
+    default CompletableFuture<Void> deleteChunksAsync(Island island, List<ChunkPosition> chunkPositions) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        if (chunkPositions.isEmpty()) { result.complete(null); return result; }
+        try { deleteChunks(island, chunkPositions, () -> result.complete(null)); }
+        catch (Throwable error) { result.completeExceptionally(error); }
+        return result;
+    }
+
     CompletableFuture<List<CalculatedChunk.Blocks>> calculateChunks(List<ChunkPosition> chunkPositions,
                                                              Synchronized<Chunk2ObjectMap<CalculatedChunk.Blocks>> unloadedChunksCache);
+
+    default CalculatedChunk.Blocks calculateChunkBlocksNow(Chunk chunk) {
+        throw new UnsupportedOperationException("Regional block calculation requires a qualified modern NMS adapter");
+    }
 
     CompletableFuture<List<CalculatedChunk.Entities>> calculateChunkEntities(Collection<ChunkPosition> chunkPositions);
 

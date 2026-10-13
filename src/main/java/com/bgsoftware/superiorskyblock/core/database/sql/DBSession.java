@@ -48,7 +48,9 @@ public class DBSession {
         }
     };
 
-    private static SQLDatabaseSession<?> globalSession = null;
+    private static volatile SQLDatabaseSession<?> globalSession = null;
+    private static final Object SQL_ACCESS = new Object();
+    private static PvcSqlTransactions writes;
 
     private DBSession() {
 
@@ -68,6 +70,26 @@ public class DBSession {
 
         if (session.connect()) {
             globalSession = session;
+            writes = new PvcSqlTransactions(work -> {
+                synchronized (SQL_ACCESS) {
+                    java.util.concurrent.atomic.AtomicReference<Throwable> failure = new java.util.concurrent.atomic.AtomicReference<>();
+                    java.util.concurrent.atomic.AtomicBoolean called = new java.util.concurrent.atomic.AtomicBoolean();
+                    session.customQuery("SELECT 1", new QueryResult<PreparedStatement>().onSuccess(statement -> {
+                        called.set(true);
+                        try { work.execute(statement.getConnection()); }
+                        catch (java.sql.SQLException error) { throw error; }
+                        catch (Exception error) { throw new java.sql.SQLException("Maintained SQL transaction failed", error); }
+                    }).onFail(failure::set));
+                    if (failure.get() != null) throw new java.sql.SQLException("JDBC commit failed", failure.get());
+                    if (!called.get()) throw new java.sql.SQLException("JDBC connection callback was not invoked");
+                }
+            }, 1024, "MYSQL".equals(plugin.getSettings().getDatabase().getType()) ||
+                    "MARIADB".equals(plugin.getSettings().getDatabase().getType()) ?
+                    plugin.getSettings().getDatabase().getPrefix() : "", failure -> {
+                plugin.getPvcIslandService().blockOperations(failure);
+                plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                        "SQL outcome is uncertain. Ownership operations are paused; restart normally to reconcile durable journals. Do not retry transfers or resets before reconciliation.", failure);
+            });
             return true;
         }
 
@@ -75,61 +97,80 @@ public class DBSession {
     }
 
     public static CompletableFuture<Void> execute(IDatabaseTransaction transaction) {
-        return globalSession.execute(transaction);
+        return execute(java.util.Collections.singletonList(transaction));
     }
 
     public static CompletableFuture<Void> execute(IDatabaseTransaction... transactions) {
-        return globalSession.execute(transactions);
+        return execute(java.util.Arrays.asList(transactions));
     }
 
     public static CompletableFuture<Void> execute(Collection<IDatabaseTransaction> transactions) {
-        return globalSession.execute(transactions);
+        if (writes == null) {
+            CompletableFuture<Void> failure = new CompletableFuture<>();
+            failure.completeExceptionally(new IllegalStateException("SQL connection is not ready"));
+            return failure;
+        }
+        CompletableFuture<Void> result = writes.submit(transactions);
+        result.whenComplete((unused, error) -> {
+            if (error != null) Log.error(error, "A maintained SQL write failed; durable operation was not acknowledged.");
+        });
+        return result;
     }
 
     public static void createTable(String tableName, Column... columns) {
-        if (isReady())
-            globalSession.createTable(tableName, columns, QueryResult.EMPTY_VOID_QUERY_RESULT);
+        withSession(session -> session.createTable(tableName, columns, QueryResult.EMPTY_VOID_QUERY_RESULT));
     }
 
     public static void createIndex(String indexName, String tableName, String... columns) {
-        if (isReady())
-            globalSession.createIndex(indexName, tableName, columns, QueryResult.EMPTY_VOID_QUERY_RESULT);
+        withSession(session -> session.createIndex(indexName, tableName, columns, QueryResult.EMPTY_VOID_QUERY_RESULT));
     }
 
     public static void modifyColumnType(String tableName, String columnName, String newType) {
-        if (isReady())
-            globalSession.modifyColumnType(tableName, columnName, newType, QueryResult.EMPTY_VOID_QUERY_RESULT);
+        withSession(session -> session.modifyColumnType(tableName, columnName, newType, QueryResult.EMPTY_VOID_QUERY_RESULT));
     }
 
     public static void addColumn(String tableName, String columnName, String type) {
-        if (isReady())
-            globalSession.addColumn(tableName, columnName, type, QueryResult.EMPTY_VOID_QUERY_RESULT);
+        withSession(session -> session.addColumn(tableName, columnName, type, QueryResult.EMPTY_VOID_QUERY_RESULT));
     }
 
     public static void removePrimaryKey(String tableName, String columnName) {
-        if (isReady())
-            globalSession.removePrimaryKey(tableName, columnName, QueryResult.EMPTY_VOID_QUERY_RESULT);
+        withSession(session -> session.removePrimaryKey(tableName, columnName, QueryResult.EMPTY_VOID_QUERY_RESULT));
     }
 
     public static void select(String tableName, String filters, QueryResult<ResultSet> queryResult) {
-        if (isReady())
-            globalSession.select(tableName, filters, queryResult);
+        withSession(session -> session.select(tableName, filters, queryResult));
     }
 
     public static void setJournalMode(String jounralMode, QueryResult<ResultSet> queryResult) {
-        if (isReady())
-            globalSession.setJournalMode(jounralMode, queryResult);
+        withSession(session -> session.setJournalMode(jounralMode, queryResult));
     }
 
     public static void customQuery(String query, QueryResult<PreparedStatement> queryResult) {
-        if (isReady())
-            globalSession.customQuery(query, queryResult);
+        withSession(session -> session.customQuery(query, queryResult));
+    }
+
+    public static boolean hasUncertainCommit(Throwable failure) {
+        return PvcSqlTransactions.hasUncertainCommit(failure);
+    }
+
+    public static boolean isCommitOutcomeUncertain() {
+        return writes != null && writes.isCommitOutcomeUncertain();
+    }
+
+    private static void withSession(java.util.function.Consumer<SQLDatabaseSession<?>> work) {
+        synchronized (SQL_ACCESS) {
+            if (globalSession != null) work.accept(globalSession);
+        }
     }
 
     public static void close() {
         if (isReady()) {
+            if (writes != null) writes.close();
             DatabaseTransactionsExecutor.stopActiveExecutors();
-            globalSession.close();
+            synchronized (SQL_ACCESS) {
+                globalSession.close();
+                globalSession = null;
+            }
         }
     }
 

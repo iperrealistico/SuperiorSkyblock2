@@ -83,8 +83,14 @@ public final class FarmingMissions extends BuiltinMission<KeyDataTracker> implem
         data.clear();
     }
 
+    @Override public boolean isProgressAvailable(SuperiorPlayer player) {
+        return progressWorldsAvailable(player, PlantsTracker.INSTANCE::isWorldAvailable);
+    }
+    @Override public boolean canPersistProgress() { return PlantsTracker.INSTANCE.canPersistProgress(); }
+
     @Override
     public double getProgress(SuperiorPlayer superiorPlayer) {
+        if (!isProgressAvailable(superiorPlayer)) return 0D;
         KeyDataTracker farmingTracker = get(superiorPlayer);
 
         if (farmingTracker == null)
@@ -103,6 +109,7 @@ public final class FarmingMissions extends BuiltinMission<KeyDataTracker> implem
 
     @Override
     public int getProgressValue(SuperiorPlayer superiorPlayer) {
+        if (!isProgressAvailable(superiorPlayer)) return 0;
         KeyDataTracker farmingTracker = get(superiorPlayer);
 
         if (farmingTracker == null)
@@ -118,8 +125,8 @@ public final class FarmingMissions extends BuiltinMission<KeyDataTracker> implem
 
     @Override
     public void saveProgress(ConfigurationSection section) {
-        for (Map.Entry<SuperiorPlayer, KeyDataTracker> entry : entrySet()) {
-            String uuid = entry.getKey().getUniqueId().toString();
+        for (Map.Entry<UUID, KeyDataTracker> entry : subjectEntrySet()) {
+            String uuid = entry.getKey().toString();
             entry.getValue().getCounts().forEach((plant, count) ->
                     section.set("grown-plants." + uuid + "." + plant, count.get()));
         }
@@ -134,9 +141,8 @@ public final class FarmingMissions extends BuiltinMission<KeyDataTracker> implem
             for (String uuid : grownPlants.getKeys(false)) {
                 KeyDataTracker farmingTracker = new KeyDataTracker();
                 UUID playerUUID = UUID.fromString(uuid);
-                SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(playerUUID);
 
-                insertData(superiorPlayer, farmingTracker);
+                loadSubjectData(UUID.fromString(uuid), farmingTracker);
 
                 for (String key : grownPlants.getConfigurationSection(uuid).getKeys(false)) {
                     Key typeKey = getMissionPlantKey(Key.ofMaterialAndData(key));
@@ -166,16 +172,15 @@ public final class FarmingMissions extends BuiltinMission<KeyDataTracker> implem
 
                         for (String chunkKey : worldSection.getKeys(false)) {
                             PlantsTracker.INSTANCE.load(worldName, Long.parseLong(chunkKey),
-                                    worldSection.getIntegerList(chunkKey), placer);
+                                    worldSection.getIntegerList(chunkKey), placer, dataVersion);
                         }
                     }
                 }
 
-                ConfigurationSection legacyPlacedPlants = section.getConfigurationSection("placed-plants-legacy");
-                if (legacyPlacedPlants != null)
-                    loadLegacyData(legacyPlacedPlants);
             }
         }
+        ConfigurationSection legacyPlacedPlants = section.getConfigurationSection("placed-plants-legacy");
+        if (legacyPlacedPlants != null) loadLegacyData(legacyPlacedPlants);
     }
 
     private void loadLegacyData(ConfigurationSection section) {
@@ -299,18 +304,12 @@ public final class FarmingMissions extends BuiltinMission<KeyDataTracker> implem
         if (placerUUID == null)
             return;
 
-        SuperiorPlayer playerTracked;
+        SuperiorPlayer playerTracked = this.plugin.getPlayers().getSuperiorPlayer(placerUUID);
+        Island plantIsland = this.plugin.getGrid().getIslandAt(plantBlock.getLocation());
+        if (getIslandMission() && (plantIsland == null || !plantIsland.isMember(playerTracked))) return;
 
-        SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(placerUUID);
-        if (getIslandMission()) {
-            // In case this is an island mission, we want to get the uuid of the owner.
-            Island island = superiorPlayer.getIsland();
-            if (island == null)
-                return;
-            playerTracked = island.getOwner();
-        } else {
-            playerTracked = superiorPlayer;
-        }
+        try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope scope =
+                     com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.open(getIslandMission() ? plantIsland : null)) {
 
         if (!this.plugin.getMissions().canCompleteNoProgress(playerTracked, this))
             return;
@@ -322,10 +321,11 @@ public final class FarmingMissions extends BuiltinMission<KeyDataTracker> implem
 
         farmingTracker.track(plantKey, 1);
 
-        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> playerTracked.runIfOnline(player -> {
+        laterPlayer(playerTracked, () -> playerTracked.runIfOnline(player -> {
             if (canComplete(playerTracked))
                 this.plugin.getMissions().rewardMission(this, playerTracked, true);
         }), 2L);
+        }
     }
 
     private int getBlockAge(BlockState newState) {

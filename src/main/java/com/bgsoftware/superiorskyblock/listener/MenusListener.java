@@ -2,8 +2,9 @@ package com.bgsoftware.superiorskyblock.listener;
 
 import com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin;
 import com.bgsoftware.superiorskyblock.api.menu.view.MenuView;
-import com.bgsoftware.superiorskyblock.core.collections.CollectionsFactory;
-import com.bgsoftware.superiorskyblock.core.collections.view.Int2ObjectMapView;
+import com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope;
+import com.bgsoftware.superiorskyblock.core.menu.view.IIslandMenuView;
+import com.bgsoftware.superiorskyblock.core.menu.view.AbstractMenuView;
 import com.bgsoftware.superiorskyblock.core.menu.button.click.ButtonClickContextImpl;
 import com.bgsoftware.superiorskyblock.core.menu.impl.internal.StackedBlocksDepositMenu;
 import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
@@ -19,7 +20,7 @@ import org.bukkit.inventory.ItemStack;
 
 public class MenusListener extends AbstractGameEventListener {
 
-    private final Int2ObjectMapView<ItemStack> latestClickedItem = CollectionsFactory.createInt2ObjectArrayMap();
+    private final java.util.concurrent.ConcurrentMap<Integer, ItemStack> latestClickedItem = new java.util.concurrent.ConcurrentHashMap<>();
 
     public MenusListener(SuperiorSkyblockPlugin plugin) {
         super(plugin);
@@ -47,7 +48,7 @@ public class MenusListener extends AbstractGameEventListener {
         if (clickedItem != null && inventory != null && inventory.getHolder() instanceof MenuView) {
             int entityId = e.getArgs().bukkitEvent.getWhoClicked().getEntityId();
             latestClickedItem.put(entityId, clickedItem);
-            BukkitExecutor.sync(() -> latestClickedItem.remove(entityId), 20L);
+            BukkitExecutor.global(() -> latestClickedItem.remove(entityId, clickedItem), 20L);
         }
     }
 
@@ -55,7 +56,7 @@ public class MenusListener extends AbstractGameEventListener {
         Player player = (Player) e.getArgs().bukkitEvent.getPlayer();
         ItemStack clickedItem = latestClickedItem.remove(player.getEntityId());
         if (clickedItem != null) {
-            BukkitExecutor.sync(() -> {
+            BukkitExecutor.entity(player, () -> {
                 player.getInventory().removeItem(clickedItem);
                 player.updateInventory();
             }, 1L);
@@ -80,7 +81,8 @@ public class MenusListener extends AbstractGameEventListener {
 
             if (clickedInventory.equals(topInventory)) {
                 MenuView menuView = (MenuView) inventoryHolder;
-                try (ButtonClickContextImpl ctx = ButtonClickContextImpl.obtain(menuView, e.getArgs().bukkitEvent)) {
+                try (IslandExecutionScope scope = actionScope(menuView);
+                     ButtonClickContextImpl ctx = ButtonClickContextImpl.obtain(menuView, e.getArgs().bukkitEvent)) {
                     menuView.getMenu().onClick(ctx);
                 }
             }
@@ -95,7 +97,12 @@ public class MenusListener extends AbstractGameEventListener {
 
         if (inventoryHolder instanceof MenuView) {
             MenuView menuView = (MenuView) inventoryHolder;
-            menuView.getMenu().onClose(menuView);
+            try (IslandExecutionScope scope = actionScope(menuView)) {
+                menuView.getMenu().onClose(menuView);
+            }
+        } else if (inventoryHolder instanceof com.bgsoftware.superiorskyblock.island.SIslandChest) {
+            ((com.bgsoftware.superiorskyblock.island.SIslandChest) inventoryHolder).onViewerClose(
+                    (Player) e.getArgs().bukkitEvent.getPlayer(), topInventory);
         } else if (inventoryHolder instanceof StackedBlocksDepositMenu) {
             ((StackedBlocksDepositMenu) inventoryHolder).onClose(e.getArgs().bukkitEvent);
         }
@@ -103,7 +110,8 @@ public class MenusListener extends AbstractGameEventListener {
 
     private void onDialogMenuClick(GameEvent<GameEventArgs.DialogClickEvent> e) {
         MenuView menuView = e.getArgs().dialog.getMenuView();
-        try (ButtonClickContextImpl ctx = ButtonClickContextImpl.obtain(menuView, e.getArgs())) {
+        try (IslandExecutionScope scope = actionScope(menuView);
+             ButtonClickContextImpl ctx = ButtonClickContextImpl.obtain(menuView, e.getArgs())) {
             menuView.getMenu().onClick(ctx);
         }
     }
@@ -111,7 +119,16 @@ public class MenusListener extends AbstractGameEventListener {
     private void onDialogMenuClose(GameEvent<GameEventArgs.DialogCloseEvent> e) {
         MenuView menuView = e.getArgs().dialog.getMenuView();
         e.getArgs().dialog.onCloseDialog();
-        menuView.getMenu().onClose(menuView);
+        try (IslandExecutionScope scope = actionScope(menuView)) {
+            menuView.getMenu().onClose(menuView);
+        }
+    }
+
+    private IslandExecutionScope actionScope(MenuView menuView) {
+        if (menuView instanceof IIslandMenuView)
+            return IslandExecutionScope.open(((IIslandMenuView) menuView).getIsland(), true);
+        return IslandExecutionScope.open(menuView instanceof AbstractMenuView ?
+                ((AbstractMenuView) menuView).getActionTarget() : null, false);
     }
 
 }

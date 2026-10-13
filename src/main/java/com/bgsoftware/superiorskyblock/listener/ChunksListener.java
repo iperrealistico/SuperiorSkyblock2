@@ -108,18 +108,30 @@ public class ChunksListener extends AbstractGameEventListener {
         if (!plugin.getGrid().isIslandsWorld(chunk.getWorld()))
             return;
 
+        if (BukkitExecutor.isFolia())
+            BukkitExecutor.region(chunk.getWorld(), chunk.getX(), chunk.getZ(),
+                    () -> com.bgsoftware.superiorskyblock.core.threads.FoliaRegionTrackers.install(chunk.getWorld()), 1L);
+
         List<Island> chunkIslands = plugin.getGrid().getIslandsAt(chunk);
         chunkIslands.forEach(island -> {
             if (!island.isSpawn()) {
-                try (ChunkPosition chunkPosition = ChunkPosition.of(chunk)) {
-                    handleIslandChunkLoad(island, chunk, chunkPosition, isNewChunk);
-                }
+                // NMS chunk work may consume/release its coordinate argument
+                // before this listener returns. Never lend it a pooled identity
+                // that is still needed here, or close that identity twice.
+                ChunkPosition chunkPosition = captureLoadPosition(WorldInfo.of(chunk.getWorld()), chunk.getX(), chunk.getZ());
+                handleIslandChunkLoad(island, chunk, chunkPosition, isNewChunk);
             }
         });
     }
 
+    static ChunkPosition captureLoadPosition(WorldInfo worldInfo, int chunkX, int chunkZ) {
+        return ChunkPosition.of(worldInfo, chunkX, chunkZ, false);
+    }
+
     private void handleIslandChunkLoad(Island island, Chunk chunk, ChunkPosition chunkPosition, boolean isNewChunk) {
         World world = chunk.getWorld();
+        final String worldName = chunkPosition.getWorldName();
+        final long chunkPair = chunkPosition.asPair();
         Dimension dimension = plugin.getGrid().getIslandsWorldDimension(world);
 
         if (isNewChunk) {
@@ -139,7 +151,7 @@ public class ChunksListener extends AbstractGameEventListener {
         IslandCache islandCache = island.getCache();
 
         Set<Chunk> pendingLoadedChunksForIsland = islandCache.computeIfAbsent(IslandCacheKeys.PENDING_LOADED_CHUNKS,
-                k -> new LinkedHashSet<>());
+                k -> java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>()));
         pendingLoadedChunksForIsland.add(chunk);
 
         boolean cropGrowthEnabled = BuiltinModules.UPGRADES.isUpgradeTypeEnabled(UpgradeTypeCropGrowth.class);
@@ -162,13 +174,13 @@ public class ChunksListener extends AbstractGameEventListener {
                 recalculateEntities.set(true);
         }
 
-        BukkitExecutor.sync(() -> {
+        BukkitExecutor.region(chunk.getWorld(), chunk.getX(), chunk.getZ(), () -> {
             if (isChunkStillLoaded(chunk))
                 // Update holograms of stacked blocks in delay so the chunk is entirely loaded.
                 plugin.getStackedBlocks().updateStackedBlockHolograms(chunk);
         }, 10L);
 
-        BukkitExecutor.sync(() -> {
+        BukkitExecutor.region(chunk.getWorld(), chunk.getX(), chunk.getZ(), () -> {
             if (!pendingLoadedChunksForIsland.remove(chunk) || !isChunkStillLoaded(chunk))
                 return;
 
@@ -193,7 +205,7 @@ public class ChunksListener extends AbstractGameEventListener {
             }
         }, 2L);
 
-        DefaultIslandCalculationAlgorithm.CACHED_CALCULATED_CHUNKS.write(cache -> cache.remove(chunkPosition));
+        DefaultIslandCalculationAlgorithm.CACHED_CALCULATED_CHUNKS.write(cache -> cache.remove(worldName, chunkPair));
     }
 
     private static boolean isChunkStillLoaded(Chunk chunk) {

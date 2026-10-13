@@ -39,12 +39,13 @@ public class SpikesCache implements LoadingCache<Long, List<${SPIKE_FEATURE_CLAS
     @Nullable
     private static LoadingCache<Long, List<${SPIKE_FEATURE_CLASS}.EndSpike>> vanillaSpikesCache;
 
-    private static boolean hideSpikes = false;
+    private static final ThreadLocal<Boolean> hideSpikes = ThreadLocal.withInitial(() -> false);
+    private static final ThreadLocal<List<${SPIKE_FEATURE_CLASS}.EndSpike>> activeSpikes = new ThreadLocal<>();
 
-    private final LoadingCache<BlockPos, List<${SPIKE_FEATURE_CLASS}.EndSpike>> cachedSpikes = CacheBuilder.newBuilder()
+    private final LoadingCache<SpikeKey, List<${SPIKE_FEATURE_CLASS}.EndSpike>> cachedSpikes = CacheBuilder.newBuilder()
             .expireAfterWrite(5L, TimeUnit.MINUTES).build(new InternalCacheLoader());
 
-    private long worldSeed;
+    private final ThreadLocal<Long> worldSeed = ThreadLocal.withInitial(() -> 0L);
 
     public static SpikesCache getInstance() {
         return INSTANCE;
@@ -75,7 +76,9 @@ public class SpikesCache implements LoadingCache<Long, List<${SPIKE_FEATURE_CLAS
         for (Map.Entry<Long, List<${SPIKE_FEATURE_CLASS}.EndSpike>> entry : vanillaSpikesCache.asMap().entrySet()) {
             if (entry.getValue() == vanillaSpikes) {
                 long key = entry.getKey();
-                return new IslandSpikes(key, vanillaSpikes, computeSpikes(key, podiumPosition));
+                List<${SPIKE_FEATURE_CLASS}.EndSpike> original = vanillaSpikes instanceof ContextualSpikes
+                        ? ((ContextualSpikes) vanillaSpikes).vanilla : vanillaSpikes;
+                return new IslandSpikes(key, original, computeSpikes(key, podiumPosition));
             }
         }
 
@@ -88,12 +91,12 @@ public class SpikesCache implements LoadingCache<Long, List<${SPIKE_FEATURE_CLAS
             return;
         }
 
-        boolean previousHideSpikes = hideSpikes;
-        hideSpikes = true;
+        boolean previousHideSpikes = hideSpikes.get();
+        hideSpikes.set(true);
         try {
             runnable.run();
         } finally {
-            hideSpikes = previousHideSpikes;
+            hideSpikes.set(previousHideSpikes);
         }
     }
 
@@ -120,28 +123,28 @@ public class SpikesCache implements LoadingCache<Long, List<${SPIKE_FEATURE_CLAS
     @Override
     public @NotNull
     List<${SPIKE_FEATURE_CLASS}.EndSpike> get(@NotNull Long worldSeed) throws ExecutionException {
-        if (hideSpikes)
+        if (hideSpikes.get())
             return Collections.emptyList();
 
         try {
-            this.worldSeed = worldSeed;
-            return cachedSpikes.get(DragonUtils.getCurrentPodiumPosition());
+            this.worldSeed.set(worldSeed);
+            return cachedSpikes.get(new SpikeKey(worldSeed, DragonUtils.getCurrentPodiumPosition()));
         } finally {
-            this.worldSeed = 0;
+            this.worldSeed.remove();
         }
     }
 
     @Override
     public @NotNull
     List<${SPIKE_FEATURE_CLASS}.EndSpike> getUnchecked(@NotNull Long worldSeed) {
-        if (hideSpikes)
+        if (hideSpikes.get())
             return Collections.emptyList();
 
         try {
-            this.worldSeed = worldSeed;
-            return cachedSpikes.getUnchecked(DragonUtils.getCurrentPodiumPosition());
+            this.worldSeed.set(worldSeed);
+            return cachedSpikes.getUnchecked(new SpikeKey(worldSeed, DragonUtils.getCurrentPodiumPosition()));
         } finally {
-            this.worldSeed = 0;
+            this.worldSeed.remove();
         }
     }
 
@@ -159,10 +162,10 @@ public class SpikesCache implements LoadingCache<Long, List<${SPIKE_FEATURE_CLAS
     @Override
     public void refresh(@NotNull Long worldSeed) {
         try {
-            this.worldSeed = worldSeed;
-            cachedSpikes.refresh(DragonUtils.getCurrentPodiumPosition());
+            this.worldSeed.set(worldSeed);
+            cachedSpikes.refresh(new SpikeKey(worldSeed, DragonUtils.getCurrentPodiumPosition()));
         } finally {
-            this.worldSeed = 0;
+            this.worldSeed.remove();
         }
     }
 
@@ -182,14 +185,14 @@ public class SpikesCache implements LoadingCache<Long, List<${SPIKE_FEATURE_CLAS
     public @NotNull
     List<${SPIKE_FEATURE_CLASS}.EndSpike> get(@NotNull Long worldSeed,
                                     @NotNull Callable<? extends List<${SPIKE_FEATURE_CLASS}.EndSpike>> loader) throws ExecutionException {
-        if (hideSpikes)
+        if (hideSpikes.get())
             return Collections.emptyList();
 
         try {
-            this.worldSeed = worldSeed;
-            return cachedSpikes.get(DragonUtils.getCurrentPodiumPosition(), loader);
+            this.worldSeed.set(worldSeed);
+            return cachedSpikes.get(new SpikeKey(worldSeed, DragonUtils.getCurrentPodiumPosition()), loader);
         } finally {
-            this.worldSeed = 0;
+            this.worldSeed.remove();
         }
     }
 
@@ -202,10 +205,10 @@ public class SpikesCache implements LoadingCache<Long, List<${SPIKE_FEATURE_CLAS
     @Override
     public void put(@NotNull Long worldSeed, @NotNull List<${SPIKE_FEATURE_CLASS}.EndSpike> spikes) {
         try {
-            this.worldSeed = worldSeed;
-            cachedSpikes.put(DragonUtils.getCurrentPodiumPosition(), spikes);
+            this.worldSeed.set(worldSeed);
+            cachedSpikes.put(new SpikeKey(worldSeed, DragonUtils.getCurrentPodiumPosition()), spikes);
         } finally {
-            this.worldSeed = 0;
+            this.worldSeed.remove();
         }
     }
 
@@ -245,12 +248,33 @@ public class SpikesCache implements LoadingCache<Long, List<${SPIKE_FEATURE_CLAS
         this.cachedSpikes.cleanUp();
     }
 
-    private class InternalCacheLoader extends CacheLoader<BlockPos, List<${SPIKE_FEATURE_CLASS}.EndSpike>> {
+    private static final class SpikeKey {
+        final long seed;
+        final BlockPos origin;
+        SpikeKey(long seed, BlockPos origin) { this.seed = seed; this.origin = origin.immutable(); }
+        @Override public int hashCode() { return java.util.Objects.hash(seed, origin); }
+        @Override public boolean equals(Object other) {
+            return other instanceof SpikeKey && seed == ((SpikeKey) other).seed && origin.equals(((SpikeKey) other).origin);
+        }
+    }
+    private static final class ContextualSpikes extends java.util.AbstractList<${SPIKE_FEATURE_CLASS}.EndSpike> {
+        final List<${SPIKE_FEATURE_CLASS}.EndSpike> vanilla;
+        ContextualSpikes(List<${SPIKE_FEATURE_CLASS}.EndSpike> vanilla) {
+            this.vanilla = Collections.unmodifiableList(new java.util.ArrayList<>(vanilla));
+        }
+        private List<${SPIKE_FEATURE_CLASS}.EndSpike> selected() {
+            List<${SPIKE_FEATURE_CLASS}.EndSpike> current = activeSpikes.get();
+            return current == null ? vanilla : current;
+        }
+        @Override public int size() { return selected().size(); }
+        @Override public ${SPIKE_FEATURE_CLASS}.EndSpike get(int index) { return selected().get(index); }
+    }
+    private class InternalCacheLoader extends CacheLoader<SpikeKey, List<${SPIKE_FEATURE_CLASS}.EndSpike>> {
 
         @Override
         public @NotNull
-        List<${SPIKE_FEATURE_CLASS}.EndSpike> load(@NotNull BlockPos blockPos) {
-            return computeSpikes(worldSeed, blockPos);
+        List<${SPIKE_FEATURE_CLASS}.EndSpike> load(@NotNull SpikeKey key) {
+            return Collections.unmodifiableList(computeSpikes(key.seed, key.origin));
         }
 
     }
@@ -264,7 +288,7 @@ public class SpikesCache implements LoadingCache<Long, List<${SPIKE_FEATURE_CLAS
         private IslandSpikes(long key, List<${SPIKE_FEATURE_CLASS}.EndSpike> vanillaSpikes, List<${SPIKE_FEATURE_CLASS}.EndSpike> islandSpikes) {
             this.key = key;
             this.vanillaSpikes = vanillaSpikes;
-            this.islandSpikes = islandSpikes;
+            this.islandSpikes = Collections.unmodifiableList(new java.util.ArrayList<>(islandSpikes));
         }
 
         public void runWith(Runnable runnable) {
@@ -272,6 +296,19 @@ public class SpikesCache implements LoadingCache<Long, List<${SPIKE_FEATURE_CLAS
         }
 
         private void runWith(List<${SPIKE_FEATURE_CLASS}.EndSpike> spikes, Runnable runnable) {
+            if (com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.isFolia()) {
+                // One stable view per seed, never replace it with island geometry.
+                // Refreshing the same view keeps vanilla cache expiry from losing routing.
+                List<${SPIKE_FEATURE_CLASS}.EndSpike> cached = vanillaSpikesCache.asMap().get(this.key);
+                ContextualSpikes view = cached instanceof ContextualSpikes
+                        ? (ContextualSpikes) cached : new ContextualSpikes(this.vanillaSpikes);
+                vanillaSpikesCache.put(this.key, view);
+                List<${SPIKE_FEATURE_CLASS}.EndSpike> previous = activeSpikes.get();
+                activeSpikes.set(spikes);
+                try { runnable.run(); }
+                finally { if (previous == null) activeSpikes.remove(); else activeSpikes.set(previous); }
+                return;
+            }
             // Calls may be nested, so we restore the previous spikes instead of the vanilla ones.
             List<${SPIKE_FEATURE_CLASS}.EndSpike> previousSpikes = vanillaSpikesCache.asMap().get(this.key);
             vanillaSpikesCache.put(this.key, spikes);

@@ -15,12 +15,16 @@ public class BlocksTrackingComponent {
 
     // Key represents chunk's coords
     // Value represents all blocks broken in that chunk
-    private TrackedBlocksData trackedBlocksData = new TrackedBlocksData();
+    private volatile TrackedBlocksData trackedBlocksData = new TrackedBlocksData();
 
     private final int worldMinHeight;
 
     public BlocksTrackingComponent(World world) {
-        this(!WORLD_GET_MIN_HEIGHT.isValid() ? 0 : WORLD_GET_MIN_HEIGHT.invoke(world));
+        this(getMinimumHeight(world));
+    }
+
+    public static int getMinimumHeight(World world) {
+        return !WORLD_GET_MIN_HEIGHT.isValid() ? 0 : WORLD_GET_MIN_HEIGHT.invoke(world);
     }
 
     public BlocksTrackingComponent(int worldMinHeight) {
@@ -67,7 +71,7 @@ public class BlocksTrackingComponent {
     }
 
     private static long serializeChunk(int chunkX, int chunkZ) {
-        return (long) chunkX << 32 | chunkZ;
+        return com.bgsoftware.superiorskyblock.missions.common.tracker.ChunkKeyCodec.encode(chunkX, chunkZ);
     }
 
 }

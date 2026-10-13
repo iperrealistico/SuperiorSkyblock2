@@ -21,4 +21,7 @@ public interface NMSDragonFight {
 
     void awardTheEndAchievement(Player player);
 
+    default void onPlayerEnteredIsland(Island island, Dimension dimension) {
+    }
+
 }

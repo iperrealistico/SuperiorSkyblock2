@@ -45,6 +45,8 @@ public abstract class AbstractMenu<V extends AbstractMenuView<V, A>, A extends V
         Preconditions.checkState(superiorPlayer.isOnline(), "Cannot create view for offline player: " + superiorPlayer.getName());
         Preconditions.checkNotNull(args, "args parameter cannot be null.");
         V view = createViewInternal(superiorPlayer, args, previousMenu);
+        if (view instanceof com.bgsoftware.superiorskyblock.core.menu.view.IIslandMenuView)
+            view.bindActionTarget(((com.bgsoftware.superiorskyblock.core.menu.view.IIslandMenuView) view).getIsland());
         addView(view);
         return refreshView(view);
     }
@@ -86,7 +88,7 @@ public abstract class AbstractMenu<V extends AbstractMenuView<V, A>, A extends V
             if (error != null) {
                 result.completeExceptionally(error);
             } else {
-                BukkitExecutor.sync(() -> {
+                onViewer(view, result, () -> {
                     view.setInventory(inventory);
                     result.complete(view);
                 });
@@ -101,7 +103,7 @@ public abstract class AbstractMenu<V extends AbstractMenuView<V, A>, A extends V
             if (error != null) {
                 result.completeExceptionally(error);
             } else {
-                BukkitExecutor.sync(() -> {
+                onViewer(view, result, () -> {
                     view.setDialog(dialog);
                     result.complete(view);
                 });
@@ -111,23 +113,28 @@ public abstract class AbstractMenu<V extends AbstractMenuView<V, A>, A extends V
     }
 
     private CompletableFuture<Inventory> buildInventory(V menuView) {
-        if (!Bukkit.isPrimaryThread()) {
-            return CompletableFuture.completedFuture(((InventoryMenuLayout<V>) this.menuLayout).buildInventory(menuView));
-        }
-
         CompletableFuture<Inventory> inventoryFuture = new CompletableFuture<>();
-        BukkitExecutor.async(() -> inventoryFuture.complete(((InventoryMenuLayout<V>) this.menuLayout).buildInventory(menuView)));
+        onViewer(menuView, inventoryFuture, () -> inventoryFuture.complete(((InventoryMenuLayout<V>) this.menuLayout).buildInventory(menuView)));
         return inventoryFuture;
     }
 
     private CompletableFuture<DialogWrapper> buildDialog(V menuView) {
-        if (!Bukkit.isPrimaryThread()) {
-            return CompletableFuture.completedFuture(((RegularDialogMenuLayoutImpl<V>) this.menuLayout).buildDialog(menuView));
-        }
-
         CompletableFuture<DialogWrapper> dialogFuture = new CompletableFuture<>();
-        BukkitExecutor.async(() -> dialogFuture.complete(((RegularDialogMenuLayoutImpl<V>) this.menuLayout).buildDialog(menuView)));
+        onViewer(menuView, dialogFuture, () -> dialogFuture.complete(((RegularDialogMenuLayoutImpl<V>) this.menuLayout).buildDialog(menuView)));
         return dialogFuture;
+    }
+
+    private void onViewer(V view, CompletableFuture<?> result, Runnable action) {
+        org.bukkit.entity.Player player = view.getInventoryViewer().asPlayer();
+        if (player == null) { result.completeExceptionally(new java.util.concurrent.CancellationException("Menu viewer is offline")); return; }
+        com.bgsoftware.superiorskyblock.api.island.Island island = view instanceof com.bgsoftware.superiorskyblock.core.menu.view.IIslandMenuView ?
+                ((com.bgsoftware.superiorskyblock.core.menu.view.IIslandMenuView) view).getIsland() : view.getActionTarget();
+        BukkitExecutor.entity(player, () -> {
+            try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope scope =
+                         com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.open(island,
+                                 view instanceof com.bgsoftware.superiorskyblock.core.menu.view.IIslandMenuView)) { action.run(); }
+            catch (Throwable error) { result.completeExceptionally(error); }
+        }, 1L, () -> result.completeExceptionally(new java.util.concurrent.CancellationException("Menu viewer retired")));
     }
 
     @Override
@@ -138,6 +145,9 @@ public abstract class AbstractMenu<V extends AbstractMenuView<V, A>, A extends V
 
     @Override
     protected boolean onPreButtonClick(MenuViewButton<V> menuButton, ButtonClickContext<V> context) {
+        if (!context.getMenuView().isIslandContextCurrent()) {
+            com.bgsoftware.superiorskyblock.core.messages.Message.CUSTOM.send(context.getPlayer(), "&cThis island view is no longer current. Open it again.", true); return false;
+        }
         return true;
     }
 

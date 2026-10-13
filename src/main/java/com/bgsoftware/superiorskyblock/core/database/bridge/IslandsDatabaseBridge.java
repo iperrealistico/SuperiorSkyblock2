@@ -62,7 +62,7 @@ public class IslandsDatabaseBridge {
                 databaseBridge.insertObject("islands_members",
                         pool.obtain().withNameAndValue("island", island.getUniqueId().toString()),
                         pool.obtain().withNameAndValue("player", superiorPlayer.getUniqueId().toString()),
-                        pool.obtain().withNameAndValue("role", superiorPlayer.getPlayerRole().getId()),
+                        pool.obtain().withNameAndValue("role", superiorPlayer.getPlayerRole(island).getId()),
                         pool.obtain().withNameAndValue("join_time", addTime)
                 );
             }
@@ -83,7 +83,7 @@ public class IslandsDatabaseBridge {
             try (ObjectsPools.Batch<DBColumn> pool = ObjectsPools.DB_COLUMN_BATCH.obtain()) {
                 databaseBridge.updateObject("islands_members",
                         createFilter(pool, "island", island, pool.obtain().withNameAndValue("player", superiorPlayer.getUniqueId().toString())),
-                        pool.obtain().withNameAndValue("role", superiorPlayer.getPlayerRole().getId())
+                        pool.obtain().withNameAndValue("role", superiorPlayer.getPlayerRole(island).getId())
                 );
             }
         });
@@ -211,7 +211,7 @@ public class IslandsDatabaseBridge {
     }
 
     public static void saveSize(Island island) {
-        updateIslandSettingsValue(island, "size", island.getIslandSize());
+        updateIslandSettingsValue(island, "size", island.getIslandSizeRaw());
     }
 
     public static void saveDiscord(Island island) {
@@ -985,7 +985,9 @@ public class IslandsDatabaseBridge {
     }
 
     private static void runOperationIfRunning(DatabaseBridge databaseBridge, Consumer<DatabaseBridge> databaseBridgeConsumer) {
-        if (databaseBridge.getDatabaseBridgeMode() == DatabaseBridgeMode.SAVE_DATA)
+        if (databaseBridge.getDatabaseBridgeMode() == DatabaseBridgeMode.SAVE_DATA ||
+                databaseBridge instanceof com.bgsoftware.superiorskyblock.core.database.sql.SQLDatabaseBridge &&
+                ((com.bgsoftware.superiorskyblock.core.database.sql.SQLDatabaseBridge) databaseBridge).isWriteAdmissionForced())
             databaseBridgeConsumer.accept(databaseBridge);
     }
 

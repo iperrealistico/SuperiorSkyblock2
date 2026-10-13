@@ -62,7 +62,7 @@ public class WarpCategoryManageIconButton extends AbstractMenuViewButton<MenuWar
 
         menuView.closeView();
 
-        PlayerChat.listen(player, message -> {
+        PlayerChat.listen(player, com.bgsoftware.superiorskyblock.island.privilege.IslandPrivileges.SET_WARP, message -> {
             if (!message.equalsIgnoreCase("-cancel")) {
                 int rowsSize = Menus.MENU_WARP_CATEGORIES.getRowsSize();
 

@@ -130,7 +130,7 @@ public class MenuActions {
     }
 
     public static void simulateWarpsClick(SuperiorPlayer superiorPlayer, Island island, IslandWarp islandWarp) {
-        BukkitExecutor.sync(() -> {
+        plugin.executePlayer(superiorPlayer, () -> {
             superiorPlayer.runIfOnline(player -> {
                 MenuView<?, ?> currentView = superiorPlayer.getOpenedView();
                 if (currentView == null) {

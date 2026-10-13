@@ -34,7 +34,7 @@ public class WarpPagedObjectButton extends AbstractPagedMenuButton<MenuWarps.Vie
             plugin.getMenus().openWarpManage(clickedPlayer, MenuViewWrapper.fromView(menuView), pagedObject);
         } else {
             MenuActions.simulateWarpsClick(clickedPlayer, menuView.getWarpCategory().getIsland(), pagedObject);
-            BukkitExecutor.sync(() -> menuView.setPreviousMove(false), 1L);
+            plugin.executePlayer(menuView.getInventoryViewer(), () -> menuView.setPreviousMove(false), 1L);
         }
     }
 

@@ -58,7 +58,7 @@ public class NMSUtils {
     private static final ReflectMethod<LevelChunk> CHUNK_CACHE_SERVER_GET_CHUNK_IF_CACHED = new ReflectMethod<>(
             ServerChunkCache.class, "getChunkAtIfCachedImmediately", int.class, int.class);
 
-    private static final List<CompletableFuture<Void>> PENDING_CHUNK_ACTIONS = new LinkedList<>();
+    private static final List<CompletableFuture<Void>> PENDING_CHUNK_ACTIONS = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     public static final ObjectsPool<ObjectsPools.Wrapper<BlockPos.MutableBlockPos>> BLOCK_POS_POOL =
             ObjectsPools.createNewPool(() -> new BlockPos.MutableBlockPos(0, 0, 0));
@@ -99,6 +99,20 @@ public class NMSUtils {
     private static void runActionOnChunksInternal(Collection<ChunkPosition> chunksCoords,
                                                   ChunkCallback chunkCallback,
                                                   Consumer<List<ChunkPosition>> onUnloadChunkAction) {
+        if (BukkitExecutor.isFolia()) {
+            CompletableFuture<Void> action = ChunksProvider.processSequential(chunksCoords, chunkCallback.chunkLoadReason,
+                    chunk -> {
+                        ServerLevel level = ((CraftWorld) chunk.getWorld()).getHandle();
+                        chunkCallback.onLoadedChunk(level.getChunk(chunk.getX(), chunk.getZ()));
+                    });
+            PENDING_CHUNK_ACTIONS.add(action);
+            action.whenComplete((unused, failure) -> {
+                PENDING_CHUNK_ACTIONS.remove(action);
+                if (failure == null) chunkCallback.onFinish();
+                else chunkCallback.onFailure(failure);
+            });
+            return;
+        }
         List<ChunkPosition> unloadedChunks = new LinkedList<>();
         List<LevelChunk> loadedChunks = new LinkedList<>();
 
@@ -433,6 +447,10 @@ public class NMSUtils {
 
         public abstract void onFinish();
 
+        public void onFailure(Throwable error) {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE, "Regional chunk operation failed", error);
+        }
+
         protected final void latchCountDown() {
             if (this.chunkLoadLatch != null)
                 this.chunkLoadLatch.countDown();
@@ -444,16 +462,14 @@ public class NMSUtils {
                 return;
             }
 
-            ChunksProvider.loadChunk(chunkPosition, this.chunkLoadReason, null).whenComplete((bukkitChunk, error) -> {
-                if (error == null) {
-                    BukkitExecutor.ensureMain(() -> {
-                        ServerLevel serverLevel = ((CraftWorld) bukkitChunk.getWorld()).getHandle();
-                        LevelChunk levelChunk = serverLevel.getChunk(bukkitChunk.getX(), bukkitChunk.getZ());
-                        onLoadedChunk(levelChunk);
-                    });
-                } else {
+            ChunksProvider.loadChunk(chunkPosition, this.chunkLoadReason, bukkitChunk -> {
+                ServerLevel serverLevel = ((CraftWorld) bukkitChunk.getWorld()).getHandle();
+                LevelChunk levelChunk = serverLevel.getChunk(bukkitChunk.getX(), bukkitChunk.getZ());
+                onLoadedChunk(levelChunk);
+            }).whenComplete((bukkitChunk, error) -> {
+                if (error != null) {
                     latchCountDown();
-                    throw new RuntimeException(error);
+                    onFailure(error);
                 }
             });
         }

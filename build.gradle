@@ -5,7 +5,7 @@ plugins {
 }
 
 group 'SuperiorSkyblock'
-version = "2026.3"
+version = "2026.3-pvc.1"
 
 project.ext {
     targetFolder = file("target/")
@@ -52,10 +52,16 @@ allprojects {
         dependsOn checkDebug
         dependsOn shadowJar
     }
+
+    tasks.withType(AbstractArchiveTask).configureEach {
+        preserveFileTimestamps = false
+        reproducibleFileOrder = true
+    }
 }
 
 repositories {
     mavenCentral()
+    maven { url 'https://repo.papermc.io/repository/maven-public/' }
 }
 
 dependencies {
@@ -70,11 +76,68 @@ dependencies {
     implementation 'com.bgsoftware.common.nmsloader:NMSLoader:b23'
     implementation 'com.bgsoftware.common.databasebridge:DatabaseBridge:b2'
 
-    implementation 'org.bstats:bstats-bukkit:3.0.0'
+    implementation 'org.bstats:bstats-bukkit:3.1.0'
 
     // Spigot jars
     compileOnly "org.spigotmc:v1_8_R3-Taco:latest"
     compileOnly 'org.spigotmc:v1_16_R3-Tuinity:latest'
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.spigotmc:v1_8_R3-Taco:latest'
+    testImplementation 'org.xerial:sqlite-jdbc:3.51.1.0'
+    testImplementation project(':Missions')
+    testImplementation project(':Missions:BlocksMissions')
+    testImplementation project(':Missions:FarmingMissions')
+}
+
+tasks.withType(Test).configureEach {
+    maxParallelForks = 1
+    maxHeapSize = '512m'
+    if (System.getProperty('pvc.fixture.config'))
+        systemProperty 'pvc.fixture.config', System.getProperty('pvc.fixture.config')
+}
+
+sourceSets {
+    runtimeProbe {
+        java.srcDir 'verification/runtime-probe/java'
+        resources.srcDir 'verification/runtime-probe/resources'
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath.filter {
+            !it.name.startsWith('v1_8_R3-Taco') && !it.name.startsWith('v1_16_R3-Tuinity')
+        }
+    }
+    upstreamSeed {
+        java.srcDir 'verification/upstream-seed/java'
+        resources.srcDir 'verification/upstream-seed/resources'
+    }
+}
+dependencies {
+    runtimeProbeCompileOnly 'net.luckperms:api:5.4'
+    runtimeProbeCompileOnly 'io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT'
+    upstreamSeedCompileOnly project(':API')
+    upstreamSeedCompileOnly 'io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT'
+}
+tasks.named('compileRuntimeProbeJava', JavaCompile) {
+    javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(21) }
+    options.release = 21
+}
+tasks.register('runtimeProbeJar', Jar) {
+    dependsOn tasks.named('runtimeProbeClasses')
+    archiveBaseName = 'SuperiorSkyblockPVCProbe'
+    from sourceSets.runtimeProbe.output
+}
+tasks.named('compileUpstreamSeedJava', JavaCompile) {
+    javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(21) }
+    options.release = 8
+}
+// This test observer emits Java8 bytecode but runs only on modern Leaf. Its
+// compile-only Paper headers require a Java21 dependency variant.
+configurations.named('upstreamSeedCompileClasspath') {
+    attributes.attribute(org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 21)
+}
+tasks.register('upstreamSeedJar', Jar) {
+    dependsOn tasks.named('upstreamSeedClasses')
+    archiveBaseName = 'SuperiorSkyblockUpstreamSeed'
+    from sourceSets.upstreamSeed.output
 }
 
 processResources {
@@ -185,3 +248,54 @@ tasks.named('build') {
 tasks.named('shadowJar') {
     finalizedBy('collectArtifacts')
 }
+
+// Explicitly recorded source-build inputs. Regeneration belongs to a reviewed
+// upstream integration, never an ordinary release build.
+tasks.register('pvcVerifyDependencies') {
+    group = 'verification'
+    doLast {
+        def records = []
+        rootProject.allprojects.sort { it.path }.each { child ->
+            child.configurations.findAll { configuration ->
+                configuration.canBeResolved && (configuration.name in [
+                    'compileClasspath', 'runtimeClasspath', 'testCompileClasspath',
+                    'testRuntimeClasspath', 'runtimeProbeCompileClasspath', 'upstreamSeedCompileClasspath'
+                ] || configuration.name.toLowerCase().contains('developmentbundle'))
+            }.sort { it.name }.each { configuration ->
+                configuration.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+                    if (artifact.id.componentIdentifier instanceof org.gradle.api.artifacts.component.ModuleComponentIdentifier) {
+                        def digest = java.security.MessageDigest.getInstance('SHA-256')
+                        artifact.file.withInputStream { input ->
+                            byte[] buffer = new byte[65536]
+                            int count
+                            while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count)
+                        }
+                        records.add([project: child.path, configuration: configuration.name,
+                            component: artifact.moduleVersion.id.toString(), artifact: artifact.file.name,
+                            sha256: digest.digest().encodeHex().toString()])
+                    }
+                }
+            }
+        }
+        records.sort { a, b -> (a.project + ':' + a.configuration + ':' + a.component + ':' + a.artifact) <=>
+                (b.project + ':' + b.configuration + ':' + b.component + ':' + b.artifact) }
+        def artifacts = records.groupBy { it.component + ':' + it.artifact + ':' + it.sha256 }.values().collect { uses ->
+            [component: uses[0].component, artifact: uses[0].artifact, sha256: uses[0].sha256,
+                scopes: uses.collect { it.project + ':' + it.configuration }.unique().sort()]
+        }.sort { a, b -> (a.component + ':' + a.artifact + ':' + a.sha256) <=> (b.component + ':' + b.artifact + ':' + b.sha256) }
+        def expected = [format: 1, artifacts: artifacts]
+        def manifest = file('verification/dependencies.json')
+        def content = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(expected)) + '\n'
+        if (findProperty('pvc.recordDependencies') == 'true') {
+            manifest.parentFile.mkdirs()
+            manifest.setText(content, 'UTF-8')
+            logger.lifecycle('PVC_DEPENDENCIES_RECORDED {} artifacts / {} uses', artifacts.size(), records.size())
+        } else {
+            if (!manifest.isFile() || new groovy.json.JsonSlurper().parse(manifest, 'UTF-8') != expected)
+                throw new GradleException('PVC dependency inputs changed or are unrecorded. Review source/provenance, then record explicitly with -Ppvc.recordDependencies=true.')
+            logger.lifecycle('PVC_DEPENDENCIES_VERIFIED {} artifacts / {} uses', artifacts.size(), records.size())
+        }
+    }
+}
+
+tasks.named('shadowJar') { dependsOn('pvcVerifyDependencies') }

@@ -17,7 +17,8 @@ public interface IPermissibleCommand extends ISuperiorCommand {
 
     @Override
     default void execute(SuperiorSkyblockPlugin plugin, CommandSender sender, String[] args) {
-        Island island = null;
+        boolean explicit = com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isExplicitTarget();
+        Island island = explicit ? com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current() : null;
         SuperiorPlayer superiorPlayer = null;
 
         if (!canBeExecutedByConsole() || sender instanceof Player) {
@@ -30,13 +31,16 @@ public interface IPermissibleCommand extends ISuperiorCommand {
 
             superiorPlayer = arguments.getSuperiorPlayer();
 
-            if (!superiorPlayer.hasPermission(getPrivilege())) {
+            if (!island.hasPermission(superiorPlayer, getPrivilege())) {
                 getPermissionLackMessage().send(superiorPlayer, island.getRequiredPlayerRole(getPrivilege()));
                 return;
             }
         }
 
-        execute(plugin, superiorPlayer, island, args);
+        try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope ignored =
+                     com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.open(island, explicit)) {
+            execute(plugin, superiorPlayer, island, args);
+        }
     }
 
     @Override
@@ -49,7 +53,7 @@ public interface IPermissibleCommand extends ISuperiorCommand {
             island = superiorPlayer.getIsland();
         }
 
-        return superiorPlayer == null || (island != null && superiorPlayer.hasPermission(getPrivilege())) ?
+        return superiorPlayer == null || (island != null && island.hasPermission(superiorPlayer, getPrivilege())) ?
                 tabComplete(plugin, superiorPlayer, island, args) : Collections.emptyList();
     }
 

@@ -38,7 +38,7 @@ public class LanguageButton extends AbstractMenuViewButton<BaseMenuView> {
 
         Message.CHANGED_LANGUAGE.send(inventoryViewer);
 
-        BukkitExecutor.sync(menuView::closeView, 1L);
+        plugin.executePlayer(menuView.getInventoryViewer(), menuView::closeView, 1L);
     }
 
     public static class Builder extends AbstractMenuTemplateButton.AbstractBuilder<BaseMenuView> {

@@ -284,7 +284,7 @@ public class BlockChangesListener extends AbstractGameEventListener {
         BlockState oldBlockState = clickedBlock.getState();
         Key oldSpawnerKey = Keys.of(oldBlockState);
 
-        BukkitExecutor.sync(() -> {
+        BukkitExecutor.region(clickedBlock.getWorld(), clickedBlock.getX() >> 4, clickedBlock.getZ() >> 4, () -> {
             if (!chunk.isLoaded())
                 return;
 
@@ -444,7 +444,7 @@ public class BlockChangesListener extends AbstractGameEventListener {
             return;
         }
 
-        BukkitExecutor.sync(() -> {
+        BukkitExecutor.region(golemBlock.getWorld(), golemBlock.getX() >> 4, golemBlock.getZ() >> 4, () -> {
             int foundBlocks = 0;
 
             for (BlockFace face : COPPER_GOLEM_FACES) {
@@ -512,7 +512,7 @@ public class BlockChangesListener extends AbstractGameEventListener {
             // Do not save block counts
             this.worldRecordService.get().recordBlockBreak(toBlock, 1, WorldRecordFlags.DIRTY_CHUNKS);
         } else {
-            BukkitExecutor.sync(() -> {
+            BukkitExecutor.region(toBlock.getWorld(), toBlock.getX() >> 4, toBlock.getZ() >> 4, () -> {
                 // Ignore cobblestone blocks, otherwise it will add +1 to the count of cobblestone when generated
                 // from cobblestone generator
                 if (toBlock.getType() != Material.COBBLESTONE) {

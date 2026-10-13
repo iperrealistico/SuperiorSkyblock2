@@ -7,8 +7,6 @@ import com.bgsoftware.superiorskyblock.api.island.Island;
 import com.bgsoftware.superiorskyblock.api.island.IslandFlag;
 import com.bgsoftware.superiorskyblock.core.EnumHelper;
 import com.bgsoftware.superiorskyblock.core.ObjectsPools;
-import com.bgsoftware.superiorskyblock.core.collections.CollectionsFactory;
-import com.bgsoftware.superiorskyblock.core.collections.view.Int2ObjectMapView;
 import com.bgsoftware.superiorskyblock.core.events.plugin.PluginEventType;
 import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import com.bgsoftware.superiorskyblock.island.flag.IslandFlags;
@@ -44,7 +42,7 @@ public class IslandFlagsListener extends AbstractGameEventListener {
 
     private static final EnumSet<CreatureSpawnEvent.SpawnReason> NATURAL_SPAWN_REASONS = initializeNaturalSpawnReasons();
 
-    private final Int2ObjectMapView<ProjectileSource> originalFireballsDamager = CollectionsFactory.createInt2ObjectArrayMap();
+    private final java.util.concurrent.ConcurrentMap<Integer, ProjectileSource> originalFireballsDamager = new java.util.concurrent.ConcurrentHashMap<>();
 
     private World spawnIslandWorld;
 
@@ -347,10 +345,12 @@ public class IslandFlagsListener extends AbstractGameEventListener {
 
             List<Entity> nearbyEntities = entity.getNearbyEntities(2, 2, 2);
 
-            BukkitExecutor.sync(() -> nearbyEntities.forEach(nearbyEntity -> {
-                if (nearbyEntity instanceof LivingEntity && !nearbyEntity.getUniqueId().equals(shooterPlayer.getUniqueId()))
-                    ((LivingEntity) nearbyEntity).removePotionEffect(PotionEffectType.POISON);
-            }), 1L);
+            java.util.UUID shooterId = shooterPlayer.getUniqueId();
+            nearbyEntities.forEach(nearbyEntity -> {
+                if (nearbyEntity instanceof LivingEntity && !nearbyEntity.getUniqueId().equals(shooterId))
+                    BukkitExecutor.entity(nearbyEntity,
+                            () -> ((LivingEntity) nearbyEntity).removePotionEffect(PotionEffectType.POISON), 1L);
+            });
         });
     }
 

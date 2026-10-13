@@ -75,21 +75,11 @@ public class CmdDisband implements IPermissibleCommand {
         if (plugin.getSettings().isDisbandConfirm()) {
             plugin.getMenus().openConfirmDisband(superiorPlayer, MenuViewWrapper.fromView(superiorPlayer.getOpenedView()), island);
         } else if (PluginEventsFactory.callIslandDisbandEvent(island, superiorPlayer)) {
-            IslandUtils.sendMessage(island, Message.DISBAND_ANNOUNCEMENT, Collections.emptyList(), superiorPlayer.getName());
-
-            Message.DISBANDED_ISLAND.send(superiorPlayer);
-
-            if (BuiltinModules.BANK.getConfiguration().hasDisbandRefund()) {
-                BigDecimal disbandRefund = BuiltinModules.BANK.getConfiguration().getDisbandRefund();
-                Message.DISBAND_ISLAND_BALANCE_REFUND.send(island.getOwner(), Formatters.NUMBER_FORMATTER.format(
-                        island.getIslandBank().getBalance().multiply(disbandRefund)));
-            }
-
-            if (plugin.getSettings().getDisbandCount() >= 0) {
-                superiorPlayer.setDisbands(superiorPlayer.getDisbands() - 1);
-            }
-
-            island.disbandIsland();
+            IslandUtils.disbandWithFeedback(island, superiorPlayer.asPlayer(), superiorPlayer.getName(), () -> {
+                if (plugin.getSettings().getDisbandCount() >= 0)
+                    superiorPlayer.setDisbands(superiorPlayer.getDisbands() - 1);
+                Message.DISBANDED_ISLAND.send(superiorPlayer);
+            });
         }
 
     }

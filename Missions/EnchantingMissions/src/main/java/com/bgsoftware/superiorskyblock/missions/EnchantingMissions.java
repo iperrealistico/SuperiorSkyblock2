@@ -204,8 +204,8 @@ public final class EnchantingMissions extends BuiltinMission<RawDataTracker> imp
 
     @Override
     public void saveProgress(ConfigurationSection section) {
-        for (Map.Entry<SuperiorPlayer, RawDataTracker> entry : entrySet()) {
-            String uuid = entry.getKey().getUniqueId().toString();
+        for (Map.Entry<UUID, RawDataTracker> entry : subjectEntrySet()) {
+            String uuid = entry.getKey().toString();
             List<String> data = new ArrayList<>();
             entry.getValue().getCounts().forEach((enchant, amount) -> data.add(enchant + ";" + amount.get()));
             section.set(uuid, data);
@@ -217,9 +217,8 @@ public final class EnchantingMissions extends BuiltinMission<RawDataTracker> imp
         for (String uuid : section.getKeys(false)) {
             RawDataTracker enchantsTracker = new RawDataTracker();
             UUID playerUUID = UUID.fromString(uuid);
-            SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(playerUUID);
 
-            insertData(superiorPlayer, enchantsTracker);
+            loadSubjectData(UUID.fromString(uuid), enchantsTracker);
 
             section.getStringList(uuid).forEach(line -> {
                 String[] sections = line.split(";");
@@ -268,7 +267,7 @@ public final class EnchantingMissions extends BuiltinMission<RawDataTracker> imp
 
         enchantsTracker.track(requirement.key, 1);
 
-        Bukkit.getScheduler().runTaskLaterAsynchronously(this.plugin, () -> superiorPlayer.runIfOnline(_player -> {
+        laterPlayer(superiorPlayer, () -> superiorPlayer.runIfOnline(_player -> {
             if (canComplete(superiorPlayer))
                 this.plugin.getMissions().rewardMission(this, superiorPlayer, true);
         }), 2L);
@@ -309,7 +308,7 @@ public final class EnchantingMissions extends BuiltinMission<RawDataTracker> imp
 
     private class PrepareAnvilListener implements Listener {
 
-        private final Map<UUID, RequiredEnchantment> addingEnchantments = new HashMap<>();
+        private final Map<UUID, RequiredEnchantment> addingEnchantments = new java.util.concurrent.ConcurrentHashMap<>();
 
         @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
         public void onItemAnvil(org.bukkit.event.inventory.PrepareAnvilEvent e) {

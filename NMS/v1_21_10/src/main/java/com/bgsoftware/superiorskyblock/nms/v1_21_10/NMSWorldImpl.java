@@ -137,6 +137,12 @@ public class NMSWorldImpl extends com.bgsoftware.superiorskyblock.nms.v1_21_10.A
 
     @Override
     public void listenBlockStateChanges(World world) {
+        if (com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.isFolia()) {
+            com.bgsoftware.superiorskyblock.core.threads.FoliaRegionTrackers.prepare(world);
+            // Region-local trackers are installed by the chunk-owned listener and
+            // reinstalled after region splits/merges; no world-wide Level fields.
+            return;
+        }
         ServerLevel serverLevel = ((CraftWorld) world).getHandle();
         COLLECTING_NEIGHBOR_UPDATER.set(serverLevel, new CollectingNeighborUpdaterTracker(serverLevel));
         BLOCK_TICKS.set(serverLevel, new BlockLevelTicksTracker(serverLevel));

@@ -307,7 +307,7 @@ public class UpgradeTypeEntityLimits implements IUpgradeType {
 
     private class EntityLimitsBreedListener implements Listener {
 
-        private final Int2ObjectMapView<ItemStack> trackedBreedItems = CollectionsFactory.createInt2ObjectArrayMap();
+        private final java.util.Map<Integer, ItemStack> trackedBreedItems = new java.util.concurrent.ConcurrentHashMap<>();
 
         @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
         public void onEntityBreed(EntityBreedEvent e) {
@@ -351,7 +351,7 @@ public class UpgradeTypeEntityLimits implements IUpgradeType {
             int originalAmount = usedItem.getAmount();
             ItemStack breedItem = usedItem.clone();
 
-            BukkitExecutor.sync(() -> {
+            BukkitExecutor.entity(e.getPlayer(), () -> {
                 ItemStack inventoryItem = usedHand == PlayerHand.MAIN_HAND ?
                         e.getPlayer().getInventory().getItem(mainHandSlot) :
                         BukkitItems.getHandItem(e.getPlayer(), PlayerHand.OFF_HAND);

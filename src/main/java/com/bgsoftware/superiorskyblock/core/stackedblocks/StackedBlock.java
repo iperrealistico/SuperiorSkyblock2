@@ -25,10 +25,10 @@ public class StackedBlock {
 
     private final LazyWorldLocation location;
 
-    private int amount;
-    private Key blockKey;
-    private Hologram hologram;
-    private boolean removed;
+    private volatile int amount;
+    private volatile Key blockKey;
+    private volatile Hologram hologram;
+    private volatile boolean removed;
 
     public StackedBlock(Location location) {
         this.location = LazyWorldLocation.of(location);
@@ -60,6 +60,13 @@ public class StackedBlock {
     }
 
     public void updateName() {
+        World ownerWorld = this.location.getWorld();
+        if (ownerWorld != null && !com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.owns(ownerWorld,
+                this.location.getBlockX() >> 4, this.location.getBlockZ() >> 4)) {
+            com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.region(ownerWorld, this.location.getBlockX() >> 4,
+                    this.location.getBlockZ() >> 4, this::updateName);
+            return;
+        }
         if (this.removed || this.amount <= 1) {
             removeHologram();
             return;

@@ -16,28 +16,32 @@ public class DragonUtils {
             Modifier.PUBLIC | Modifier.STATIC | Modifier.FINAL, 1)
             .removeFinal();
 
-    private static BlockPos currentPodiumPosition = BlockPos.ZERO;
+    private static final ThreadLocal<BlockPos> currentPodiumPosition = ThreadLocal.withInitial(() -> BlockPos.ZERO);
 
     private DragonUtils() {
 
     }
 
     public static void runWithPodiumPosition(BlockPos podiumPosition, Runnable runnable) {
+        if (podiumPosition == null)
+            podiumPosition = BlockPos.ZERO;
         // Calls may be nested (for example, spike crystals are reset while the dragon fight is ticked),
         // so we restore the previous position instead of resetting it.
-        BlockPos previousPodiumPosition = currentPodiumPosition;
+        BlockPos previousPodiumPosition = currentPodiumPosition.get();
         try {
-            END_PODIUM_LOCATION.set(null, podiumPosition);
-            currentPodiumPosition = podiumPosition;
+            if (!com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.isFolia() && END_PODIUM_LOCATION.isValid())
+                END_PODIUM_LOCATION.set(null, podiumPosition);
+            currentPodiumPosition.set(podiumPosition);
             runnable.run();
         } finally {
-            END_PODIUM_LOCATION.set(null, previousPodiumPosition);
-            currentPodiumPosition = previousPodiumPosition;
+            if (!com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.isFolia() && END_PODIUM_LOCATION.isValid())
+                END_PODIUM_LOCATION.set(null, previousPodiumPosition);
+            currentPodiumPosition.set(previousPodiumPosition);
         }
     }
 
     public static BlockPos getCurrentPodiumPosition() {
-        return currentPodiumPosition;
+        return currentPodiumPosition.get();
     }
 
 }

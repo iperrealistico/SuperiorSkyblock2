@@ -13,7 +13,7 @@ public class ShutdownTask extends Thread {
 
     @Override
     public void run() {
-        if (!plugin.getGrid().wasPluginDisabled()) {
+        if (!plugin.isPvcDisableStarted() && !plugin.getGrid().wasPluginDisabled()) {
             Log.error("Detected crash. SuperiorSkyblock will attempt to save data...");
             plugin.onDisable();
         }

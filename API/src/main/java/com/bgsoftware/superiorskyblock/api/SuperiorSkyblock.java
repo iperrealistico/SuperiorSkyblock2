@@ -22,6 +22,20 @@ import org.bukkit.plugin.Plugin;
 
 public interface SuperiorSkyblock extends Plugin {
 
+    /** Ownership-aware execution bridge for independently compiled mission providers. */
+    default void executePlayer(com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer player, Runnable action, long delay) {
+        org.bukkit.Bukkit.getScheduler().runTaskLater(this, () -> player.runIfOnline(online -> action.run()), Math.max(1L, delay));
+    }
+    default void executeAsync(Runnable action, long delay) {
+        org.bukkit.Bukkit.getScheduler().runTaskLaterAsynchronously(this, action, Math.max(1L, delay));
+    }
+    default void executeRegion(org.bukkit.Location location, Runnable action, long delay) {
+        org.bukkit.Bukkit.getScheduler().runTaskLater(this, action, Math.max(1L, delay));
+    }
+    default void executeGlobal(Runnable action, long delay) {
+        org.bukkit.Bukkit.getScheduler().runTaskLater(this, action, Math.max(1L, delay));
+    }
+
     /**
      * Get the grid of the core.
      */

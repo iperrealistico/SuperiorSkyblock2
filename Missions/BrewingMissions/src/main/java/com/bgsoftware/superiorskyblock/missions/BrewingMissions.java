@@ -44,7 +44,7 @@ public final class BrewingMissions extends BuiltinMission<BrewingMissions.Brewin
     private static final boolean isUsing18 = Bukkit.getServer().getClass().getPackage().getName().contains("1_8");
 
     private final Map<CustomRequirements<PotionData>, Integer> requiredPotions = new LinkedHashMap<>();
-    private final Map<Location, boolean[]> trackedBrewItems = new HashMap<>();
+    private final java.util.concurrent.ConcurrentMap<Location, Integer> trackedBrewItems = new java.util.concurrent.ConcurrentHashMap<>();
 
     @Override
     protected void loadConfiguration(ConfigurationSection section) throws MissionLoadException {
@@ -101,7 +101,7 @@ public final class BrewingMissions extends BuiltinMission<BrewingMissions.Brewin
 
     @Override
     protected void clearModuleData(BrewingTracker data) {
-        data.brewingTracker.clear();
+        data.clear();
     }
 
     @Override
@@ -139,9 +139,9 @@ public final class BrewingMissions extends BuiltinMission<BrewingMissions.Brewin
 
     @Override
     public void saveProgress(ConfigurationSection section) {
-        for (Map.Entry<SuperiorPlayer, BrewingTracker> entry : entrySet()) {
-            String uuid = entry.getKey().getUniqueId().toString();
-            for (Map.Entry<PotionData, Integer> brokenEntry : entry.getValue().brewingTracker.entrySet()) {
+        for (Map.Entry<UUID, BrewingTracker> entry : subjectEntrySet()) {
+            String uuid = entry.getKey().toString();
+            for (Map.Entry<PotionData, Integer> brokenEntry : entry.getValue().snapshot().entrySet()) {
                 section.set(uuid + "." + brokenEntry.getKey(), brokenEntry.getValue());
             }
         }
@@ -152,13 +152,11 @@ public final class BrewingMissions extends BuiltinMission<BrewingMissions.Brewin
         for (String uuid : section.getKeys(false)) {
             BrewingTracker brewingTracker = new BrewingTracker();
             UUID playerUUID = UUID.fromString(uuid);
-            SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(playerUUID);
-
-            insertData(superiorPlayer, brewingTracker);
 
             for (String key : section.getConfigurationSection(uuid).getKeys(false)) {
-                brewingTracker.brewingTracker.put(PotionData.fromString(key), section.getInt(uuid + "." + key));
+                brewingTracker.load(PotionData.fromString(key), section.getInt(uuid + "." + key));
             }
+            loadSubjectData(playerUUID, brewingTracker);
         }
     }
 
@@ -221,11 +219,12 @@ public final class BrewingMissions extends BuiltinMission<BrewingMissions.Brewin
             }
         }
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        laterRegion(e.getBlock().getLocation(), () -> {
             for (int i = 0; i < 3; ++i) {
                 ItemStack resultItem = e.getContents().getItem(i);
                 if (resultItem != null && !resultItem.isSimilar(originalResultItems[i]) && isMissionBrewing(resultItem)) {
-                    trackedBrewItems.computeIfAbsent(e.getBlock().getLocation(), block -> new boolean[3])[i] = true;
+                    final int bit = 1 << i;
+                    trackedBrewItems.merge(e.getBlock().getLocation(), bit, (old, added) -> old | added);
                 }
             }
         }, 1L);
@@ -255,42 +254,29 @@ public final class BrewingMissions extends BuiltinMission<BrewingMissions.Brewin
 
     private void handleBrewing(Player player, BrewerInventory inventory, Predicate<Integer> checkSlot) {
         Block block = inventory.getHolder().getBlock();
-
-        boolean[] brewItems = this.trackedBrewItems.get(block.getLocation());
-
-        if (brewItems == null) {
-            return;
+        Location location = block.getLocation();
+        if (!trackedBrewItems.containsKey(location)) return;
+        SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(player);
+        if (!this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this)) return;
+        BrewingTracker tracker = getOrCreate(superiorPlayer, ignored -> new BrewingTracker());
+        if (tracker == null) return;
+        for (int slot = 0; slot < 3; slot++) {
+            if (!checkSlot.test(slot)) continue;
+            ItemStack item = inventory.getItem(slot);
+            if (item == null || item.getType() == Material.AIR) continue;
+            final int bit = 1 << slot;
+            java.util.concurrent.atomic.AtomicBoolean claimed = new java.util.concurrent.atomic.AtomicBoolean();
+            trackedBrewItems.computeIfPresent(location, (key, mask) -> {
+                if ((mask & bit) == 0) return mask;
+                claimed.set(true);
+                int remaining = mask & ~bit;
+                return remaining == 0 ? null : remaining;
+            });
+            if (claimed.get()) tracker.track(item, item.getAmount());
         }
-
-        try {
-            SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(player);
-
-            if (!this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this))
-                return;
-
-            BrewingTracker brewingTracker = getOrCreate(superiorPlayer, s -> new BrewingTracker());
-
-            if (brewingTracker == null)
-                return;
-
-            for (int i = 0; i < 3; ++i) {
-                if (checkSlot.test(i) && brewItems[i]) {
-                    brewItems[i] = false;
-
-                    ItemStack brewItem = inventory.getItem(i);
-
-                    brewingTracker.track(brewItem, brewItem.getAmount());
-                }
-            }
-
-            this.plugin.getServer().getScheduler().runTaskLaterAsynchronously(this.plugin, () -> superiorPlayer.runIfOnline(unused -> {
-                if (canComplete(superiorPlayer))
-                    this.plugin.getMissions().rewardMission(this, superiorPlayer, true);
-            }), 2L);
-        } finally {
-            if (!brewItems[0] && !brewItems[1] && !brewItems[2])
-                this.trackedBrewItems.remove(block.getLocation());
-        }
+        laterPlayer(superiorPlayer, () -> superiorPlayer.runIfOnline(unused -> {
+            if (canComplete(superiorPlayer)) this.plugin.getMissions().rewardMission(this, superiorPlayer, true);
+        }), 2L);
     }
 
     private boolean isMissionBrewing(ItemStack itemStack) {
@@ -314,14 +300,14 @@ public final class BrewingMissions extends BuiltinMission<BrewingMissions.Brewin
 
         void track(ItemStack brewing, int amount) {
             PotionData potionData = PotionData.fromItemStack(brewing);
-            int newAmount = amount + brewingTracker.getOrDefault(potionData, 0);
-            brewingTracker.put(potionData, newAmount);
+            if (potionData == null || amount <= 0) return;
+            synchronized (this) { brewingTracker.put(potionData, amount + brewingTracker.getOrDefault(potionData, 0)); }
         }
 
         int getBrews(Collection<PotionData> potions) {
             int amount = 0;
 
-            for (Map.Entry<PotionData, Integer> potionData : brewingTracker.entrySet()) {
+            for (Map.Entry<PotionData, Integer> potionData : snapshot().entrySet()) {
                 if (potions.contains(potionData.getKey()))
                     amount += potionData.getValue();
             }
@@ -329,6 +315,9 @@ public final class BrewingMissions extends BuiltinMission<BrewingMissions.Brewin
             return amount;
         }
 
+        synchronized void clear() { brewingTracker.clear(); }
+        synchronized void load(PotionData key, int count) { brewingTracker.put(key, count); }
+        synchronized Map<PotionData, Integer> snapshot() { return new HashMap<>(brewingTracker); }
     }
 
     private static class PotionData {

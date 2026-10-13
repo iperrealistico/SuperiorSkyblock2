@@ -15,21 +15,22 @@ import com.bgsoftware.superiorskyblock.api.world.Dimension;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.core.IslandWorlds;
 import com.bgsoftware.superiorskyblock.core.LazyReference;
-import com.bgsoftware.superiorskyblock.core.collections.AutoRemovalCollection;
 import com.bgsoftware.superiorskyblock.core.events.args.PluginEventArgs;
 import com.bgsoftware.superiorskyblock.core.events.plugin.PluginEvent;
 import com.bgsoftware.superiorskyblock.core.events.plugin.PluginEventsFactory;
 import com.bgsoftware.superiorskyblock.core.formatting.Formatters;
 import com.bgsoftware.superiorskyblock.core.messages.Message;
 import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
+import com.bgsoftware.superiorskyblock.island.SIsland;
 import com.bgsoftware.superiorskyblock.player.SuperiorNPCPlayer;
 import com.bgsoftware.superiorskyblock.service.IService;
 import com.bgsoftware.superiorskyblock.world.EntityTeleports;
 import com.google.common.base.Preconditions;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import org.bukkit.Location;
 import org.bukkit.PortalType;
 import org.bukkit.World;
-import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
@@ -37,11 +38,14 @@ import org.bukkit.entity.Player;
 import java.math.BigDecimal;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class PortalsManagerServiceImpl implements PortalsManagerService, IService {
 
-    private final AutoRemovalCollection<UUID> generatingSchematicsIslands = AutoRemovalCollection.newHashSet(20, TimeUnit.SECONDS);
+    private final Cache<UUID, Boolean> generatingSchematicsIslands = CacheBuilder.newBuilder()
+            .maximumSize(4096).expireAfterWrite(20, TimeUnit.SECONDS).build();
 
     private final LazyReference<DragonBattleService> dragonBattleService = new LazyReference<DragonBattleService>() {
         @Override
@@ -242,7 +246,8 @@ public class PortalsManagerServiceImpl implements PortalsManagerService, IServic
 
         try {
             // We want to prevent the players from being teleported in this time.
-            if (generatingSchematicsIslands.contains(island.getUniqueId()))
+            if (!plugin.getPvcIslandService().isAvailable(island.getUniqueId()) ||
+                    generatingSchematicsIslands.getIfPresent(island.getUniqueId()) != null)
                 return EntityPortalResult.SCHEMATIC_GENERATING_COOLDOWN;
 
             String destinationDimensionName = portalDestination.getName().toLowerCase(Locale.ENGLISH);
@@ -284,18 +289,19 @@ public class PortalsManagerServiceImpl implements PortalsManagerService, IServic
                 return EntityPortalResult.INVALID_SCHEMATIC;
             }
 
-            generatingSchematicsIslands.add(island.getUniqueId());
+            if (generatingSchematicsIslands.asMap().putIfAbsent(island.getUniqueId(), Boolean.TRUE) != null)
+                return EntityPortalResult.SCHEMATIC_GENERATING_COOLDOWN;
 
             // If schematic was already generated, or no schematic should be generated, simply
             // teleport player to destination location.
             if (schematic == null || island.wasSchematicGenerated(destination)) {
                 if (superiorPlayer != null) {
                     superiorPlayer.teleportWithResult(island, destination, unused -> {
-                        generatingSchematicsIslands.remove(island.getUniqueId());
+                        generatingSchematicsIslands.invalidate(island.getUniqueId());
                     });
                 } else {
                     EntityTeleports.findIslandSafeLocation(island, destination).whenCompleteAsync((safeSpot, error) -> {
-                        generatingSchematicsIslands.remove(island.getUniqueId());
+                        generatingSchematicsIslands.invalidate(island.getUniqueId());
 
                         if (error == null && safeSpot != null)
                             EntityTeleports.teleport(entity, safeSpot);
@@ -304,55 +310,33 @@ public class PortalsManagerServiceImpl implements PortalsManagerService, IServic
                 return EntityPortalResult.SUCCEED;
             }
 
-            IslandWorlds.accessIslandWorldAsync(island, destination, true, islandWorldResult -> {
-                islandWorldResult.ifRight(Throwable::printStackTrace).ifLeft(world -> {
-                    Location centerLocation = island.getCenter(destination);
-                    Location schematicPlacementLocation = centerLocation.getBlock().getRelative(BlockFace.DOWN).getLocation();
-
-                    BigDecimal originalWorth = island.getRawWorth();
-                    BigDecimal originalLevel = island.getRawLevel();
-
-                    schematic.pasteSchematic(island, schematicPlacementLocation, () -> {
-                        generatingSchematicsIslands.remove(island.getUniqueId());
-                        island.setSchematicGenerate(destination);
-
-                        SettingsManager.Worlds.DimensionConfig destinationConfig = plugin.getSettings().getWorlds().getDimensionConfig(destination);
-                        if (destinationConfig != null && destinationConfig.isSchematicOffset()) {
-                            {
-                                BigDecimal schematicWorth = island.getRawWorth().subtract(originalWorth);
-                                PluginEvent<PluginEventArgs.IslandChangeWorthBonus> event = PluginEventsFactory.callIslandChangeWorthBonusEvent(
-                                        island, (SuperiorPlayer) null, IslandChangeWorthBonusEvent.Reason.SCHEMATIC, island.getBonusWorth().subtract(schematicWorth));
-                                if (!event.isCancelled())
-                                    island.setBonusWorth(event.getArgs().worthBonus);
-                            }
-                            {
-                                BigDecimal schematicLevel = island.getRawLevel().subtract(originalLevel);
-                                PluginEvent<PluginEventArgs.IslandChangeLevelBonus> event = PluginEventsFactory.callIslandChangeLevelBonusEvent(
-                                        island, (SuperiorPlayer) null, IslandChangeLevelBonusEvent.Reason.SCHEMATIC, island.getBonusLevel().subtract(schematicLevel));
-                                if (!event.isCancelled())
-                                    island.setBonusLevel(event.getArgs().levelBonus);
-                            }
-                        }
-
-                        Location homeLocation = schematic.adjustRotation(centerLocation);
-                        island.setIslandHome(homeLocation);
-
-                        if (destination.getEnvironment() == World.Environment.THE_END && superiorPlayer != null) {
-                            plugin.getNMSDragonFight().awardTheEndAchievement((Player) entity);
-                            this.dragonBattleService.get().resetEnderDragonBattle(island, destination);
-                        }
-
-                        if (superiorPlayer != null) {
-                            superiorPlayer.teleport(homeLocation);
-                        } else {
-                            EntityTeleports.teleport(entity, homeLocation);
-                        }
-                    }, error -> {
-                        generatingSchematicsIslands.remove(island.getUniqueId());
-                        error.printStackTrace();
-                        if (superiorPlayer != null)
-                            Message.CREATE_WORLD_FAILURE.send(superiorPlayer);
-                    });
+            World sourceWorld = entity.getWorld();
+            AtomicReference<Location> home = new AtomicReference<>();
+            if (!(island instanceof SIsland)) {
+                generatingSchematicsIslands.invalidate(island.getUniqueId());
+                throw new IllegalStateException("Secondary generation requires an acknowledged island provider");
+            }
+            plugin.getPvcIslandService().dimensionGeneration((SIsland) island, destination,
+                    () -> generateDimension(island, destination, schematic, home)).whenComplete((unused, error) -> {
+                generatingSchematicsIslands.invalidate(island.getUniqueId());
+                if (error != null) {
+                    com.bgsoftware.superiorskyblock.core.logging.Log.error(error,
+                            "Secondary island generation failed; its durable intent remains fenced for recovery");
+                    if (superiorPlayer != null)
+                        BukkitExecutor.entity(entity, () -> Message.CREATE_WORLD_FAILURE.send(superiorPlayer));
+                    return;
+                }
+                if (destination.getEnvironment() == World.Environment.THE_END)
+                    plugin.executeRegion(home.get(), () -> this.dragonBattleService.get()
+                            .resetEnderDragonBattle(island, destination), 0L);
+                BukkitExecutor.entity(entity, () -> {
+                    if (!entity.isValid() || entity.getWorld() != sourceWorld ||
+                            !island.isInside(entity.getLocation()) ||
+                            !plugin.getPvcIslandService().isAvailable(island.getUniqueId())) return;
+                    if (destination.getEnvironment() == World.Environment.THE_END && superiorPlayer != null)
+                        plugin.getNMSDragonFight().awardTheEndAchievement((Player) entity);
+                    if (superiorPlayer != null) superiorPlayer.teleport(home.get());
+                    else EntityTeleports.teleport(entity, home.get());
                 });
             });
 
@@ -360,6 +344,57 @@ public class PortalsManagerServiceImpl implements PortalsManagerService, IServic
         }
 
         return EntityPortalResult.SUCCEED;
+    }
+
+    /** World-write completion includes the native storage fence; metadata and journal ACK precede player effects. */
+    private CompletableFuture<Void> generateDimension(Island island, Dimension destination, Schematic schematic,
+                                                       AtomicReference<Location> home) {
+        CompletableFuture<World> worldReady = new CompletableFuture<>();
+        try {
+            IslandWorlds.accessIslandWorldAsync(island, destination, true, result ->
+                    result.ifRight(worldReady::completeExceptionally).ifLeft(worldReady::complete));
+        } catch (Throwable error) { worldReady.completeExceptionally(error); }
+        return worldReady.thenCompose(world -> {
+            Location center = island.getCenter(destination).clone();
+            center.setWorld(world);
+            BigDecimal originalWorth = island.getRawWorth();
+            BigDecimal originalLevel = island.getRawLevel();
+            CompletableFuture<Void> pasted = new CompletableFuture<>();
+            try {
+                schematic.pasteSchematic(island, center.clone().add(0, -1, 0),
+                        () -> pasted.complete(null), pasted::completeExceptionally);
+            } catch (Throwable error) { pasted.completeExceptionally(error); }
+            return pasted.thenCompose(unused -> {
+                CompletableFuture<Void> finalized = new CompletableFuture<>();
+                try {
+                    plugin.executeRegion(center, () -> {
+                        try {
+                            plugin.getPvcIslandService().acknowledgeForced(island, () -> {
+                                island.setSchematicGenerate(destination);
+                                SettingsManager.Worlds.DimensionConfig config = plugin.getSettings().getWorlds().getDimensionConfig(destination);
+                                if (config != null && config.isSchematicOffset()) {
+                                    PluginEvent<PluginEventArgs.IslandChangeWorthBonus> worth = PluginEventsFactory.callIslandChangeWorthBonusEvent(
+                                            island, (SuperiorPlayer) null, IslandChangeWorthBonusEvent.Reason.SCHEMATIC,
+                                            island.getBonusWorth().subtract(island.getRawWorth().subtract(originalWorth)));
+                                    if (!worth.isCancelled()) island.setBonusWorth(worth.getArgs().worthBonus);
+                                    PluginEvent<PluginEventArgs.IslandChangeLevelBonus> level = PluginEventsFactory.callIslandChangeLevelBonusEvent(
+                                            island, (SuperiorPlayer) null, IslandChangeLevelBonusEvent.Reason.SCHEMATIC,
+                                            island.getBonusLevel().subtract(island.getRawLevel().subtract(originalLevel)));
+                                    if (!level.isCancelled()) island.setBonusLevel(level.getArgs().levelBonus);
+                                }
+                                Location target = schematic.adjustRotation(center);
+                                island.setIslandHome(target);
+                                home.set(target.clone());
+                            }).whenComplete((ignored, error) -> {
+                                if (error == null) finalized.complete(null);
+                                else finalized.completeExceptionally(error);
+                            });
+                        } catch (Throwable error) { finalized.completeExceptionally(error); }
+                    }, 0L);
+                } catch (Throwable error) { finalized.completeExceptionally(error); }
+                return finalized;
+            });
+        });
     }
 
     @Nullable

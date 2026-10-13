@@ -25,10 +25,11 @@ public class KickButton extends AbstractMenuViewButton<MenuConfirmKick.View> {
     public void onButtonClick(ButtonClickContext<MenuConfirmKick.View> context) {
         SuperiorPlayer clickedPlayer = plugin.getPlayers().getSuperiorPlayer(context.getPlayer());
 
-        if (getTemplate().kickPlayer)
+        if (getTemplate().kickPlayer && IslandUtils.checkKickRestrictions(clickedPlayer, menuView.getIsland(), menuView.getSuperiorPlayer()) &&
+                menuView.claimIslandAction(menuView.getIsland(), com.bgsoftware.superiorskyblock.island.privilege.IslandPrivileges.KICK_MEMBER))
             IslandUtils.handleKickPlayer(clickedPlayer, menuView.getIsland(), menuView.getSuperiorPlayer());
 
-        BukkitExecutor.sync(menuView::closeView, 1L);
+        plugin.executePlayer(menuView.getInventoryViewer(), menuView::closeView, 1L);
     }
 
     public static class Builder extends AbstractMenuTemplateButton.AbstractBuilder<MenuConfirmKick.View> {

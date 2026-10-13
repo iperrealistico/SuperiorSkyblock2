@@ -983,3 +983,25 @@ help-on-invalid-command: true
 # Should players receive a help instead of a `NO_COMMAND_PERMISSION` message
 # when using a command they don't have permission for?
 help-on-no-permission: false
+# PVC maintenance fork. Existing servers retain their upstream sizing behavior
+# until PERMISSION_AUTOMATIC is explicitly selected. Numeric permission grants
+# are resolved by their highest value; rank and donor values are never added.
+pvc:
+  size-mode: LEGACY
+  entitlements:
+    cache-capacity: 2048
+    history-capacity: 65536
+    refresh-seconds: 30
+    request-timeout-seconds: 10
+    max-in-flight: 4
+    refresh-batch: 64
+    queue-capacity: 4096
+    max-permission-nodes: 4096
+    radius-candidates: []
+  runtime:
+    chunk-load-concurrency: 8
+    chunk-load-queue-limit: 512
+    chunk-load-timeout-seconds: 30
+    dragon-arena-chunk-budget: 1156
+    dragon-arena-queue-limit: 128
+    dragon-arena-activation-timeout-seconds: 60

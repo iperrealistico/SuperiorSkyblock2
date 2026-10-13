@@ -61,6 +61,7 @@ public class DataManager extends Manager {
         }
 
         runState(DatabaseLoader.State.POST_LOAD_DATA);
+        plugin.getPvcIslandService().loadMetadata();
 
         /*
          *  Because of a bug caused leaders to be guests, I am looping through all the players and trying to fix it here.

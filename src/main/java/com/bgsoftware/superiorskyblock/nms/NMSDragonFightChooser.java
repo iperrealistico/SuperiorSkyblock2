@@ -6,6 +6,7 @@ import com.bgsoftware.superiorskyblock.api.config.SettingsManager;
 import com.bgsoftware.superiorskyblock.api.island.Island;
 import com.bgsoftware.superiorskyblock.api.world.Dimension;
 import com.bgsoftware.superiorskyblock.core.logging.Log;
+import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.EnderDragon;
@@ -47,6 +48,11 @@ public class NMSDragonFightChooser implements NMSDragonFight {
         getDelegate().awardTheEndAchievement(player);
     }
 
+    @Override
+    public void onPlayerEnteredIsland(Island island, Dimension dimension) {
+        getDelegate().onPlayerEnteredIsland(island, dimension);
+    }
+
     private NMSDragonFight getDelegate() {
         if (this.delegate == null) {
             if (plugin.getSettings() == null)
@@ -60,6 +66,8 @@ public class NMSDragonFightChooser implements NMSDragonFight {
                         try {
                             this.delegate = this.enabledInstanceSupplier.get();
                         } catch (NMSLoadException error) {
+                            if (BukkitExecutor.isFolia())
+                                throw new IllegalStateException("Configured dragon fights require a working regional NMS adapter", error);
                             Log.error(error, "Failed to load NMSDragonFight, disabling it...");
                             this.delegate = new NMSDragonFightImpl();
                         }

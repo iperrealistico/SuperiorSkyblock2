@@ -40,7 +40,7 @@ public class BankCustomWithdrawButton extends AbstractMenuViewButton<IslandMenuV
 
         menuView.closeView();
 
-        PlayerChat.listen(player, message -> {
+        PlayerChat.listen(player, com.bgsoftware.superiorskyblock.island.privilege.IslandPrivileges.WITHDRAW_MONEY, message -> {
             try {
                 BigDecimal newAmount = BigDecimal.valueOf(Double.parseDouble(message));
                 BankTransaction bankTransaction = island.getIslandBank().withdrawMoney(clickedPlayer, newAmount, null);

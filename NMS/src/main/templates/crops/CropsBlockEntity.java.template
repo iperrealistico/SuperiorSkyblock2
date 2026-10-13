@@ -22,14 +22,14 @@ public class CropsBlockEntity extends BlockEntity {
 
     private static final SuperiorSkyblockPlugin plugin = SuperiorSkyblockPlugin.getPlugin();
 
-    private static final Chunk2ObjectMap<CropsBlockEntity> tickingChunks = new Chunk2ObjectMap<>();
+    private static final java.util.concurrent.ConcurrentMap<String, java.util.concurrent.ConcurrentMap<Long, CropsBlockEntity>> tickingChunks = new java.util.concurrent.ConcurrentHashMap<>();
 
     private final WeakReference<Island> island;
     private final WeakReference<LevelChunk> chunk;
 
     private int currentTick = 0;
 
-    private double cachedCropGrowthMultiplier;
+    private volatile double cachedCropGrowthMultiplier;
 
     private CropsBlockEntity(Island island, LevelChunk levelChunk, BlockPos blockPos) {
         super(${BLOCK_ENTITY_TYPE_VALUES_CLASS}.COMMAND_BLOCK, blockPos, levelChunk.getLevel().getBlockState(blockPos));
@@ -44,14 +44,15 @@ public class CropsBlockEntity extends BlockEntity {
         int chunkX = NMSUtilsVersioned.getLevelChunkX(levelChunk);
         int chunkZ = NMSUtilsVersioned.getLevelChunkZ(levelChunk);
         long packedPos = NMSUtils.getChunkPackedPos(chunkX, chunkZ);
-        tickingChunks.computeIfAbsent(worldName, packedPos, () -> {
+        tickingChunks.computeIfAbsent(worldName, name -> new java.util.concurrent.ConcurrentHashMap<>()).computeIfAbsent(packedPos, pos -> {
             BlockPos blockPos = new BlockPos(chunkX << 4, 1, chunkZ << 4);
             return new CropsBlockEntity(island, levelChunk, blockPos);
         });
     }
 
     public static CropsBlockEntity remove(String worldName, long chunkPos) {
-        return tickingChunks.remove(worldName, chunkPos);
+        java.util.Map<Long, CropsBlockEntity> world = tickingChunks.get(worldName);
+        return world == null ? null : world.remove(chunkPos);
     }
 
     public static void forEachChunk(List<ChunkPosition> chunkPositions, Consumer<CropsBlockEntity> cropsBlockEntityConsumer) {
@@ -60,7 +61,8 @@ public class CropsBlockEntity extends BlockEntity {
 
         chunkPositions.forEach(chunkPosition -> {
             long chunkKey = chunkPosition.asPair();
-            CropsBlockEntity cropsBlockEntity = tickingChunks.get(chunkPosition.getWorldName(), chunkKey);
+            java.util.Map<Long, CropsBlockEntity> world = tickingChunks.get(chunkPosition.getWorldName());
+            CropsBlockEntity cropsBlockEntity = world == null ? null : world.get(chunkKey);
             if (cropsBlockEntity != null)
                 cropsBlockEntityConsumer.accept(cropsBlockEntity);
         });

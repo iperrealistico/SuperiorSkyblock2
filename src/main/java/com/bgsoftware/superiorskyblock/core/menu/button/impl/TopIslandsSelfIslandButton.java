@@ -138,7 +138,7 @@ public class TopIslandsSelfIslandButton extends AbstractMenuViewButton<MenuTopIs
                                     .replace("{}", member.getName())
                                     .replace("{0}", member.getName())
                                     .replace("{1}", onlineMessage == null ? "" : onlineMessage)
-                                    .replace("{2}", member.getPlayerRole().getDisplayName()))
+                                    .replace("{2}", member.getPlayerRole(island).getDisplayName()))
                             );
                         });
                     }

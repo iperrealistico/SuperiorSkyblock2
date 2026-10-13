@@ -330,6 +330,9 @@ public enum Message {
     COOP_LIMIT_EXCEED,
     CREATE_ISLAND,
     CREATE_ISLAND_FAILURE,
+    PVC_OWNERSHIP_LIMIT_REACHED,
+    PVC_ISLAND_CREATION_QUEUE_FULL,
+    PVC_OWNERSHIP_POLICY_UNAVAILABLE,
     CREATE_WORLD_FAILURE,
     DANGEROUS_COMMAND_APPROVED,
     DANGEROUS_COMMAND_CANCELLED,
@@ -891,7 +894,10 @@ public enum Message {
             if (plugin.getSettings().getDefaultLanguage().equalsIgnoreCase(fileName))
                 PlayerLocales.setDefaultLocale(fileLocale);
 
+            try { com.bgsoftware.superiorskyblock.pvc.PvcLanguageDefaults.merge(langFile); }
+            catch (java.io.IOException error) { Log.error(error, "PVC locale defaults could not be saved to ", langFile.getName()); }
             CommentedConfiguration cfg = CommentedConfiguration.loadConfiguration(langFile);
+            com.bgsoftware.superiorskyblock.pvc.PvcLanguageDefaults.applyMissing(cfg, langFile);
 
             // Additional saving, because we are not adding a new message, we are only changing the format of the old one,
             // so cfg.syncWithConfig() will not detect it and will not save the file.

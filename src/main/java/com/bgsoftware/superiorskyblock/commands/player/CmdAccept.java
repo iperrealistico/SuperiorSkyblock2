@@ -62,22 +62,34 @@ public class CmdAccept implements ISuperiorCommand {
         SuperiorPlayer targetPlayer;
         Island island;
 
-        if (args.length == 1) {
+        if (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isExplicitTarget()) {
+            island = com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current();
+            targetPlayer = island == null ? null : island.getOwner();
+        } else if (args.length == 1) {
             List<Island> playerPendingInvites = superiorPlayer.getInvites();
+            if (playerPendingInvites.size() > 1) {
+                sender.sendMessage(org.bukkit.ChatColor.YELLOW + "You have several invitations. Use /is accept <island ID>.");
+                return;
+            }
             island = playerPendingInvites.isEmpty() ? null : playerPendingInvites.get(0);
             targetPlayer = null;
         } else {
             targetPlayer = plugin.getPlayers().getSuperiorPlayer(args[1]);
-            island = targetPlayer == null ? plugin.getGrid().getIsland(args[1]) : targetPlayer.getIsland();
+            if (targetPlayer == null) island = plugin.getPvcIslandService().resolve(args[1]);
+            else {
+                List<Island> invited = new java.util.ArrayList<>();
+                for (Island targetIsland : targetPlayer.getIslands())
+                    if (targetIsland.isInvited(superiorPlayer)) invited.add(targetIsland);
+                if (invited.size() > 1) {
+                    sender.sendMessage(org.bukkit.ChatColor.YELLOW + "That player invited you to several islands. Use the island ID.");
+                    return;
+                }
+                island = invited.isEmpty() ? null : invited.get(0);
+            }
         }
 
-        if (island == null || !island.isInvited(superiorPlayer)) {
+        if (island == null || !plugin.getPvcIslandService().isAvailable(island.getUniqueId()) || !island.isInvited(superiorPlayer)) {
             Message.NO_ISLAND_INVITE.send(superiorPlayer);
-            return;
-        }
-
-        if (superiorPlayer.getIsland() != null) {
-            Message.JOIN_WHILE_IN_ISLAND.send(superiorPlayer);
             return;
         }
 
@@ -94,6 +106,7 @@ public class CmdAccept implements ISuperiorCommand {
         IslandUtils.sendMessage(island, Message.JOIN_ANNOUNCEMENT, Collections.emptyList(), superiorPlayer.getName());
 
         island.addMember(superiorPlayer, SPlayerRole.defaultRole());
+        superiorPlayer.selectIsland(island);
 
         if (targetPlayer == null)
             Message.JOINED_ISLAND_NAME.send(superiorPlayer, island.getName());

@@ -8,14 +8,18 @@ import com.bgsoftware.superiorskyblock.core.menu.view.AbstractMenuView;
 import com.bgsoftware.superiorskyblock.core.menu.view.IPlayerMenuView;
 import com.bgsoftware.superiorskyblock.core.menu.view.args.PlayerViewArgs;
 
-public class PlayerMenuView extends AbstractMenuView<PlayerMenuView, PlayerViewArgs> implements IPlayerMenuView {
+public class PlayerMenuView extends AbstractMenuView<PlayerMenuView, PlayerViewArgs> implements IPlayerMenuView, com.bgsoftware.superiorskyblock.core.menu.view.IIslandMenuView {
 
     private final SuperiorPlayer superiorPlayer;
+    private final com.bgsoftware.superiorskyblock.api.island.Island island;
 
     public PlayerMenuView(SuperiorPlayer inventoryViewer, @Nullable MenuView<?, ?> previousMenuView,
                           Menu<PlayerMenuView, PlayerViewArgs> menu, PlayerViewArgs args) {
         super(inventoryViewer, previousMenuView, menu);
         this.superiorPlayer = args.getSuperiorPlayer();
+        this.island = previousMenuView instanceof com.bgsoftware.superiorskyblock.core.menu.view.IIslandMenuView ?
+                ((com.bgsoftware.superiorskyblock.core.menu.view.IIslandMenuView) previousMenuView).getIsland() : inventoryViewer.getIsland();
+        bindActionTarget(this.island);
         this.cachedTitleArgs = new Object[]{this.superiorPlayer.getName()};
     }
 
@@ -23,5 +27,7 @@ public class PlayerMenuView extends AbstractMenuView<PlayerMenuView, PlayerViewA
     public SuperiorPlayer getSuperiorPlayer() {
         return this.superiorPlayer;
     }
+
+    @Override public com.bgsoftware.superiorskyblock.api.island.Island getIsland() { return island; }
 
 }

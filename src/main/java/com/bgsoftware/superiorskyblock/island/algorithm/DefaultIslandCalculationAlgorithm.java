@@ -59,9 +59,39 @@ public class DefaultIslandCalculationAlgorithm implements IslandCalculationAlgor
 
     @Override
     public CompletableFuture<IslandCalculationResult> calculateIsland(Island island) {
+        if (BukkitExecutor.isFolia()) return calculateIslandRegionally(island);
         CompletableFuture<IslandCalculationResult> result = new CompletableFuture<>();
         BukkitExecutor.ensureMain(() -> calculateIslandInternal(island, result));
         return result;
+    }
+
+    private CompletableFuture<IslandCalculationResult> calculateIslandRegionally(Island island) {
+        long profiler = Profiler.start(ProfileType.CALCULATE_ISLAND);
+        List<ChunkPosition> positions = new java.util.ArrayList<>();
+        IslandUtils.getChunkCoords(island, IslandChunkFlags.ONLY_PROTECTED | IslandChunkFlags.NO_EMPTY_CHUNKS)
+                .values().forEach(positions::addAll);
+        BlockCountsTracker counts = new BlockCountsTracker();
+        return com.bgsoftware.superiorskyblock.world.chunk.ChunksProvider.processSequential(positions,
+                ChunkLoadReason.BLOCKS_RECALCULATE, chunk -> {
+                    CalculatedChunk.Blocks blocks = plugin.getNMSChunks().calculateChunkBlocksNow(chunk);
+                    blocks.getBlockCounts().removeIf(key -> key instanceof SpawnerKey);
+                    counts.addCounts(blocks.getBlockCounts());
+                    for (Location location : blocks.getSpawners()) {
+                        Pair<Integer, String> spawner = plugin.getProviders().getSpawnersProvider().getSpawner(location);
+                        Key key = spawner.getValue() == null ? Keys.of(location.getBlock()) : Keys.ofSpawner(spawner.getValue(), location);
+                        counts.addCounts(key, Math.max(1, spawner.getKey()));
+                    }
+                    ChunkPosition pos = blocks.getPosition();
+                    if (!loadExternalBlocksForChunk(pos, counts))
+                        throw new IllegalStateException("Custom block provider cannot calculate an owned Folia chunk: " + pos);
+                    plugin.getStackedBlocks().forEach(pos, block -> counts.addCounts(block.getBlockKey(), block.getAmount() - 1));
+                }).thenApply(unused -> {
+                    MINECART_BLOCK_TYPES.forEach(types -> {
+                        int count = island.getEntitiesTracker().getEntityCount(types.getKey());
+                        if (count > 0) counts.addCounts(types.getValue(), count);
+                    });
+                    return (IslandCalculationResult) counts;
+                }).whenComplete((result, error) -> Profiler.end(profiler));
     }
 
     private void calculateIslandInternal(Island island, CompletableFuture<IslandCalculationResult> result) {

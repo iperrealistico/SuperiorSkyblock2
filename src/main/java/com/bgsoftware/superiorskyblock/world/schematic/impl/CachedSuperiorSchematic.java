@@ -59,6 +59,12 @@ public class CachedSuperiorSchematic extends BaseSchematic implements Schematic 
 
     @Override
     public void pasteSchematic(Island island, Location location, Runnable callback, Consumer<Throwable> onFailure) {
+        if (BukkitExecutor.isFolia()) {
+            // The cached multi-chunk NMS session assumes one owning world thread.
+            // Preserve schematic contents using the region-isolated chunk pipeline.
+            this.baseSchematic.pasteSchematic(island, location, callback, onFailure);
+            return;
+        }
         BukkitExecutor.ensureAsync(() -> pasteSchematicInternal(island, location, callback, onFailure));
     }
 

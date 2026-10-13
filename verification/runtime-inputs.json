@@ -1,0 +1,61 @@
+{
+  "verifiedUTC": "2026-10-12",
+  "scope": "Unmodified runtime wrappers; each native run verifies SHA-256 before copying only wrapper, libraries and cache into an owned private loopback fixture. Server configurations, credentials, plugins and worlds are never copied from production.",
+  "lanes": [
+    {
+      "id": "leaf-12111",
+      "minecraft": "1.21.11",
+      "platform": "Leaf",
+      "build": 174,
+      "channel": "default",
+      "java": "21",
+      "serverJar": "local-servers/main-leaf-26.2-20260930/server-1.21.11/server.jar",
+      "sha256": "1E38B84653381B63640829312D8EE209E94D6A12D660DD47787A59871ECA7B4C",
+      "metadataURL": "https://api.leafmc.one/v2/projects/leaf/versions/1.21.11/builds/174"
+    },
+    {
+      "id": "leaf-262",
+      "minecraft": "26.2",
+      "platform": "Leaf",
+      "build": 123,
+      "channel": "experimental",
+      "java": "25",
+      "serverJar": "local-servers/main-leaf-26.2-20260930/server/server.jar",
+      "sha256": "AA84A1816829721F3C48E918E3A06236470570E4BA575BD4191FB2CA6D461C07",
+      "metadataURL": "https://api.leafmc.one/v2/projects/leaf/versions/26.2/builds/123"
+    },
+    {
+      "id": "folia-262",
+      "minecraft": "26.2",
+      "platform": "Folia",
+      "build": 7,
+      "channel": "BETA",
+      "java": "25",
+      "serverJar": "local-servers/pvccarts-t276-folia-262-lifecycle/server.jar",
+      "sha256": "128A634192261CD38BB4A5DC54075018A0F896FD6C6F529E37DCA6E99E32B3B3",
+      "metadataURL": "https://fill.papermc.io/v3/projects/folia/versions/26.2/builds/7"
+    },
+    {
+      "id": "folia-12111",
+      "minecraft": "1.21.11",
+      "platform": "Folia",
+      "build": 14,
+      "channel": "STABLE",
+      "java": "21",
+      "serverJar": "local-servers/folia-1.21.11/server.jar",
+      "sha256": "F52C408490A0225611E67907A3CA19F7E6DA2C6BC899E715D5F46844E7103C39",
+      "metadataURL": "https://fill.papermc.io/v3/projects/folia/versions/1.21.11/builds/14"
+    },
+    {
+      "id": "purpur-262",
+      "minecraft": "26.2",
+      "platform": "Purpur",
+      "build": 2608,
+      "channel": "experimental",
+      "java": "25",
+      "serverJar": "local-servers/pvc-gendarmerie-purpur-26.2-terra2-20260827-2145/server.jar",
+      "sha256": "FA169676A2D3C4BD9F07BAADA491505814995F61831623FB7FC3137F6B2A8A90",
+      "metadataURL": "https://api.purpurmc.org/v2/purpur/26.2/2608"
+    }
+  ]
+}

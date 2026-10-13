@@ -1,10 +1,12 @@
 name: SuperiorSkyblock2
 version: ${project.version}
 main: com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin
+load: STARTUP
 
 description: Feature packed Skyblock core.
 website: https://bg-software.com/
 api-version: '1.13'
+folia-supported: true
 author: Ome_R
 
 # Custom section used by DependenciesManager, which replaces softdepend.
@@ -47,6 +49,15 @@ libraries:
   - org.openjdk.nashorn:nashorn-core:15.4
 
 permissions:
+  superior.island.ownership.limit.unlimited:
+    description: Allow an unlimited number of owned islands; no OP default.
+    default: false
+  superior.island.ownership.limit.*:
+    description: Ownership quota namespace; finite numeric grants or explicit unlimited.
+    default: false
+  superior.island.size.radius.*:
+    description: Radius namespace; maximum effective grant is bounded by the reserved island cell.
+    default: false
   superior.*:
     description: Permission for all admin & island commands
     default: op
@@ -80,6 +91,10 @@ permissions:
             description: See block counts in your island.
           superior.island.create:
             description: Create a new island.
+          superior.island.list:
+            description: List owned and team islands using stable IDs.
+          superior.island.select:
+            description: Select an island for subsequent commands.
           superior.island.delwarp:
             description: Delete an island warp.
           superior.island.demote:
@@ -334,6 +349,10 @@ permissions:
             description: Toggle settings for a specific island.
           superior.admin.setsize:
             description: Change another player's island size.
+          superior.admin.clearsizeoverride:
+            description: Clear persistent owner-wide size overrides and optionally legacy exceptions.
+          superior.admin.sizepolicy:
+            description: Inspect the effective owner quota and island radius policy.
           superior.admin.setspawn:
             description: Set the spawn location of the server.
           superior.admin.setspawnerrates:

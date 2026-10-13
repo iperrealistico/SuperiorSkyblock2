@@ -75,14 +75,14 @@ public class CmdPromote implements IPermissibleCommand {
             return;
         }
 
-        PlayerRole playerRole = targetPlayer.getPlayerRole();
+        PlayerRole playerRole = targetPlayer.getPlayerRole(island);
 
         if (playerRole.isLastRole()) {
             Message.LAST_ROLE_PROMOTE.send(superiorPlayer);
             return;
         }
 
-        if (!playerRole.isLessThan(superiorPlayer.getPlayerRole())) {
+        if (!playerRole.isLessThan(superiorPlayer.getPlayerRole(island))) {
             Message.PROMOTE_PLAYERS_WITH_LOWER_ROLE.send(superiorPlayer);
             return;
         }
@@ -93,7 +93,7 @@ public class CmdPromote implements IPermissibleCommand {
         do {
             nextRole = nextRole.getNextRole();
             roleLimit = nextRole == null ? IslandUpgradeConstants.NO_LIMIT_VALUE : island.getRoleLimit(nextRole);
-        } while (nextRole != null && !nextRole.isLastRole() && !nextRole.isHigherThan(superiorPlayer.getPlayerRole()) &&
+        } while (nextRole != null && !nextRole.isLastRole() && !nextRole.isHigherThan(superiorPlayer.getPlayerRole(island)) &&
                 roleLimit >= 0 && island.getIslandMembers(nextRole).size() >= roleLimit);
 
         if (nextRole == null || nextRole.isLastRole()) {
@@ -101,7 +101,7 @@ public class CmdPromote implements IPermissibleCommand {
             return;
         }
 
-        if (nextRole.isHigherThan(superiorPlayer.getPlayerRole())) {
+        if (nextRole.isHigherThan(superiorPlayer.getPlayerRole(island))) {
             Message.PROMOTE_PLAYERS_WITH_LOWER_ROLE.send(superiorPlayer);
             return;
         }
@@ -109,10 +109,10 @@ public class CmdPromote implements IPermissibleCommand {
         if (!PluginEventsFactory.callPlayerChangeRoleEvent(targetPlayer, nextRole))
             return;
 
-        targetPlayer.setPlayerRole(nextRole);
+        targetPlayer.setPlayerRole(island, nextRole);
 
-        Message.PROMOTED_MEMBER.send(superiorPlayer, targetPlayer.getName(), targetPlayer.getPlayerRole());
-        Message.GOT_PROMOTED.send(targetPlayer, targetPlayer.getPlayerRole());
+        Message.PROMOTED_MEMBER.send(superiorPlayer, targetPlayer.getName(), targetPlayer.getPlayerRole(island));
+        Message.GOT_PROMOTED.send(targetPlayer, targetPlayer.getPlayerRole(island));
     }
 
     @Override

@@ -244,6 +244,15 @@ public class DelegateSuperiorPlayer implements SuperiorPlayer {
         return this.handle.getIsland();
     }
 
+    @Override public Island getSelectedIsland() { return handle.getSelectedIsland(); }
+    @Override public List<Island> getIslands() { return handle.getIslands(); }
+    @Override public List<Island> getOwnedIslands() { return handle.getOwnedIslands(); }
+    @Override public PlayerRole getPlayerRole(Island island) { return handle.getPlayerRole(island); }
+    @Override public void setPlayerRole(Island island, PlayerRole role) { handle.setPlayerRole(island, role); }
+    @Override public void addIslandMembership(Island island, PlayerRole role) { handle.addIslandMembership(island, role); }
+    @Override public void removeIslandMembership(Island island) { handle.removeIslandMembership(island); }
+    @Override public void selectIsland(Island island) { handle.selectIsland(island); }
+
     @Override
     public void setIsland(Island island) {
         this.handle.setIsland(island);

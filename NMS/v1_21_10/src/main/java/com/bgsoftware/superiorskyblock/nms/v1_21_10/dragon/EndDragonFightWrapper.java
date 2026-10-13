@@ -1,6 +1,7 @@
 package com.bgsoftware.superiorskyblock.nms.v1_21_10.dragon;
 
 import com.bgsoftware.common.annotations.Nullable;
+import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import com.bgsoftware.superiorskyblock.nms.v1_21_10.dragon.EndWorldEndDragonFightHandler;
 import com.bgsoftware.superiorskyblock.nms.v1_21_10.dragon.IslandEndDragonFight;
 import net.minecraft.core.BlockPos;
@@ -34,7 +35,7 @@ public class EndDragonFightWrapper extends EndDragonFight {
     @Override
     public boolean tryRespawn() {
         if (this instanceof IslandEndDragonFight)
-            return super.tryRespawn();
+            return BukkitExecutor.isFolia() ? ((IslandEndDragonFight) this).tryRespawnRegionally(null, super::tryRespawn) : super.tryRespawn();
 
         // The crystal was placed on an island, so we try to respawn the dragons of the islands instead.
         boolean respawned = false;
@@ -46,7 +47,8 @@ public class EndDragonFightWrapper extends EndDragonFight {
     @Override
     public boolean tryRespawn(@Nullable BlockPos placedEndCrystalPos) {
         if (this instanceof IslandEndDragonFight)
-            return super.tryRespawn(placedEndCrystalPos);
+            return BukkitExecutor.isFolia() ? ((IslandEndDragonFight) this).tryRespawnRegionally(placedEndCrystalPos,
+                    () -> super.tryRespawn(placedEndCrystalPos)) : super.tryRespawn(placedEndCrystalPos);
 
         if (placedEndCrystalPos == null)
             return tryRespawn();
@@ -69,6 +71,13 @@ public class EndDragonFightWrapper extends EndDragonFight {
 
     protected BlockPos getPortalPos() {
         return this.portalLocation;
+    }
+
+    @Override
+    public void spawnNewGateway(BlockPos position) {
+        if (this instanceof IslandEndDragonFight)
+            position = ((IslandEndDragonFight) this).adjustGatewayPosition(position);
+        super.spawnNewGateway(position);
     }
 
     protected void setPortalPos(BlockPos blockPos) {

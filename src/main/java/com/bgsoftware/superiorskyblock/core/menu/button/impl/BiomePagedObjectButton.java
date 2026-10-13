@@ -57,7 +57,7 @@ public class BiomePagedObjectButton extends AbstractPagedMenuButton<MenuBiomes.V
                 Formatters.CAPITALIZED_FORMATTER.format(event.getArgs().biome.name()),
                 Formatters.CAPITALIZED_FORMATTER.format(menuView.getDimension().getName()));
 
-        BukkitExecutor.sync(menuView::closeView, 1L);
+        plugin.executePlayer(menuView.getInventoryViewer(), menuView::closeView, 1L);
     }
 
     @Override

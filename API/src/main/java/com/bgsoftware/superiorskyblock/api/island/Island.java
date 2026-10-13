@@ -66,6 +66,14 @@ public interface Island extends Comparable<Island>, IMissionsHolder, IPersistent
      */
     UUID getUniqueId();
 
+    /** Stable operator-independent public island identifier, or zero for a legacy provider. */
+    default long getShortId() { return 0L; }
+
+    /** Durable ownership transfer without waiting on a region or entity thread. */
+    default java.util.concurrent.CompletableFuture<Boolean> transferIslandAsync(SuperiorPlayer player) {
+        return java.util.concurrent.CompletableFuture.completedFuture(transferIsland(player));
+    }
+
     /**
      * Get the creation time of the island.
      */
@@ -1155,6 +1163,11 @@ public interface Island extends Comparable<Island>, IMissionsHolder, IPersistent
      * Disband the island.
      */
     void disbandIsland();
+
+    /** Completes after the implementation's deletion contract; PVC completes after world and SQL acknowledgements. */
+    default java.util.concurrent.CompletableFuture<Void> disbandIslandAsync() {
+        disbandIsland(); return java.util.concurrent.CompletableFuture.completedFuture(null);
+    }
 
     /**
      * Transfer the island's leadership to another player.

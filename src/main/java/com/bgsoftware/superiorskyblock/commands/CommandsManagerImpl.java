@@ -1,5 +1,7 @@
 package com.bgsoftware.superiorskyblock.commands;
 
+import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
+
 import com.bgsoftware.common.annotations.Nullable;
 import com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin;
 import com.bgsoftware.superiorskyblock.api.commands.SuperiorCommand;
@@ -18,6 +20,7 @@ import com.bgsoftware.superiorskyblock.core.io.loader.FilesLookupFactory;
 import com.bgsoftware.superiorskyblock.core.logging.Debug;
 import com.bgsoftware.superiorskyblock.core.logging.Log;
 import com.bgsoftware.superiorskyblock.core.messages.Message;
+import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import com.bgsoftware.superiorskyblock.player.PlayerLocales;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
@@ -46,10 +49,10 @@ import java.util.concurrent.TimeUnit;
 @SuppressWarnings("UnstableApiUsage")
 public class CommandsManagerImpl extends Manager implements CommandsManager {
 
-    private static Set<String> DANGEROUS_COMMANDS_CACHE;
+    private static volatile Set<String> DANGEROUS_COMMANDS_CACHE = Collections.emptySet();
 
-    private final Map<UUID, Map<String, Long>> commandsCooldown = new HashMap<>();
-    private final Map<String, Cache<UUID, DangerousCommandRequest>> dangerousCommandsRequests = new HashMap<>();
+    private final Map<UUID, Map<String, Long>> commandsCooldown = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, Cache<UUID, DangerousCommandRequest>> dangerousCommandsRequests = new java.util.concurrent.ConcurrentHashMap<>();
 
     private final CommandsMap playerCommandsMap;
     private final CommandsMap adminCommandsMap;
@@ -84,6 +87,8 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
         plugin.getNMSAlgorithms().registerCommand(pluginCommand);
 
         playerCommandsMap.loadDefaultCommands();
+        playerCommandsMap.registerCommand(new com.bgsoftware.superiorskyblock.commands.player.CmdIslandsList());
+        playerCommandsMap.registerCommand(new com.bgsoftware.superiorskyblock.commands.player.CmdIslandSelect());
         adminCommandsMap.loadDefaultCommands();
 
         loadCommands();
@@ -203,13 +208,37 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
     public void submitDangerousRequest(Player player, SuperiorCommand command, String[] args) {
         String commandLabel = getCommandLabel(command);
         String executedCommand = "/" + this.label + " " + String.join(" ", args);
+        com.bgsoftware.superiorskyblock.api.island.Island target = com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isExplicitTarget() ?
+                com.bgsoftware.superiorskyblock.pvc.island.IslandExecutionContext.current() : null;
+        List<com.bgsoftware.superiorskyblock.api.island.Island> targets = new java.util.ArrayList<>();
+        if (target != null) targets.add(target);
+        else if (command instanceof IAdminIslandCommand && args.length > 2) {
+            if ("*".equals(args[2])) targets.addAll(plugin.getGrid().getIslands());
+            else {
+                target = com.bgsoftware.superiorskyblock.commands.arguments.CommandArguments.getIsland(plugin, player, args[2]).getIsland();
+                if (target == null) return; targets.add(target);
+            }
+        } else if (command instanceof IAdminPlayerCommand && requiresFrozenIsland(command, args) && args.length > 2) {
+            SuperiorPlayer subject = plugin.getPlayers().getSuperiorPlayer(args[2]);
+            if (subject == null || subject.getIslands().size() != 1) {
+                Message.CUSTOM.send(player, "&cChoose an explicit --island target before requesting this operation.", true); return;
+            }
+            targets.add(subject.getIslands().get(0));
+        } else if (command.getAliases().contains("purge")) targets.addAll(plugin.getGrid().getIslands());
+        if (plugin.getPvcConfig().getSizeMode() == com.bgsoftware.superiorskyblock.pvc.PvcConfig.SizeMode.PERMISSION_AUTOMATIC &&
+                Arrays.asList("setsize", "addsize", "clearsizeoverride").contains(commandLabel)) {
+            Set<UUID> owners = new HashSet<>(); targets.removeIf(island -> !owners.add(island.getOwner().getUniqueId()));
+        }
+        List<IslandTarget> frozen = new java.util.ArrayList<>();
+        for (com.bgsoftware.superiorskyblock.api.island.Island island : targets)
+            frozen.add(new IslandTarget(island, plugin.getPvcIslandService().getRevision(island.getUniqueId())));
 
         // Overrides any previous request of the player for this command, and resets its expiry time.
         dangerousCommandsRequests.computeIfAbsent(commandLabel, l -> CacheBuilder.newBuilder()
                 .expireAfterWrite(1, TimeUnit.MINUTES)
                 .build()
         ).put(player.getUniqueId(), new DangerousCommandRequest(player.getUniqueId(), player.getName(),
-                executedCommand, args, System.currentTimeMillis()));
+                executedCommand, args.clone(), System.currentTimeMillis(), frozen));
 
         Message.DANGEROUS_COMMAND_REQUEST_SENT.send(player, executedCommand);
         Message.DANGEROUS_COMMAND_REQUEST_CONSOLE.send(Bukkit.getConsoleSender(), player.getName(),
@@ -246,19 +275,27 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
                 continue;
             }
 
-            if (!CommandsHelper.hasCommandAccess(command, player)) {
-                Message.DANGEROUS_COMMAND_NO_ACCESS.send(sender, request.playerName, request.executedCommand);
-                continue;
-            }
-
-            Message.DANGEROUS_COMMAND_APPROVED.send(player, request.executedCommand);
-
-            try {
-                command.execute(plugin, player, request.args);
-            } catch (Throwable error) {
-                Log.error(error, "An unexpected error occurred while executing approved command ",
-                        request.executedCommand, " of ", request.playerName, ":");
-            }
+            BukkitExecutor.entity(player, () -> {
+                List<com.bgsoftware.superiorskyblock.api.island.Island> resolved = new java.util.ArrayList<>();
+                boolean valid = true;
+                for (IslandTarget snapshot : request.targets) {
+                    com.bgsoftware.superiorskyblock.api.island.Island island = plugin.getGrid().getIslandByUUID(snapshot.island);
+                    if (island == null || !plugin.getPvcIslandService().isAvailable(snapshot.island) ||
+                            !java.util.Objects.equals(snapshot.owner, island.getOwner() == null ? null : island.getOwner().getUniqueId()) ||
+                            snapshot.revision != plugin.getPvcIslandService().getRevision(snapshot.island)) { valid = false; break; }
+                    resolved.add(island);
+                }
+                if (!valid || !CommandsHelper.hasCommandAccess(command, player) || System.currentTimeMillis() - request.creationTime > 60000L) {
+                    Message.DANGEROUS_COMMAND_NO_ACCESS.send(sender, request.playerName, request.executedCommand); return;
+                }
+                Message.DANGEROUS_COMMAND_APPROVED.send(player, request.executedCommand);
+                if (resolved.isEmpty()) resolved.add(null);
+                for (com.bgsoftware.superiorskyblock.api.island.Island island : resolved) {
+                    try (com.bgsoftware.superiorskyblock.pvc.island.IslandExecutionContext scope = com.bgsoftware.superiorskyblock.pvc.island.IslandExecutionContext.open(island)) {
+                        command.execute(plugin, player, request.args);
+                    } catch (Throwable error) { Log.error(error, "Cannot execute the approved island operation", request.executedCommand); }
+                }
+            });
         }
     }
 
@@ -287,13 +324,22 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
     }
 
     private static void onSettingsUpdate() {
-        DANGEROUS_COMMANDS_CACHE = new HashSet<>();
+        Set<String> dangerous = new HashSet<>();
         SuperiorSkyblockPlugin plugin = SuperiorSkyblockPlugin.getPlugin();
         plugin.getSettings().getDangerousCommands().forEach(commandLabel -> {
             SuperiorCommand superiorCommand = plugin.getCommands().getAdminCommand(commandLabel);
             if (superiorCommand != null)
-                DANGEROUS_COMMANDS_CACHE.add(getCommandLabel(superiorCommand));
+                dangerous.add(getCommandLabel(superiorCommand));
         });
+        DANGEROUS_COMMANDS_CACHE = Collections.unmodifiableSet(dangerous);
+    }
+
+    private boolean requiresFrozenIsland(SuperiorCommand command, String[] args) {
+        if (((IAdminPlayerCommand) command).requireIsland()) return true;
+        if (!(command instanceof com.bgsoftware.superiorskyblock.module.missions.commands.CmdAdminMission) || args.length < 5) return false;
+        if ("*".equals(args[4])) return !plugin.getMissions().getIslandMissions().isEmpty();
+        com.bgsoftware.superiorskyblock.api.missions.Mission<?> mission = plugin.getMissions().getMission(args[4]);
+        return mission != null && mission.getIslandMission();
     }
 
     private static String getCommandLabel(SuperiorCommand command) {
@@ -369,6 +415,39 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
 
         @Override
         public boolean execute(CommandSender sender, String label, String[] args) {
+            if (!plugin.getPvcIslandService().isReady()) {
+                Message.CUSTOM.send(sender, "&eIsland metadata is being initialized or recovered. Please wait.", true); return false;
+            }
+            List<String> stripped = new java.util.ArrayList<>();
+            com.bgsoftware.superiorskyblock.api.island.Island explicit = null;
+            for (int i = 0; i < args.length; i++) {
+                if ("--island".equalsIgnoreCase(args[i])) {
+                    if (explicit != null || ++i >= args.length) {
+                        Message.CUSTOM.send(sender, "&cUse one --island <id|uuid|name> selector.", true); return false;
+                    }
+                    explicit = plugin.getPvcIslandService().resolve(args[i]);
+                    if (explicit == null) { Message.INVALID_ISLAND.send(sender); return false; }
+                } else stripped.add(args[i]);
+            }
+            if (explicit != null && sender instanceof Player) {
+                SuperiorPlayer player = plugin.getPlayers().getSuperiorPlayer(sender);
+                SuperiorCommand selectedCommand = stripped.isEmpty() ? null : playerCommandsMap.getCommand(stripped.get(0));
+                String family = selectedCommand == null ? "tp" : selectedCommand.getAliases().get(0).toLowerCase(Locale.ENGLISH);
+                boolean external = Arrays.asList("admin", "visit", "warp", "show", "rate", "ratings", "accept").contains(family);
+                if (!external && !explicit.isMember(player)) { Message.INVALID_ISLAND.send(sender); return false; }
+            }
+            boolean explicitSelector = explicit != null || com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isExplicitTarget();
+            if (explicit == null && sender instanceof Player) {
+                explicit = com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current();
+                if (explicit == null) explicit = plugin.getPlayers().getSuperiorPlayer(sender).getSelectedIsland();
+            }
+            try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope ignored =
+                         com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.open(explicit, explicitSelector)) {
+                return executeResolved(sender, label, stripped.toArray(new String[0]));
+            }
+        }
+
+        private boolean executeResolved(CommandSender sender, String label, String[] args) {
             java.util.Locale locale = PlayerLocales.getLocale(sender);
 
             String executedSubCommand;
@@ -425,7 +504,7 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
                                     }
                                 }
 
-                                commandsCooldown.computeIfAbsent(uuid, u -> new HashMap<>()).put(commandLabel,
+                                commandsCooldown.computeIfAbsent(uuid, u -> new java.util.concurrent.ConcurrentHashMap<>()).put(commandLabel,
                                         timeNow + commandCooldown.getKey());
                             }
                         }
@@ -466,6 +545,35 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
 
         @Override
         public List<String> tabComplete(CommandSender sender, String label, String[] args) {
+            List<String> stripped = new java.util.ArrayList<>();
+            com.bgsoftware.superiorskyblock.api.island.Island target = null;
+            boolean explicit = false;
+            for (int i = 0; i < args.length; i++) {
+                if ("--island".equalsIgnoreCase(args[i])) {
+                    if (i + 1 >= args.length) return Collections.singletonList("--island <ID>");
+                    if (i + 2 == args.length) {
+                        SuperiorCommand command = stripped.isEmpty() ? null : playerCommandsMap.getCommand(stripped.get(0));
+                        boolean administrator = command != null && "admin".equalsIgnoreCase(command.getAliases().get(0)) && CommandsHelper.hasCommandAccess(command, sender);
+                        List<com.bgsoftware.superiorskyblock.api.island.Island> choices = administrator ? plugin.getGrid().getIslands() :
+                                sender instanceof Player ? plugin.getPlayers().getSuperiorPlayer(sender).getIslands() : Collections.emptyList();
+                        List<String> result = new java.util.ArrayList<>();
+                        for (com.bgsoftware.superiorskyblock.api.island.Island island : choices)
+                            if (plugin.getPvcIslandService().isAvailable(island.getUniqueId()) && Long.toString(island.getShortId()).startsWith(args[i + 1]))
+                                result.add(Long.toString(island.getShortId()));
+                        return result;
+                    }
+                    explicit = true; target = plugin.getPvcIslandService().resolve(args[++i]);
+                    if (target == null) return Collections.emptyList();
+                } else stripped.add(args[i]);
+            }
+            if (!explicit && sender instanceof Player) target = plugin.getPlayers().getSuperiorPlayer(sender).getSelectedIsland();
+            try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope scope =
+                         com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.open(target, explicit)) {
+                return tabCompleteResolved(sender, label, stripped.toArray(new String[0]));
+            }
+        }
+
+        private List<String> tabCompleteResolved(CommandSender sender, String label, String[] args) {
             if (args.length > 0) {
                 SuperiorCommand command = playerCommandsMap.getCommand(args[0]);
                 if (command != null) {
@@ -481,7 +589,7 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
                     List<String> aliases = new LinkedList<>(subCommand.getAliases());
                     aliases.addAll(plugin.getSettings().getCommandAliases().getOrDefault(aliases.get(0).toLowerCase(Locale.ENGLISH), Collections.emptyList()));
                     for (String alias : aliases) {
-                        if (alias.contains(args[0].toLowerCase(Locale.ENGLISH))) {
+                        if (args.length == 0 || alias.contains(args[0].toLowerCase(Locale.ENGLISH))) {
                             list.add(alias);
                         }
                     }
@@ -500,15 +608,25 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
         private final String executedCommand;
         private final String[] args;
         private final long creationTime;
+        private final List<IslandTarget> targets;
 
-        DangerousCommandRequest(UUID playerUUID, String playerName, String executedCommand, String[] args, long creationTime) {
+        DangerousCommandRequest(UUID playerUUID, String playerName, String executedCommand, String[] args, long creationTime,
+                                List<IslandTarget> targets) {
             this.playerUUID = playerUUID;
             this.playerName = playerName;
             this.executedCommand = executedCommand;
             this.args = args;
             this.creationTime = creationTime;
+            this.targets = Collections.unmodifiableList(new java.util.ArrayList<>(targets));
         }
 
+    }
+
+    private static final class IslandTarget {
+        final UUID island, owner; final long revision;
+        IslandTarget(com.bgsoftware.superiorskyblock.api.island.Island target, long revision) {
+            this.island = target.getUniqueId(); this.owner = target.getOwner() == null ? null : target.getOwner().getUniqueId(); this.revision = revision;
+        }
     }
 
     @Nullable

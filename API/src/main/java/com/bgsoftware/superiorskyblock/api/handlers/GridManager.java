@@ -24,6 +24,17 @@ import java.util.UUID;
 
 public interface GridManager extends IDatabaseBridgeHolder {
 
+    /** Includes retired island UUID tombstones when stable identifiers are retained. */
+    default boolean isKnownIslandUUID(UUID uuid) { return getIslandByUUID(uuid) != null; }
+
+    /** Snapshot of properties; team memberships and visits do not count. */
+    default java.util.List<Island> getOwnedIslands(UUID owner) {
+        java.util.List<Island> result = new java.util.ArrayList<>();
+        for (Island island : getIslands())
+            if (island.getOwner() != null && owner.equals(island.getOwner().getUniqueId())) result.add(island);
+        return java.util.Collections.unmodifiableList(result);
+    }
+
     /**
      * Create a new island.
      *
@@ -346,6 +357,13 @@ public interface GridManager extends IDatabaseBridgeHolder {
      */
     @Deprecated
     List<UUID> getAllIslands(SortingType sortingType);
+
+    /** Canonical island IDs. Unlike getAllIslands, owner IDs are never substituted. */
+    default List<UUID> getIslandUUIDs(SortingType sortingType) {
+        java.util.List<UUID> result = new java.util.ArrayList<>();
+        for (Island island : getIslands(sortingType)) result.add(island.getUniqueId());
+        return java.util.Collections.unmodifiableList(result);
+    }
 
     /**
      * Get all the islands unordered.

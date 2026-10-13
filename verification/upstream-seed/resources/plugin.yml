@@ -1,0 +1,9 @@
+name: SuperiorSkyblockUpstreamSeed
+main: club.peacefulvanilla.superior.seed.NativeUpstreamSeed
+version: '1.0'
+api-version: '1.21'
+description: Guarded test-only populated upstream island observer; excluded from release.
+depend: [SuperiorSkyblock2]
+commands:
+  pvcupstreamseed:
+    description: Fixed owned fixture upstream seed observer.

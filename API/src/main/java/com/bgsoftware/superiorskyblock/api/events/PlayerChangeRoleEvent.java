@@ -16,6 +16,7 @@ public class PlayerChangeRoleEvent extends Event implements Cancellable {
 
     private final SuperiorPlayer superiorPlayer;
     private final PlayerRole newRole;
+    private final com.bgsoftware.superiorskyblock.api.island.Island island;
 
     private boolean cancelled = false;
 
@@ -29,6 +30,7 @@ public class PlayerChangeRoleEvent extends Event implements Cancellable {
         super(!Bukkit.isPrimaryThread());
         this.superiorPlayer = superiorPlayer;
         this.newRole = newRole;
+        this.island = superiorPlayer.getIsland();
     }
 
     public static HandlerList getHandlerList() {
@@ -48,6 +50,8 @@ public class PlayerChangeRoleEvent extends Event implements Cancellable {
     public PlayerRole getNewRole() {
         return newRole;
     }
+
+    public com.bgsoftware.superiorskyblock.api.island.Island getIsland() { return island; }
 
     @Override
     public boolean isCancelled() {

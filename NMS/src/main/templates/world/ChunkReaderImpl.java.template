@@ -2,6 +2,7 @@ package com.bgsoftware.superiorskyblock.nms.${NMS_VERSION}.world;
 
 import com.bgsoftware.common.annotations.Nullable;
 import com.bgsoftware.superiorskyblock.core.ObjectsPools;
+import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import com.bgsoftware.superiorskyblock.nms.${NMS_VERSION}.NMSUtils;
 import com.bgsoftware.superiorskyblock.nms.${NMS_VERSION}.utils.NMSUtilsVersioned;
 import com.bgsoftware.superiorskyblock.nms.${NMS_VERSION}.world.PropertiesMapper;
@@ -57,6 +58,8 @@ public class ChunkReaderImpl implements ChunkReader {
     private final byte[][] emitlight;
 
     public ChunkReaderImpl(Chunk bukkitChunk) {
+        if (BukkitExecutor.isFolia() && !BukkitExecutor.owns(bukkitChunk.getWorld(), bukkitChunk.getX(), bukkitChunk.getZ()))
+            throw new IllegalStateException("Chunk snapshots require the region owner");
         this.serverLevel = ((CraftWorld) bukkitChunk.getWorld()).getHandle();
         LevelChunk levelChunk = this.serverLevel.getChunk(bukkitChunk.getX(), bukkitChunk.getZ());
 
@@ -109,8 +112,11 @@ public class ChunkReaderImpl implements ChunkReader {
             blockEntities.put(blockPos, CompoundTag.fromNBT(compoundTag));
         });
 
-        for (org.bukkit.entity.Entity entity : bukkitChunk.getEntities())
+        for (org.bukkit.entity.Entity entity : bukkitChunk.getEntities()) {
+            if (BukkitExecutor.isFolia() && !BukkitExecutor.owns(entity))
+                throw new IllegalStateException("Cannot capture a foreign entity in a chunk snapshot");
             entities.add(new CachedEntity(((CraftEntity) entity).getHandle()));
+        }
     }
 
     @Override

@@ -65,7 +65,7 @@ public class CmdAdminDemote implements IAdminPlayerCommand {
             return;
         }
 
-        PlayerRole currentRole = targetPlayer.getPlayerRole();
+        PlayerRole currentRole = targetPlayer.getPlayerRole(island);
 
         if (currentRole.isLastRole()) {
             Message.DEMOTE_LEADER.send(sender);
@@ -88,10 +88,10 @@ public class CmdAdminDemote implements IAdminPlayerCommand {
         if (!PluginEventsFactory.callPlayerChangeRoleEvent(targetPlayer, previousRole))
             return;
 
-        targetPlayer.setPlayerRole(previousRole);
+        targetPlayer.setPlayerRole(island, previousRole);
 
-        Message.DEMOTED_MEMBER.send(sender, targetPlayer.getName(), targetPlayer.getPlayerRole());
-        Message.GOT_DEMOTED.send(targetPlayer, targetPlayer.getPlayerRole());
+        Message.DEMOTED_MEMBER.send(sender, targetPlayer.getName(), targetPlayer.getPlayerRole(island));
+        Message.GOT_DEMOTED.send(targetPlayer, targetPlayer.getPlayerRole(island));
     }
 
     @Override

@@ -91,74 +91,34 @@ public class CmdAdminResetWorld implements IAdminIslandCommand {
         if (dimension == null)
             return;
 
-        int islandsChangedCount = 0;
-
+        List<java.util.concurrent.CompletableFuture<Void>> operations = new ArrayList<>();
+        List<Island> changed = new ArrayList<>();
         for (Island island : islands) {
-            if (!PluginEventsFactory.callIslandWorldResetEvent(island, sender, dimension))
+            if (!PluginEventsFactory.callIslandWorldResetEvent(island, sender, dimension)) continue;
+            if (!(island instanceof com.bgsoftware.superiorskyblock.island.SIsland)) {
+                sender.sendMessage(org.bukkit.ChatColor.RED + "This island provider cannot perform an acknowledged reset.");
                 continue;
-
-            ++islandsChangedCount;
-
-            IslandWorlds.accessIslandWorldAsync(island, dimension, true, islandWorldResult -> {
-                islandWorldResult.ifLeft(world -> resetChunksInternal(island, world, dimension));
-            });
-        }
-
-        if (islandsChangedCount <= 0)
-            return;
-
-        if (islandsChangedCount > 1)
-            Message.RESET_WORLD_SUCCEED_ALL.send(sender, Formatters.CAPITALIZED_FORMATTER.format(args[3]));
-        else if (targetPlayer == null)
-            Message.RESET_WORLD_SUCCEED_NAME.send(sender, Formatters.CAPITALIZED_FORMATTER.format(args[3]), islands.get(0).getName());
-        else
-            Message.RESET_WORLD_SUCCEED.send(sender, Formatters.CAPITALIZED_FORMATTER.format(args[3]), targetPlayer.getName());
-    }
-
-    private static void resetChunksInternal(Island island, World world, Dimension dimension) {
-        boolean isDefaultDimension = dimension == plugin.getSettings().getWorlds().getDefaultWorldDimension();
-
-        try(IslandWorldsPlayersStrategy strategy = IslandWorldsPlayersStrategy.create(island)) {
-            // Sending the players that are in that world to the main island.
-            // If the world that will be reset is the normal world, they will be teleported to spawn.
-            Island teleportIsland = isDefaultDimension ? plugin.getGrid().getSpawnIsland() : island;
-            for (SuperiorPlayer superiorPlayer : strategy.getSuperiorPlayers(WorldInfo.of(world))) {
-                superiorPlayer.teleport(teleportIsland);
             }
+            changed.add(island);
+            operations.add(((com.bgsoftware.superiorskyblock.island.SIsland) island).resetWorldAsync(dimension));
         }
-
-        // Resetting the chunks
-        island.resetChunks(dimension, IslandChunkFlags.ONLY_PROTECTED,
-                isDefaultDimension ? null : () -> island.calcIslandWorth(null));
-
-        if (isDefaultDimension) {
-            String islandSchematic = island.getSchematicName();
-            Schematic schematic = plugin.getSchematics().getSchematic(islandSchematic);
-            if (schematic != null) {
-                regenerateSchematicInternal(island, dimension, schematic);
-                return;
-            }
-        }
-
-        island.setSchematicGenerate(dimension, false);
-    }
-
-    private static void regenerateSchematicInternal(Island island, Dimension dimension, Schematic schematic) {
-        Location centerLocation = island.getCenter(dimension);
-        Location schematicPlacementLocation = centerLocation.getBlock().getRelative(BlockFace.DOWN).getLocation();
-
-        schematic.pasteSchematic(island, schematicPlacementLocation, () -> {
-            island.setSchematicGenerate(dimension);
-
-            Location homeLocation = schematic.adjustRotation(centerLocation);
-            island.setIslandHome(homeLocation);
-
-            if (dimension.getEnvironment() == World.Environment.THE_END) {
-                dragonBattleService.get().resetEnderDragonBattle(island, dimension);
-            }
-
-            island.calcIslandWorth(null);
-        }, Throwable::printStackTrace);
+        if (operations.isEmpty()) return;
+        java.util.concurrent.CompletableFuture.allOf(operations.toArray(new java.util.concurrent.CompletableFuture[0]))
+                .whenComplete((unused, error) -> {
+                    Runnable reply = () -> {
+                        if (error != null) {
+                            com.bgsoftware.superiorskyblock.core.logging.Log.error(error, "Island world reset did not complete");
+                            sender.sendMessage(org.bukkit.ChatColor.RED + "The reset is incomplete; the island remains reserved for recovery.");
+                        } else if (changed.size() > 1)
+                            Message.RESET_WORLD_SUCCEED_ALL.send(sender, Formatters.CAPITALIZED_FORMATTER.format(args[3]));
+                        else if (targetPlayer == null)
+                            Message.RESET_WORLD_SUCCEED_NAME.send(sender, Formatters.CAPITALIZED_FORMATTER.format(args[3]), changed.get(0).getName());
+                        else Message.RESET_WORLD_SUCCEED.send(sender, Formatters.CAPITALIZED_FORMATTER.format(args[3]), targetPlayer.getName());
+                    };
+                    if (sender instanceof org.bukkit.entity.Player)
+                        plugin.executePlayer(plugin.getPlayers().getSuperiorPlayer(sender), reply, 0L);
+                    else reply.run();
+                });
     }
 
     @Override

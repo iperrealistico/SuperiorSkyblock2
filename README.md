@@ -1,3 +1,14 @@
+# SuperiorSkyblock2 PVC maintenance fork
+
+This full-history GPL-3.0 fork builds `2026.3-pvc.1` with multiple owned islands,
+owner permission policies, durable operations and regional Folia execution.
+Read the [fork documentation](docs/pvc/README.md),
+[installation guide](docs/pvc/INSTALLATION.md), and
+[release verification](docs/pvc/VERIFICATION.md) before use.
+Upstream attribution and its README are retained below; upstream download links
+distribute the upstream plugin. Fork maintenance follows
+[the recorded integration procedure](docs/pvc/UPSTREAM.md).
+
 <p align="center">
 <img src="https://static.bg-software.com/imgs/superiorskyblock-logo.png" />
 <h2 align="center">The most optimized Skyblock core on the market.</h2>

@@ -62,7 +62,8 @@ public class CmdAdminPurge implements ISuperiorCommand {
             List<Island> islands = new SequentialListBuilder<Island>().filter(island -> {
                 long lastTimeUpdate = island.getLastTimeUpdate();
                 return lastTimeUpdate != -1 && currentTime - lastTimeUpdate >= timeToPurge;
-            }).build(plugin.getGrid().getIslands());
+            }).build(com.bgsoftware.superiorskyblock.pvc.island.IslandExecutionContext.current() == null ? plugin.getGrid().getIslands() :
+                    Collections.singletonList(com.bgsoftware.superiorskyblock.pvc.island.IslandExecutionContext.current()));
 
             if (islands.isEmpty()) {
                 Message.NO_ISLANDS_TO_PURGE.send(sender);
