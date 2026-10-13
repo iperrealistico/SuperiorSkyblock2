@@ -35,6 +35,17 @@ not by discarding the entire upstream or fork version of a file.
 
 ## Retirement conditions
 
+The execution family also retains Folia-specific async player arrival handling.
+The exact official source bundles omit the normal Bukkit teleport/changed-world
+events on their async path; destination entity tracking provides the real
+arrival event instead. Plugin teleports use normal protection preflight and
+owner-following physical completion; external arrivals use the tracking event.
+Do not retire these adapters merely because teleport futures return success:
+the replacement must preserve cancellation/protection before plugin-owned
+teleports, physical membership and snapshot reconciliation, generation fences,
+retirement failures and automatic regional End activation. See
+[FOLIA.md](FOLIA.md#native-asynchronous-player-arrival).
+
 Retirement means removing a now-redundant patch after source comparison and the
 family's regression gates pass on the resulting artifact. It never means
 deleting retained data, silently removing an additive API or assuming a newer

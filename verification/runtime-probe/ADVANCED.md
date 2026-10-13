@@ -31,24 +31,50 @@ Run the actions in this order, waiting for each matching observer signal:
    verify quota 1/default radius, then remove OP.
 4. `endprepare`: paste real End schematics when necessary, acknowledge metadata
    and create the two native dormant fights.
-5. `endenter`, `endactive`: teleport the two actual clients into separate arenas,
+5. `endenter`, `endactive`: teleport the two actual clients onto real, native
+   storage-acknowledged 3x3 bedrock waiting platforms, 12 blocks horizontally
+   away from each island's exit podium. This keeps actual visitors outside the
+   legitimate death-created exit portal. Teleport the primary back onto its
+   platform before starting death; no dummy visitor, forced wake or paused
+   arena is used. In separate arenas,
    wait for two 289-chunk owned arenas and distinct dragons/boss IDs.
-6. `bosshide`, `bossshow`: hide, remove/re-add the real viewer and show the boss
-   bars again. The external client driver must independently verify remove/add
-   packets and that each client receives only its arena's boss UUID.
-7. `killfirst`, `deathwait`: set the owned first dragon's health to zero and wait
+6. `killfirst`, `deathwait`: set the owned first dragon's health to zero and wait
    for the real native death animation and exit portal.
-8. `respawnfirst`, `respawnwait`: create four actual End crystals around the
+7. `respawnfirst`, `respawnwait`: create four actual End crystals around the
    native exit portal, invoke native respawn and wait for a new live dragon UUID.
-9. `endleave`, `released`: move both actual clients out of the End and verify
+   Require an actual End visitor and owned arena, and record the real native
+   respawn stage before/after crystal addition and the explicit call. A false
+   return is acceptable only when crystal addition already produced a genuine
+   non-null native stage from the previous null stage; four actual live owned
+   crystals and the subsequent new live dragon UUID remain mandatory.
+8. `endleave`, `released`: move both actual clients out of the End and verify
    zero arena reservations/tickets after removal acknowledgements and zero
    actual native per-coordinate plugin tickets, independently of arena counters.
+9. `bossshow`, `bosshide`, `bossshow`: register each real viewer on its actual
+   inactive boss event, hide/remove/re-add, then show again. Fight state changes
+   run on its center owner; recipient packets cross to each actual player owner.
+   The external driver requires real register/remove/re-add packets with the
+   original native boss UUID and no foreign arena packets. A live native fight
+   intentionally restores its visibility every tick, so it cannot qualify a
+   persistent explicit hide; no native tick or state is artificially suspended.
 10. `endreactivate`: re-enter both arenas and verify native ownership/ticket
     reacquisition. Wait for actual Folia merge/split callbacks; `status` records
     the monotonic native counters, fight identities and ticket counts.
-11. `finish`: require the complete sequence, both native lifecycle callback
+11. `occupiedendreset`: require the primary physically in End A and auxiliary
+    in End B, persist distinct bedrock sentinels, then call the real
+    `((SIsland) A).resetWorldAsync(End)` path. Require its completed future, actual
+    `RESET_DONE` SQL acknowledgement, available source cell, increased generation,
+    unchanged UUID/short ID, ungenerated End and an AIR source sentinel. Verify
+    actual primary evacuation to the configured common spawn, unchanged auxiliary
+    position/island, same live B dragon UUID and captured native B terrain.
+    The main implementation must remove the A fight and release all its actual
+    tickets; the observer never repairs it. Initial sentinel writes are native
+    storage-acknowledged, and reset completion includes native storage ACKs.
+12. `finish`: require the complete sequence, both native lifecycle callback
     increments and zero regional tracking failures before emitting
     `SUPERIOR_ADVANCED_PROBE_PASS`.
+13. `endleave`, `released`: leave the surviving B arena and require all remaining
+    reservations and physical tickets to reach zero before the client exits.
 
 The helper cannot establish client-visible packet correctness by inspecting
 server membership alone. Keep both client packet traces and native server

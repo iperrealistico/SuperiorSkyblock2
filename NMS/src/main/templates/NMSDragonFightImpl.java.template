@@ -41,6 +41,7 @@ public class NMSDragonFightImpl implements NMSDragonFight {
 
     private static boolean firstWorldPreparation = true;
     private final Map<UUID, CompletableFuture<EndDragonFightWrapper>> regionalWorlds = new ConcurrentHashMap<>();
+    private final Map<UUID, CompletableFuture<Void>> regionalRemovals = new ConcurrentHashMap<>();
 
     static {
         ENTITY_TYPES_BUILDER.set(${ENTITY_TYPE_VALUES_CLASS}.ENDER_DRAGON, (EntityType.EntityFactory<EnderDragon>) IslandEntityEnderDragon::fromEntityTypes);
@@ -135,17 +136,10 @@ public class NMSDragonFightImpl implements NMSDragonFight {
             return;
 
         if (BukkitExecutor.isFolia()) {
-            CompletableFuture<EndDragonFightWrapper> ready = regionalWorlds.get(bukkitWorld.getUID());
-            if (ready != null)
-                ready.thenAccept(wrapper -> {
-                    IslandEndDragonFight fight = wrapper.HANDLER.removeDragonFight(island.getCache());
-                    if (fight != null) {
-                        fight.stop();
-                        IslandEntityEnderDragon dragon = fight.getEnderDragon();
-                        if (dragon != null)
-                            BukkitExecutor.entity(dragon.getBukkitEntity(), () -> dragon.getBukkitEntity().remove());
-                    }
-                });
+            removeDragonBattleAsync(island, dimension).whenComplete((unused, failure) -> {
+                if (failure != null) com.bgsoftware.superiorskyblock.core.logging.Log.error(failure,
+                        "Could not remove regional dragon battle for island " + island.getUniqueId());
+            });
             return;
         }
 
@@ -171,6 +165,43 @@ public class NMSDragonFightImpl implements NMSDragonFight {
         Advancement advancement = Bukkit.getAdvancement(NamespacedKey.minecraft("end/root"));
         if (advancement != null)
             player.getAdvancementProgress(advancement).awardCriteria("");
+    }
+
+    @Override
+    public CompletableFuture<Void> removeDragonBattleAsync(Island island, Dimension dimension) {
+        if (!BukkitExecutor.isFolia()) {
+            return NMSDragonFight.super.removeDragonBattleAsync(island, dimension);
+        }
+        World world = island.getCenter(dimension).getWorld();
+        CompletableFuture<EndDragonFightWrapper> ready = world == null ? null : regionalWorlds.get(world.getUID());
+        if (ready == null) return CompletableFuture.completedFuture(null);
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        CompletableFuture<Void> previous = regionalRemovals.putIfAbsent(island.getUniqueId(), result);
+        if (previous != null) return previous;
+        ready.thenCompose(wrapper -> {
+            IslandEndDragonFight fight = wrapper.HANDLER.removeDragonFight(island.getCache());
+            if (fight == null) return CompletableFuture.completedFuture(null);
+            CompletableFuture<Void> released = fight.stopAsync();
+            CompletableFuture<Void> removed = new CompletableFuture<>();
+            IslandEntityEnderDragon dragon = fight.getEnderDragon();
+            if (dragon == null) removed.complete(null);
+            else {
+                try {
+                    BukkitExecutor.entity(dragon.getBukkitEntity(), () -> {
+                        try { dragon.getBukkitEntity().remove(); removed.complete(null); }
+                        catch (Throwable failure) { removed.completeExceptionally(failure); }
+                    }, 0L, () -> removed.complete(null));
+                } catch (Throwable failure) { removed.completeExceptionally(failure); }
+            }
+            return CompletableFuture.allOf(released, removed);
+        }).whenComplete((unused, failure) -> {
+            if (failure != null) result.completeExceptionally(failure);
+            else {
+                result.complete(null);
+                regionalRemovals.remove(island.getUniqueId(), result);
+            }
+        });
+        return result;
     }
 
     @Override

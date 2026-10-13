@@ -318,10 +318,13 @@ public class IslandEndDragonFight extends EndDragonFightWrapper {
     }
 
     public void stop() {
+        stopAsync();
+    }
+
+    public java.util.concurrent.CompletableFuture<Void> stopAsync() {
         stopped = true;
         removeBattlePlayers();
-        if (regionalArena != null)
-            regionalArena.release();
+        return regionalArena == null ? java.util.concurrent.CompletableFuture.completedFuture(null) : regionalArena.releaseAsync();
     }
 
     private boolean hasEndPlayers() {
@@ -465,6 +468,7 @@ public class IslandEndDragonFight extends EndDragonFightWrapper {
                 NMSUtilsVersioned.getMaxBuildHeight(this.serverLevel) - 1);
         NMSUtilsVersioned.moveEntity(entityEnderDragon, this.islandBlockPos.getX(), spawnY, this.islandBlockPos.getZ(),
                 this.serverLevel.getRandom().nextFloat() * 360.0F, 0.0F);
+        entityEnderDragon.initializeRegionalParts();
     }
 
     private void syncEnderDragon() {

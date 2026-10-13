@@ -9,8 +9,11 @@ import com.bgsoftware.superiorskyblock.api.schematic.Schematic;
 import com.bgsoftware.superiorskyblock.api.world.Dimension;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
+import com.bgsoftware.superiorskyblock.core.ChunkPosition;
+import com.bgsoftware.superiorskyblock.island.SIsland;
 import com.bgsoftware.superiorskyblock.pvc.entitlement.EntitlementPolicy;
 import com.bgsoftware.superiorskyblock.world.RegionalDragonArena;
+import com.bgsoftware.superiorskyblock.world.chunk.ChunkStorageBridge;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.node.Node;
@@ -18,6 +21,7 @@ import net.luckperms.api.node.types.PermissionNode;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.EnderCrystal;
 import org.bukkit.entity.EnderDragon;
@@ -49,6 +53,8 @@ public final class SuperiorAdvancedProbe {
     private volatile boolean failed;
     private volatile boolean opBaseline, wildcard, wildcardRevoked;
     private volatile boolean prepared, active, hidden, shown, killed, respawned, released, reactivated;
+    private volatile boolean occupiedEndReset;
+    private volatile Object resetFirstFight;
     private volatile Dimension end;
     private volatile List<Island> arenas = Collections.emptyList();
     private volatile UUID killedDragon;
@@ -82,6 +88,7 @@ public final class SuperiorAdvancedProbe {
                 case "endleave" -> leaveArenas(primary);
                 case "released" -> assertReleased(primary);
                 case "endreactivate" -> enterArenas(primary, true);
+                case "occupiedendreset" -> resetOccupiedEnd(primary);
                 case "status" -> status(primary);
                 case "finish" -> finish(primary);
                 default -> throw new IllegalArgumentException("Unknown fixed advanced test case");
@@ -202,7 +209,7 @@ public final class SuperiorAdvancedProbe {
                 island.setDimensionEnabled(end, true);
                 island.setSchematicGenerate(end);
                 island.setIslandHome(end, selected.adjustRotation(center.clone()));
-            })).thenCompose(unused -> region(center, () -> {
+            })).thenCompose(unused -> prepareEndWaitingPlatform(island)).thenCompose(unused -> region(center, () -> {
                 superior.getNMSDragonFight().startDragonBattle(island, settings.getPortalOffset().applyToLocation(center.clone()));
                 return null;
             })).thenCompose(unused -> await(() -> CompletableFuture.completedFuture(fight(island) != null), 15));
@@ -215,9 +222,7 @@ public final class SuperiorAdvancedProbe {
             List<CompletableFuture<Void>> arrivals = new ArrayList<>();
             for (int index = 0; index < 2; index++) {
                 Player visitor = players.get(index); Island island = arenas.get(index);
-                Location home = island.getIslandHome(end);
-                if (home == null) return CompletableFuture.failedFuture(new IllegalStateException("Missing real End home"));
-                arrivals.add(teleport(visitor, home.clone().add(0, 3, 0)));
+                arrivals.add(teleport(visitor, safeEndPosition(island)));
             }
             return CompletableFuture.allOf(arrivals.toArray(new CompletableFuture[0]));
         }).whenComplete((unused, error) -> {
@@ -243,7 +248,7 @@ public final class SuperiorAdvancedProbe {
     }
 
     private void bossState(Player primary, boolean visible) {
-        if (!active) throw new IllegalStateException("Wait for both real active fights");
+        if (!active || !released) throw new IllegalStateException("Test explicit visibility only after genuine End departure and ticket release");
         players(primary).thenCompose(players -> {
             List<CompletableFuture<Void>> actions = new ArrayList<>();
             for (int index = 0; index < 2; index++) {
@@ -251,15 +256,19 @@ public final class SuperiorAdvancedProbe {
                 CompletableFuture<Void> action = new CompletableFuture<>(); actions.add(action);
                 BukkitExecutor.entity(visitor, () -> {
                     try {
-                        Location center = island.getCenter(end);
-                        if (!BukkitExecutor.owns(center.getWorld(), center.getBlockX() >> 4, center.getBlockZ() >> 4))
-                            throw new IllegalStateException("Visitor does not own its merged arena");
-                        Object event = invoke(requiredFight(island), "getRegionalBossEvent");
                         Object handle = invoke(visitor, "getHandle");
-                        invoke(event, "setVisible", visible);
-                        invoke(event, "removePlayer", handle);
-                        invoke(event, "addPlayer", handle);
-                        action.complete(null);
+                        onFight(island, battle -> {
+                            RegionalDragonArena arena = (RegionalDragonArena) invoke(battle, "getRegionalArena");
+                            if (arena.isReady() || arena.getTicketedChunkCount() != 0 || physicalTickets(island) != 0)
+                                throw new IllegalStateException("Visibility test requires a genuinely inactive fight");
+                            Object event = invoke(battle, "getRegionalBossEvent");
+                            invoke(event, "setVisible", visible);
+                            invoke(event, "removePlayer", handle);
+                            invoke(event, "addPlayer", handle);
+                            return null;
+                        }).whenComplete((unused, failure) -> {
+                            if (failure == null) action.complete(null); else action.completeExceptionally(failure);
+                        });
                     } catch (Throwable error) { action.completeExceptionally(error); }
                 }, 0L, () -> action.completeExceptionally(new IllegalStateException("Real visitor retired during boss test")));
             }
@@ -267,20 +276,20 @@ public final class SuperiorAdvancedProbe {
         }).thenCompose(unused -> later(6)).thenCompose(unused -> snapshots()).whenComplete((values, error) -> {
             if (error != null) fail(primary, error);
             else if (values.stream().anyMatch(value -> value.visible != visible || value.viewers != 1))
-                fail(primary, new IllegalStateException("Boss viewer/visibility state did not converge"));
+                fail(primary, new IllegalStateException("Inactive boss viewer/visibility state did not converge: " + values));
             else { if (visible) shown = true; else hidden = true;
                 reply(primary, visible ? "SUPERIOR_ADV_BOSS_SHOW_PASS" : "SUPERIOR_ADV_BOSS_HIDE_PASS"); }
         });
     }
 
     private void killFirst(Player primary) {
-        if (!shown) throw new IllegalStateException("Complete the real hide/re-add/show cycle first");
-        onFight(arenas.get(0), battle -> {
+        if (!active) throw new IllegalStateException("Wait for both real active fights before native dragon death");
+        teleport(primary, safeEndPosition(arenas.get(0))).thenCompose(unused -> onFight(arenas.get(0), battle -> {
             EnderDragon dragon = superior.getNMSDragonFight().getEnderDragon(arenas.get(0), end);
             if (dragon == null || !BukkitExecutor.owns(dragon)) throw new IllegalStateException("No owned first-arena dragon");
             killedDragon = dragon.getUniqueId(); dragon.setHealth(0);
             return null;
-        }).whenComplete((unused, error) -> {
+        })).whenComplete((unused, error) -> {
             if (error != null) fail(primary, error); else reply(primary, "SUPERIOR_ADV_NATIVE_DRAGON_DEATH_STARTED uuid=" + killedDragon);
         });
     }
@@ -299,24 +308,68 @@ public final class SuperiorAdvancedProbe {
 
     private void respawnFirst(Player primary) {
         if (!killed) throw new IllegalStateException("Wait for native death animation and exit portal first");
-        onFight(arenas.get(0), battle -> {
+        onActor(primary, () -> {
+            Location location = primary.getLocation();
+            if (location.getWorld() != arenas.get(0).getCenter(end).getWorld() || superior.getGrid().getIslandAt(location) != arenas.get(0))
+                throw new IllegalStateException("Actual primary left End A before native respawn: " + location);
+            return location.getWorld().getName() + ':' + location.getX() + ',' + location.getY() + ',' + location.getZ();
+        }).thenCompose(actualActor -> onFight(arenas.get(0), battle -> {
             Location center = arenas.get(0).getCenter(end);
+            boolean owned = Boolean.TRUE.equals(invoke(battle, "canTickRegionally"));
+            boolean hasPlayers = Boolean.TRUE.equals(invokeProtected(battle, "hasEndPlayers"));
+            Object stageBefore = readDiagnosticField(battle, "respawnStage");
+            observer.getLogger().info("SUPERIOR_ADV_RESPAWN_INPUT actor=" + actualActor + " owned=" + owned +
+                    " hasEndPlayers=" + hasPlayers + " stageBefore=" + stageBefore);
+            if (!owned || !hasPlayers || stageBefore != null)
+                throw new IllegalStateException("Native respawn requires the real owned arena, actual End visitor and no previous respawn stage");
             Object nativePortal = invokeProtected(battle, "getPortalPos");
             if (nativePortal == null) throw new IllegalStateException("Native death did not create an exit portal");
             Location portal = new Location(center.getWorld(), ((Number) invoke(nativePortal, "getX")).intValue(),
                     ((Number) invoke(nativePortal, "getY")).intValue(), ((Number) invoke(nativePortal, "getZ")).intValue());
+            List<EnderCrystal> spawned = new ArrayList<>();
             for (int[] offset : new int[][]{{2, 0}, {-2, 0}, {0, 2}, {0, -2}}) {
                 Location crystal = new Location(portal.getWorld(), portal.getBlockX() + offset[0] + 0.5, portal.getBlockY() + 1,
                         portal.getBlockZ() + offset[1] + 0.5);
                 if (!BukkitExecutor.owns(crystal.getWorld(), crystal.getBlockX() >> 4, crystal.getBlockZ() >> 4))
                     throw new IllegalStateException("Respawn crystal chunk is foreign");
-                portal.getWorld().spawn(crystal, EnderCrystal.class);
+                spawned.add(portal.getWorld().spawn(crystal, EnderCrystal.class));
             }
-            if (!Boolean.TRUE.equals(invoke(battle, "tryRespawn"))) throw new IllegalStateException("Native four-crystal respawn was rejected");
+            if (spawned.size() != 4 || spawned.stream().anyMatch(crystal -> !BukkitExecutor.owns(crystal) || !crystal.isValid()))
+                throw new IllegalStateException("Four actual owned native crystals were not present");
+            Object stageAfterSpawn = readDiagnosticField(battle, "respawnStage");
+            boolean accepted = Boolean.TRUE.equals(invoke(battle, "tryRespawn"));
+            Object stageAfterCall = readDiagnosticField(battle, "respawnStage");
+            observer.getLogger().info("SUPERIOR_ADV_RESPAWN_STAGE actualCrystals=" + spawned.stream().map(EnderCrystal::getUniqueId).toList() +
+                    " stageAfterSpawn=" + stageAfterSpawn + " tryRespawn=" + accepted + " stageAfterCall=" + stageAfterCall);
+            if ((!accepted && stageAfterSpawn == null) || stageAfterCall == null)
+                throw new IllegalStateException("Native four-crystal respawn was rejected without an actual started stage");
             return null;
-        }).whenComplete((unused, error) -> {
+        })).whenComplete((unused, error) -> {
             if (error != null) fail(primary, error); else reply(primary, "SUPERIOR_ADV_NATIVE_RESPAWN_STARTED");
         });
+    }
+
+    private Location safeEndPosition(Island island) {
+        Location home = island.getIslandHome(end);
+        if (home == null) throw new IllegalStateException("Missing real End home");
+        return home.clone().add(12, 3, 0);
+    }
+
+    private CompletableFuture<Void> prepareEndWaitingPlatform(Island island) {
+        Location floor = safeEndPosition(island).subtract(0, 1, 0);
+        ChunkPosition position = ChunkPosition.of(floor.getWorld(), floor.getBlockX() >> 4, floor.getBlockZ() >> 4, false);
+        return ((SIsland) island).prepareWorldWriteIntent(List.of(position))
+                .thenCompose(unused -> floor.getWorld().getChunkAtAsync(position.getX(), position.getZ(), true))
+                .thenCompose(unused -> region(floor, () -> {
+                    for (int x = -1; x <= 1; ++x) for (int z = -1; z <= 1; ++z)
+                        floor.getWorld().getBlockAt(floor.getBlockX() + x, floor.getBlockY(), floor.getBlockZ() + z).setType(Material.BEDROCK, false);
+                    return null;
+                })).thenCompose(unused -> ChunkStorageBridge.saveChunksAsync(island, List.of(position)));
+    }
+
+    private Object readDiagnosticField(Object target, String name) {
+        try { return readMetadataField(target, name); }
+        catch (ReflectiveOperationException unavailable) { throw new IllegalStateException("Native diagnostic field unavailable: " + name, unavailable); }
     }
 
     private void waitForRespawn(Player primary) {
@@ -345,12 +398,143 @@ public final class SuperiorAdvancedProbe {
         requirePrepared();
         await(() -> CompletableFuture.completedFuture(RegionalDragonArena.getReservedChunkCount() == 0 &&
                 arenas.stream().allMatch(island -> {
-                    RegionalDragonArena arena = (RegionalDragonArena) invoke(requiredFight(island), "getRegionalArena");
+                    Object current = fight(island);
+                    if (current == null && occupiedEndReset && island == arenas.get(0)) current = resetFirstFight;
+                    if (current == null) throw new IllegalStateException("A fight unexpectedly disappeared before release qualification");
+                    RegionalDragonArena arena = (RegionalDragonArena) invoke(current, "getRegionalArena");
                     return !arena.isReady() && arena.getTicketedChunkCount() == 0 && physicalTickets(island) == 0;
                 })), 45).whenComplete((unused, error) -> {
             if (error != null) fail(primary, error);
             else { released = true; reply(primary, "SUPERIOR_ADV_INACTIVE_TICKETS_RELEASED_PASS"); status(primary); }
         });
+    }
+
+    private void resetOccupiedEnd(Player primary) {
+        if (!reactivated || !hidden || !shown || !killed || !respawned || occupiedEndReset)
+            throw new IllegalStateException("Complete the real fight, inactive boss component and reactivation gates first");
+        Island source = arenas.get(0), neighbour = arenas.get(1);
+        UUID identity = source.getUniqueId(); long shortId = source.getShortId();
+        Location cleared = source.getCenter(end).clone().add(10, 20, 0);
+        Location retained = neighbour.getCenter(end).clone().add(10, 20, 0);
+        resetFirstFight = requiredFight(source);
+        RegionalDragonArena previousArena = (RegionalDragonArena) invoke(resetFirstFight, "getRegionalArena");
+        players(primary).thenCompose(visitors -> {
+            Player auxiliary = visitors.get(1);
+            return onActor(primary, () -> {
+                if (primary.getWorld() != cleared.getWorld() || superior.getGrid().getIslandAt(primary.getLocation()) != source)
+                    throw new IllegalStateException("Primary must actually occupy End A before the reset");
+                return null;
+            }).thenCompose(unused -> onActor(auxiliary, () -> {
+                if (auxiliary.getWorld() != retained.getWorld() || superior.getGrid().getIslandAt(auxiliary.getLocation()) != neighbour)
+                    throw new IllegalStateException("Auxiliary must actually occupy End B before the reset");
+                return null;
+            })).thenCompose(unused -> seedEndSentinel(source, cleared))
+                    .thenCompose(unused -> seedEndSentinel(neighbour, retained))
+                    .thenCompose(unused -> onFight(neighbour, battle -> {
+                        EnderDragon dragon = superior.getNMSDragonFight().getEnderDragon(neighbour, end);
+                        if (dragon == null || !BukkitExecutor.owns(dragon) || !dragon.isValid() || dragon.getHealth() <= 0)
+                            throw new IllegalStateException("The neighbour must have its actual owned live dragon");
+                        return new ResetBaseline(dragon.getUniqueId(), superior.getPvcIslandService().getWorldGeneration(neighbour.getUniqueId()),
+                                superior.getPvcIslandService().getWorldGeneration(source.getUniqueId()), captureStableEndTerrain(neighbour));
+                    })).thenCompose(before -> committedResetOperations(identity).thenCompose(previousResets -> onActor(primary, () -> {
+                        if (primary.getWorld() != cleared.getWorld() || superior.getGrid().getIslandAt(primary.getLocation()) != source)
+                            throw new IllegalStateException("Primary left End A before the actual reset call");
+                        return ((SIsland) source).resetWorldAsync(end);
+                    }).thenCompose(Function.identity()).orTimeout(180L, TimeUnit.SECONDS)
+                            .thenCompose(unused -> await(() -> CompletableFuture.completedFuture(
+                                    superior.getPvcIslandService().isAvailable(identity) && ChunkStorageBridge.getPendingCount() == 0), 20))
+                            .thenCompose(unused -> region(cleared, () -> {
+                                if (cleared.getBlock().getType() != Material.AIR) throw new IllegalStateException("Reset End A sentinel remains physically present");
+                                if (superior.getGrid().getIslandByUUID(identity) != source || source.getShortId() != shortId ||
+                                        source.wasSchematicGenerated(end) || superior.getPvcIslandService().getWorldGeneration(identity) <= before.sourceGeneration)
+                                    throw new IllegalStateException("End reset lost identity, generation acknowledgement or ungenerated state");
+                                return null;
+                            })).thenCompose(unused -> onActor(primary, () -> {
+                                Location spawn = superior.getGrid().getSpawnIsland().getIslandHome(null);
+                                Location actual = primary.getLocation();
+                                if (spawn == null || actual.getWorld() != spawn.getWorld() ||
+                                        Math.abs(actual.getX() - spawn.getX()) > 1 || Math.abs(actual.getZ() - spawn.getZ()) > 1 ||
+                                        Math.abs(actual.getY() - spawn.getY()) > 3)
+                                    throw new IllegalStateException("Occupied End reset did not evacuate the primary to the actual common spawn: " + actual);
+                                return null;
+                            })).thenCompose(unused -> onActor(auxiliary, () -> {
+                                if (auxiliary.getWorld() != retained.getWorld() || superior.getGrid().getIslandAt(auxiliary.getLocation()) != neighbour)
+                                    throw new IllegalStateException("Reset A displaced the actual auxiliary from End B");
+                                return null;
+                            })).thenCompose(unused -> onFight(neighbour, battle -> {
+                                EnderDragon dragon = superior.getNMSDragonFight().getEnderDragon(neighbour, end);
+                                if (dragon == null || !BukkitExecutor.owns(dragon) || !dragon.isValid() || dragon.getHealth() <= 0 ||
+                                        !dragon.getUniqueId().equals(before.neighbourDragon) || retained.getBlock().getType() != Material.BEDROCK ||
+                                        superior.getPvcIslandService().getWorldGeneration(neighbour.getUniqueId()) != before.neighbourGeneration)
+                                    throw new IllegalStateException("Reset A changed the neighbour's actual dragon, physical sentinel or generation");
+                                for (BlockSnapshot block : before.terrain)
+                                    if (!block.data.equals(block.location.getBlock().getBlockData().getAsString()))
+                                        throw new IllegalStateException("Reset A changed captured native End B terrain at " + block.location);
+                                return null;
+                            })).thenCompose(unused -> await(() -> region(source.getCenter(end), () ->
+                                    fight(source) == null && !previousArena.isReady() && previousArena.getTicketedChunkCount() == 0 &&
+                                            physicalTickets(source) == 0 && RegionalDragonArena.getReservedChunkCount() == 289), 45))
+                            .thenCompose(unused -> committedResetOperations(identity).thenApply(committed -> {
+                                if (committed.stream().allMatch(previousResets::contains))
+                                    throw new IllegalStateException("Occupied End reset has no new actual committed RESET_DONE journal row");
+                                return null;
+                            }))
+                            .thenRun(() -> {
+                                occupiedEndReset = true;
+                                observer.getLogger().info("SUPERIOR_ADV_OCCUPIED_END_RESET_PASS uuid=" + identity + " shortId=" + shortId +
+                                        " sourceGeneration=" + superior.getPvcIslandService().getWorldGeneration(identity) +
+                                        " neighbourDragon=" + before.neighbourDragon + " terrainSamples=" + before.terrain.size() +
+                                        " nativeResetFuture=completed storagePending=" + ChunkStorageBridge.getPendingCount());
+                                reply(primary, "SUPERIOR_ADV_OCCUPIED_END_RESET_PASS spawn=true sameIdentity=true EndGenerated=false sourceTickets=0 neighbour=unchanged");
+                            })));
+        }).whenComplete((unused, error) -> { if (error != null) fail(primary, error); });
+    }
+
+    private CompletableFuture<Void> seedEndSentinel(Island island, Location location) {
+        ChunkPosition position = ChunkPosition.of(location.getWorld(), location.getBlockX() >> 4, location.getBlockZ() >> 4, false);
+        return ((SIsland) island).prepareWorldWriteIntent(List.of(position))
+                .thenCompose(unused -> region(location, () -> { location.getBlock().setType(Material.BEDROCK, false); return null; }))
+                .thenCompose(unused -> ChunkStorageBridge.saveChunksAsync(island, List.of(position)));
+    }
+
+    private List<BlockSnapshot> captureStableEndTerrain(Island island) {
+        Location center = island.getCenter(end); List<BlockSnapshot> samples = new ArrayList<>();
+        for (int x = -4; x <= 4 && samples.size() < 32; ++x)
+            for (int z = -4; z <= 4 && samples.size() < 32; ++z)
+                for (int y = -8; y <= 8 && samples.size() < 32; ++y) {
+                    Location at = center.clone().add(x, y, z);
+                    Material type = at.getBlock().getType();
+                    if (type == Material.BEDROCK || type == Material.OBSIDIAN)
+                        samples.add(new BlockSnapshot(at, at.getBlock().getBlockData().getAsString()));
+                }
+        if (samples.isEmpty()) throw new IllegalStateException("No actual stable native End B terrain samples in the real schematic");
+        return List.copyOf(samples);
+    }
+
+    private CompletableFuture<java.util.Set<String>> committedResetOperations(UUID island) {
+        CompletableFuture<java.util.Set<String>> result = new CompletableFuture<>();
+        BukkitExecutor.async(() -> {
+            try {
+                java.util.Set<String> operations = new java.util.HashSet<>();
+                new com.bgsoftware.superiorskyblock.core.database.sql.SQLDatabaseBridge().loadAllObjectsStrict("pvc_island_jobs", row -> {
+                    if (island.toString().equals(String.valueOf(row.get("island"))) && "RESET_DONE".equals(String.valueOf(row.get("state"))))
+                        operations.add(String.valueOf(row.get("operation")));
+                });
+                result.complete(java.util.Set.copyOf(operations));
+            } catch (Throwable error) { result.completeExceptionally(error); }
+        });
+        return result.orTimeout(10L, TimeUnit.SECONDS);
+    }
+
+    private <T> CompletableFuture<T> onActor(Player actor, Supplier<T> action) {
+        CompletableFuture<T> result = new CompletableFuture<>();
+        BukkitExecutor.entity(actor, () -> {
+            try {
+                if (!BukkitExecutor.owns(actor)) throw new IllegalStateException("Actual client callback has no entity ownership");
+                result.complete(action.get());
+            } catch (Throwable error) { result.completeExceptionally(error); }
+        }, 0L, () -> result.completeExceptionally(new IllegalStateException("Actual client callback retired")));
+        return result;
     }
 
     private CompletableFuture<List<Player>> players(Player primary) {
@@ -491,7 +675,7 @@ public final class SuperiorAdvancedProbe {
         reply(primary, "SUPERIOR_ADV_STATUS reserved=" + RegionalDragonArena.getReservedChunkCount() + " queued=" +
                 RegionalDragonArena.getQueuedArenaCount() + " merges=" + (prepared ? trackingCounter("getMergeCount") - mergesBefore : 0) +
                 " splits=" + (prepared ? trackingCounter("getSplitCount") - splitsBefore : 0) + " islands=" + ids());
-        if (prepared) snapshots().whenComplete((values, error) -> {
+        if (prepared && !occupiedEndReset) snapshots().whenComplete((values, error) -> {
             if (error != null) fail(primary, error);
             else reply(primary, "SUPERIOR_ADV_FIGHTS firstDragon=" + values.get(0).dragon + " secondDragon=" + values.get(1).dragon +
                     " firstBoss=" + values.get(0).boss + " secondBoss=" + values.get(1).boss + " viewers=" +
@@ -651,13 +835,13 @@ public final class SuperiorAdvancedProbe {
 
     private void finish(Player primary) {
         if (failed || !opBaseline || !wildcard || !wildcardRevoked || !prepared || !active || !hidden || !shown ||
-                !killed || !respawned || !released || !reactivated)
+                !killed || !respawned || !released || !reactivated || !occupiedEndReset)
             throw new IllegalStateException("Advanced native sequence is incomplete");
         if (trackingCounter("getMergeCount") <= mergesBefore || trackingCounter("getSplitCount") <= splitsBefore)
             throw new IllegalStateException("Actual merge/split callbacks were not both observed");
         if (trackingCounter("getFailureCount") != 0)
             throw new IllegalStateException("A native regional tracking installation/callback failed");
-        reply(primary, "SUPERIOR_ADVANCED_PROBE_PASS twoRealClients=true nativeDeathRespawn=true actualMergeSplit=true");
+        reply(primary, "SUPERIOR_ADVANCED_PROBE_PASS twoRealClients=true nativeDeathRespawn=true actualMergeSplit=true occupiedEndReset=true");
         observer.getLogger().info("SUPERIOR_ADVANCED_PROBE_PASS");
     }
 
@@ -668,4 +852,6 @@ public final class SuperiorAdvancedProbe {
     private void reply(Player primary, String message) { BukkitExecutor.entity(primary, () -> primary.sendMessage(message)); }
     private void fail(Player primary, Throwable error) { failed = true; observer.getLogger().log(java.util.logging.Level.SEVERE, "SUPERIOR_ADVANCED_PROBE_FAIL", error); reply(primary, "SUPERIOR_ADVANCED_PROBE_FAIL " + error.getClass().getSimpleName()); }
     private record FightSnapshot(boolean ready, boolean owned, int tickets, int physicalTickets, UUID dragon, UUID boss, boolean visible, int viewers, String arenaLoading) { }
+    private record BlockSnapshot(Location location, String data) { }
+    private record ResetBaseline(UUID neighbourDragon, long neighbourGeneration, long sourceGeneration, List<BlockSnapshot> terrain) { }
 }

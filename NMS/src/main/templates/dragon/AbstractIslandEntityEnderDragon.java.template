@@ -8,6 +8,8 @@ import com.bgsoftware.superiorskyblock.api.config.SettingsManager;
 import com.bgsoftware.superiorskyblock.api.island.Island;
 import com.bgsoftware.superiorskyblock.api.world.Dimension;
 import com.bgsoftware.superiorskyblock.core.ObjectsPools;
+import com.bgsoftware.superiorskyblock.core.QualifiedNativeVersion;
+import com.bgsoftware.superiorskyblock.core.ServerVersion;
 import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import com.bgsoftware.superiorskyblock.nms.${NMS_VERSION}.dragon.IslandEntityEnderDragon;
 import com.bgsoftware.superiorskyblock.nms.${NMS_VERSION}.dragon.DragonUtils;
@@ -28,6 +30,7 @@ import org.bukkit.Location;
 import ${CRAFTBUKKIT_PACKAGE}.entity.CraftEnderDragon;
 
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Method;
 import java.util.List;
 
 public class AbstractIslandEntityEnderDragon extends EnderDragon {
@@ -53,6 +56,10 @@ public class AbstractIslandEntityEnderDragon extends EnderDragon {
     protected BlockPos islandBlockPos;
     // The origin the path nodes are currently centered around.
     private BlockPos nodesOrigin = BlockPos.ZERO;
+    private boolean regionalPartsInitialized;
+    private volatile boolean regionalRemovalPending;
+    private static volatile Method regionalPartsInitializer;
+    private static volatile Method regionalNodesInitializer;
 
     protected AbstractIslandEntityEnderDragon(Level level, BlockPos islandBlockPos) {
         this(level);
@@ -73,17 +80,52 @@ public class AbstractIslandEntityEnderDragon extends EnderDragon {
 
     public void setIslandBlockPos(BlockPos islandBlockPos) {
         this.islandBlockPos = islandBlockPos;
+        this.regionalPartsInitialized = false;
+        this.regionalRemovalPending = false;
         NMSUtilsVersioned.setFightOrigin(this, islandBlockPos);
+    }
+
+    public void initializeRegionalParts() {
+        if (!BukkitExecutor.isFolia() || regionalPartsInitialized) return;
+        try {
+            Method method = regionalPartsInitializer;
+            if (method == null) regionalPartsInitializer = method = regionalGeometry().getMethod("initializeParts", Object.class);
+            method.invoke(null, this);
+            regionalPartsInitialized = true;
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("Cannot initialize regional dragon parts", failure);
+        }
+    }
+
+    private void initializeRegionalNavigation() {
+        try {
+            Method method = regionalNodesInitializer;
+            if (method == null) regionalNodesInitializer = method = regionalGeometry().getMethod("initializeNodes", Object.class,
+                    int.class, int.class, int.class);
+            method.invoke(null, this, islandBlockPos.getX(), islandBlockPos.getY(), islandBlockPos.getZ());
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("Cannot initialize regional dragon navigation", failure);
+        }
+    }
+
+    private static Class<?> regionalGeometry() throws ClassNotFoundException {
+        String adapter = QualifiedNativeVersion.adapterFor(ServerVersion.getBukkitVersion());
+        if (adapter == null) throw new IllegalStateException("Unqualified Folia dragon geometry version");
+        return Class.forName("com.bgsoftware.superiorskyblock.platform.folia.nms." + adapter + ".RegionalDragonGeometry",
+                true, plugin.getPluginClassLoader());
     }
 
     @Override
     public void aiStep() {
+        if (BukkitExecutor.isFolia() && this.regionalRemovalPending)
+            return; // This rejected stale entity is awaiting owner-local retirement.
         if (BukkitExecutor.isFolia() && this.islandBlockPos != null) {
             if (!(NMSUtilsVersioned.getEndDragonFight(this.serverLevel) instanceof EndDragonFightWrapper wrapper))
                 return;
             IslandEndDragonFight fight = wrapper.HANDLER.getDragonFightAt(this.islandBlockPos);
             if (fight == null || !fight.canTickRegionally())
                 return;
+            initializeRegionalParts();
         }
         DragonUtils.runWithPodiumPosition(this.islandBlockPos, super::aiStep);
     }
@@ -96,8 +138,17 @@ public class AbstractIslandEntityEnderDragon extends EnderDragon {
 
         // Vanilla generates the path nodes around (0, 0), as there is only one dragon fight in the world.
         // We generate them using vanilla logic, and then move them to be around the island.
-        if (nodes[0] == null)
-            super.findClosestNode();
+        if (nodes[0] == null) {
+            if (BukkitExecutor.isFolia() && this.islandBlockPos != null) {
+                // Vanilla initialization queries origin-zero heightmaps before
+                // the upstream offset can translate the nodes to this island.
+                initializeRegionalNavigation();
+                this.nodesOrigin = this.islandBlockPos;
+                offsetNodes(nodes);
+            } else {
+                super.findClosestNode();
+            }
+        }
 
         if (this.islandBlockPos != null && !this.nodesOrigin.equals(this.islandBlockPos))
             offsetNodes(nodes);
@@ -129,8 +180,19 @@ public class AbstractIslandEntityEnderDragon extends EnderDragon {
             island = plugin.getGrid().getIslandAt(getBukkitEntity().getLocation(wrapper.getHandle()));
         }
 
-        if (island == null)
+        if (island == null) {
+            if (BukkitExecutor.isFolia()) retireRejectedRegionalDragon();
             return;
+        }
+        if (BukkitExecutor.isFolia() && (plugin.getGrid().getIslandByUUID(island.getUniqueId()) != island ||
+                !plugin.getPvcIslandService().isAvailable(island.getUniqueId()) || !island.wasSchematicGenerated(dimension))) {
+            // Existing-only cleanup can load old entity NBT after the initial
+            // fight stop. Such a load must not resurrect an unavailable fight.
+            retireRejectedRegionalDragon();
+            return;
+        }
+        long registrationGeneration = BukkitExecutor.isFolia() ?
+                plugin.getPvcIslandService().getWorldGeneration(island.getUniqueId()) : 0L;
 
         Location middleBlock = island.getCenter(dimension);
 
@@ -140,13 +202,31 @@ public class AbstractIslandEntityEnderDragon extends EnderDragon {
         }
 
         this.islandBlockPos = new BlockPos(middleBlock.getBlockX(), middleBlock.getBlockY(), middleBlock.getBlockZ());
+        this.regionalRemovalPending = false;
         NMSUtilsVersioned.setFightOrigin(this, this.islandBlockPos);
 
         IslandEndDragonFight dragonBattle = new IslandEndDragonFight(island, this.serverLevel,
                 this.islandBlockPos, (IslandEntityEnderDragon) this);
+        if (BukkitExecutor.isFolia() && (!plugin.getPvcIslandService().isAvailable(island.getUniqueId()) ||
+                !plugin.getPvcIslandService().isCurrentWorldWriter(island, registrationGeneration))) {
+            dragonBattle.stop();
+            retireRejectedRegionalDragon();
+            return;
+        }
         dragonFight.HANDLER.addDragonFight(island.getCache(), dragonBattle);
         if (BukkitExecutor.isFolia())
             dragonBattle.wake();
+    }
+
+    private void retireRejectedRegionalDragon() {
+        this.regionalRemovalPending = true;
+        try {
+            BukkitExecutor.entity(getBukkitEntity(), () -> {
+                if (regionalRemovalPending) getBukkitEntity().remove();
+            }, 1L);
+        } catch (java.util.concurrent.RejectedExecutionException stopping) {
+            // The plugin is stopping; the rejected entity never resumes AI.
+        }
     }
 
     private void offsetNodes(Node[] nodes) {

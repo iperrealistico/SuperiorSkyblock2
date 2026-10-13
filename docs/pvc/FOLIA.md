@@ -35,6 +35,37 @@ the nearest adapter. An unknown Folia native tracking/storage ABI fails closed.
 Future Minecraft/Folia versions require maintained-source changes and a fresh
 qualification matrix; upstream merging does not provide automatic support.
 
+## Native asynchronous player arrival
+
+The exact official Folia source bundles for both targeted versions distinguish
+native asynchronous teleporting from Bukkit's usual synchronous teleport flow.
+`CraftEntity.teleportAsync` invokes `Entity.teleportAsync`; that path retains an
+event TODO rather than firing `PlayerTeleportEvent`. `ServerPlayer` fires
+`PlayerChangedWorldEvent` in its synchronous teleport implementation, which
+Folia rejects. A listener for those two events alone therefore cannot establish
+physical arrival on Folia. These contracts are checked against the official
+[Folia maintained source](https://github.com/PaperMC/Folia) and exact source
+bundles used by the corresponding native modules.
+
+For plugin-owned player teleports, `EntityTeleports` runs the ordinary island
+movement/protection preflight before calling the async provider. Denial prevents
+the native teleport. Successful completion follows the player's entity owner,
+checks the actual world, canonical island and captured world generation, then
+reconciles physical inside membership, defensive location snapshots, current
+effects/flight/time/weather/border policy and End-fight activation. Failure and
+retirement cannot report successful arrival; cancelled preflight is reconciled
+back to the player's actual position. Paper/Leaf retain their native cancellable
+Bukkit event flow.
+
+Folia's `ServerLevel` destination tracking callback fires the real
+`EntityAddToWorldEvent` while the player is valid. The Folia-only arrival observer
+uses that event for vanilla portals and external asynchronous arrivals as well.
+It performs one coalesced entity-following check per player, with canonical
+identity/generation validation and the configured chunk-load deadline. It does
+not fabricate Bukkit teleport events or claim to cancel an external teleport
+that has already physically completed. Native qualification remains recorded
+separately in [VERIFICATION.md](VERIFICATION.md).
+
 ## Shared worlds and startup
 
 The supported built-in topology uses the default shared-world provider: islands
@@ -197,6 +228,15 @@ existing-only loads and the same storage barrier before final completion. A
 failed or uncertain SQL/world write leaves its durable intent for reconciliation;
 it must not be interpreted as a successful reset or a reusable occupied cell.
 
+On Folia, resetting any island dimension evacuates its current players to the
+configured common spawn. In particular, a Nether/End reset does not target the
+same island's normal home while its reset journal makes that island unavailable.
+This keeps ordinary canonical/availability/generation checks intact; after the
+reset finishes, players can use their normal island home command again.
+Paper/Leaf retain upstream's non-default-dimension evacuation to the unchanged
+normal island home, and default-dimension resets evacuate to spawn on all
+platforms.
+
 ### Leaf region-file ABI
 
 Leaf's maintained configurable region-format patch changes the Moonrise cache
@@ -225,6 +265,13 @@ loaded chunks, neighboring Folia sections or other plugins' tickets.
 
 Fight state, portal/spike geometry and native ticking are scoped to that island
 and its region. Viewer discovery does not scan foreign live player locations.
+The exact regional geometry adapters position every multipart dragon body at
+its actual arena location before native AI first queries its AABBs. They also
+initialize vanilla's 24-node navigation graph using the unchanged adjacency
+table and island-relative owner-local heightmap reads, preserving spike-aware
+height adjustment. This prevents newly created/loaded parts and initial path
+queries from accessing the vanilla origin before upstream offsetting runs;
+subsequent movement, collision, damage and phase AI remain native.
 Boss-bar delivery uses immutable state and the viewer's entity scheduler, with
 ordered hide/remove/re-add handling. Entry into an enabled End island wakes its
 fight; arenas without End visitors release their plugin tickets and become
@@ -236,6 +283,15 @@ not free budget while native tickets may still exist. Bounded retries and logged
 failure preserve that accounting. Native fight, respawn, boss-bar, ticket release
 and actual region merge/split scenarios belong in the release verification
 record; their implementation alone is not a claim that those scenarios passed.
+
+An End reset awaits actual player evacuation, removes/stops its cached fight,
+and awaits native dragon removal and all real plugin-ticket release
+acknowledgements before clearing chunks. Repeated removal requests share the
+pending completion; failed ticket removals retain their identities/reservations
+and fail the reset rather than returning an early success. Existing-only cold
+cleanup must not register a fight from old dragon NBT for an unavailable,
+noncanonical or not-generated island; such stale entities are retired on their
+owner instead of resuming fight AI.
 
 ## Maintainer acceptance
 

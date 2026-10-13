@@ -520,6 +520,12 @@ public class SSuperiorPlayer implements SuperiorPlayer {
         this.locationSnapshot = null;
     }
 
+    /** Internal arrival observer: reads the last published position without refreshing it. */
+    public Location getLastLocationSnapshot() {
+        Location snapshot = this.locationSnapshot;
+        return snapshot == null ? null : snapshot.clone();
+    }
+
     @Override
     public void teleport(Location location) {
         teleportWithResult(location, null);

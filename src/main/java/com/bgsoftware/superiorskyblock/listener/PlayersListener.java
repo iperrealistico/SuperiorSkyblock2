@@ -36,6 +36,7 @@ import com.bgsoftware.superiorskyblock.player.chat.PlayerChat;
 import com.bgsoftware.superiorskyblock.player.permissions.PlayerPermissionsStore;
 import com.bgsoftware.superiorskyblock.player.respawn.RespawnActions;
 import com.bgsoftware.superiorskyblock.world.BukkitEntities;
+import com.bgsoftware.superiorskyblock.world.FoliaPlayerPresence;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -45,6 +46,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.Event;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityEvent;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryView;
@@ -75,6 +80,7 @@ public class PlayersListener extends AbstractGameEventListener {
     public PlayersListener(SuperiorSkyblockPlugin plugin) {
         super(plugin);
         registerListeners();
+        registerFoliaArrivalObserver();
     }
 
     /* PLAYER NOTIFIERS */
@@ -315,8 +321,9 @@ public class PlayersListener extends AbstractGameEventListener {
 
     private void onPlayerChangeWorld(GameEvent<GameEventArgs.PlayerChangedWorldEvent> e) {
         Player player = e.getArgs().player;
+        Location previous = FoliaPlayerPresence.previousLocation(plugin, player);
+        queueEndArrival(player, previous, player.getLocation());
         refreshLocationSnapshot(player, null);
-        queueEndArrival(player, null, player.getLocation());
 
         // We do not care about spawn island when spawn protection is disabled,
         // and therefore only island worlds are relevant.
@@ -615,21 +622,17 @@ public class PlayersListener extends AbstractGameEventListener {
     }
 
     private void queueEndArrival(Player player, Location from, Location destination) {
-        if (!BukkitExecutor.isFolia()) return;
+        if (!BukkitExecutor.isFolia() || player.hasMetadata("NPC")) return;
         UUID playerId = player.getUniqueId();
-        World world = destination.getWorld();
-        Island island = world != null && world.getEnvironment() == World.Environment.THE_END ?
-                plugin.getGrid().getIslandAt(destination) : null;
-        if (island == null || island.isSpawn()) {
-            cancelEndArrival(playerId);
-            return;
-        }
+        FoliaPlayerPresence.Target target = FoliaPlayerPresence.capture(plugin, destination);
+        World world = target.world;
+        Island island = target.island;
         Island origin = from == null ? null : plugin.getGrid().getIslandAt(from);
         EndArrival previous = pendingEndArrivals.get(playerId);
         if (origin == null && previous != null && previous.island == island && previous.world == world)
             origin = previous.origin;
         EndArrival arrival = new EndArrival(island, origin, world,
-                plugin.getPvcIslandService().getWorldGeneration(island.getUniqueId()),
+                target.generation,
                 System.nanoTime() + TimeUnit.SECONDS.toNanos(plugin.getPvcConfig().getChunkLoadTimeoutSeconds()));
         previous = pendingEndArrivals.put(playerId, arrival);
         if (previous != null) previous.cancel();
@@ -651,10 +654,8 @@ public class PlayersListener extends AbstractGameEventListener {
     private void checkEndArrival(Player player, EndArrival arrival) {
         UUID playerId = player.getUniqueId();
         if (pendingEndArrivals.get(playerId) != arrival) return;
-        if (!player.isOnline() || !player.isValid() ||
-                plugin.getGrid().getIslandByUUID(arrival.island.getUniqueId()) != arrival.island ||
-                !plugin.getPvcIslandService().isAvailable(arrival.island.getUniqueId()) ||
-                !plugin.getPvcIslandService().isCurrentWorldWriter(arrival.island, arrival.generation)) {
+        FoliaPlayerPresence.Target target = new FoliaPlayerPresence.Target(arrival.world, arrival.island, arrival.generation);
+        if (!player.isOnline() || !player.isValid() || !FoliaPlayerPresence.isCurrent(plugin, target)) {
             pendingEndArrivals.remove(playerId, arrival);
             return;
         }
@@ -665,18 +666,30 @@ public class PlayersListener extends AbstractGameEventListener {
             return;
         }
         if (!pendingEndArrivals.remove(playerId, arrival)) return;
-        refreshLocationSnapshot(player, actual);
-        SuperiorPlayer account = plugin.getPlayers().getSuperiorPlayer(player);
-        if (account instanceof SuperiorNPCPlayer) return;
-        // Repair physical presence idempotently after the accepted teleport
-        // actually settles; no duplicate enter/protection events are fired.
-        if (arrival.origin != null && arrival.origin != arrival.island &&
-                plugin.getGrid().getIslandByUUID(arrival.origin.getUniqueId()) == arrival.origin)
-            arrival.origin.setPlayerInside(account, false);
-        arrival.island.setPlayerInside(account, true);
-        com.bgsoftware.superiorskyblock.api.world.Dimension dimension =
-                plugin.getGrid().getIslandsWorldDimension(arrival.world);
-        if (dimension != null) plugin.getNMSDragonFight().onPlayerEnteredIsland(arrival.island, dimension);
+        FoliaPlayerPresence.reconcile(plugin, player, arrival.origin, target);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void registerFoliaArrivalObserver() {
+        if (!BukkitExecutor.isFolia()) return;
+        try {
+            // The maintained Folia async teleport implementation omits the
+            // usual teleport/changed-world events, but destination tracking
+            // fires this real event while the player is valid on its owner.
+            Class<? extends Event> eventClass = (Class<? extends Event>) Class.forName(
+                    "com.destroystokyo.paper.event.entity.EntityAddToWorldEvent");
+            plugin.getServer().getPluginManager().registerEvent(eventClass, new Listener() { }, EventPriority.MONITOR,
+                    (listener, event) -> {
+                        if (!(event instanceof EntityEvent)) return;
+                        org.bukkit.entity.Entity entity = ((EntityEvent) event).getEntity();
+                        if (!(entity instanceof Player) || !BukkitExecutor.owns(entity)) return;
+                        Player player = (Player) entity;
+                        Location previous = FoliaPlayerPresence.previousLocation(plugin, player);
+                        queueEndArrival(player, previous, player.getLocation());
+                    }, plugin);
+        } catch (ClassNotFoundException missing) {
+            throw new IllegalStateException("Folia requires the native entity arrival event", missing);
+        }
     }
 
     private void cancelEndArrival(UUID playerId) {

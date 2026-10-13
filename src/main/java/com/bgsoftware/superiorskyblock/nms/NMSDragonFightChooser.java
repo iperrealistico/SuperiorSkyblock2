@@ -44,6 +44,11 @@ public class NMSDragonFightChooser implements NMSDragonFight {
     }
 
     @Override
+    public java.util.concurrent.CompletableFuture<Void> removeDragonBattleAsync(Island island, Dimension dimension) {
+        return getDelegate().removeDragonBattleAsync(island, dimension);
+    }
+
+    @Override
     public void awardTheEndAchievement(Player player) {
         getDelegate().awardTheEndAchievement(player);
     }

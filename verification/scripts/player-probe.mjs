@@ -173,19 +173,28 @@ async function run() {
       assert(bossTrace[client].some(packet => packet.id === ids[client] && packet.action === 0), 'Missing native arena boss add packet')
       assert(!bossTrace[client].some(packet => packet.id === ids[1 - client]), 'Foreign arena boss packet delivered')
     }
-    const hideAt = Date.now(); await advanced('bosshide', 'SUPERIOR_ADV_BOSS_HIDE_PASS'); await pause(1000)
-    for (let client = 0; client < 2; ++client)
-      assert(bossTrace[client].some(packet => packet.id === ids[client] && packet.action === 1 && packet.at >= hideAt), 'Missing native boss remove packet')
-    const showAt = Date.now(); await advanced('bossshow', 'SUPERIOR_ADV_BOSS_SHOW_PASS'); await pause(1000)
-    for (let client = 0; client < 2; ++client)
-      assert(bossTrace[client].some(packet => packet.id === ids[client] && packet.action === 0 && packet.at >= showAt), 'Missing native boss re-add packet')
     await advanced('killfirst', 'SUPERIOR_ADV_NATIVE_DRAGON_DEATH_STARTED')
     await advanced('deathwait', 'SUPERIOR_ADV_NATIVE_DRAGON_DEATH_PASS')
     await advanced('respawnfirst', 'SUPERIOR_ADV_NATIVE_RESPAWN_STARTED')
     await advanced('respawnwait', 'SUPERIOR_ADV_NATIVE_RESPAWN_PASS')
     await advanced('endleave', 'SUPERIOR_ADV_END_LEFT')
     await advanced('released', 'SUPERIOR_ADV_INACTIVE_TICKETS_RELEASED_PASS')
+    // A live native fight controls visibility every tick. Qualify explicit API
+    // hide/remove/re-add/show on the actual inactive fight after real departure;
+    // its packets still cross to each real player's separately owned actor.
+    const registerAt = Date.now(); await advanced('bossshow', 'SUPERIOR_ADV_BOSS_SHOW_PASS'); await pause(1000)
+    for (let client = 0; client < 2; ++client)
+      assert(bossTrace[client].some(packet => packet.id === ids[client] && packet.action === 0 && packet.at >= registerAt), 'Missing native inactive boss register packet')
+    const hideAt = Date.now(); await advanced('bosshide', 'SUPERIOR_ADV_BOSS_HIDE_PASS'); await pause(1000)
+    for (let client = 0; client < 2; ++client)
+      assert(bossTrace[client].some(packet => packet.id === ids[client] && packet.action === 1 && packet.at >= hideAt), 'Missing native boss remove packet')
+    const showAt = Date.now(); await advanced('bossshow', 'SUPERIOR_ADV_BOSS_SHOW_PASS'); await pause(1000)
+    for (let client = 0; client < 2; ++client) {
+      assert(bossTrace[client].some(packet => packet.id === ids[client] && packet.action === 0 && packet.at >= showAt), 'Missing native boss re-add packet')
+      assert(!bossTrace[client].some(packet => packet.id === ids[1 - client]), 'Foreign arena boss packet delivered')
+    }
     await advanced('endreactivate', 'SUPERIOR_ADV_REACTIVATED_PASS')
+    await advanced('occupiedendreset', 'SUPERIOR_ADV_OCCUPIED_END_RESET_PASS', 300000)
     await advanced('finish', 'SUPERIOR_ADVANCED_PROBE_PASS')
     await advanced('endleave', 'SUPERIOR_ADV_END_LEFT')
     await advanced('released', 'SUPERIOR_ADV_INACTIVE_TICKETS_RELEASED_PASS')

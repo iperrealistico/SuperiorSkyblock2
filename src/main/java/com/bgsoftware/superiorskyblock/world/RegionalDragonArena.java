@@ -49,6 +49,7 @@ public final class RegionalDragonArena {
     private boolean reserved;
     private boolean removingTickets;
     private int releaseAttempts;
+    private CompletableFuture<Void> releaseResult = CompletableFuture.completedFuture(null);
 
     public RegionalDragonArena(World world, int centerX, int centerZ) {
         this.world = world;
@@ -185,12 +186,19 @@ public final class RegionalDragonArena {
 
     /** Safe to request from any thread, including domain deletion callbacks. */
     public void release() {
+        releaseAsync();
+    }
+
+    /** Completes only after every real native ticket removal is acknowledged. */
+    public CompletableFuture<Void> releaseAsync() {
         CompletableFuture<Void> pending;
+        CompletableFuture<Void> result;
         final long releaseGeneration;
         synchronized (this) {
             if (closing)
-                return;
+                return releaseResult;
             closing = true;
+            releaseResult = result = new CompletableFuture<>();
             requested = false;
             ready = false;
             releaseAttempts = 0;
@@ -204,6 +212,7 @@ public final class RegionalDragonArena {
             removeTickets(releaseGeneration);
         else
             pending.whenComplete((ignored, failure) -> removeTickets(releaseGeneration));
+        return result;
     }
 
     private synchronized void removeTickets(long releaseGeneration) {
@@ -246,13 +255,17 @@ public final class RegionalDragonArena {
                                 "Dragon arena ticket release failed; its chunk reservation remains held", failure);
                     if (attempt < 3) {
                         try { BukkitExecutor.async(() -> removeTickets(releaseGeneration), 20L); }
-                        catch (RejectedExecutionException stopping) { /* Server shutdown releases native tickets. */ }
+                        catch (RejectedExecutionException stopping) { releaseResult.completeExceptionally(stopping); }
+                    } else {
+                        releaseResult.completeExceptionally(failure);
                     }
                 });
     }
 
-    private synchronized void finishRelease(long releaseGeneration) {
-        if (generation == releaseGeneration && closing) {
+    private void finishRelease(long releaseGeneration) {
+        CompletableFuture<Void> result;
+        synchronized (this) {
+            if (generation != releaseGeneration || !closing) return;
             synchronized (admissionLock) {
                 if (reserved) { reserved = false; reservedChunks -= CHUNKS; }
             }
@@ -261,7 +274,9 @@ public final class RegionalDragonArena {
             loading = null;
             onReady = null;
             onFailure = null;
+            result = releaseResult;
         }
+        result.complete(null);
     }
 
     private static final class Admission {

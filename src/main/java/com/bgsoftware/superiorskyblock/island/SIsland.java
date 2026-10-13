@@ -1248,7 +1248,9 @@ public class SIsland implements Island {
     public java.util.concurrent.CompletableFuture<Void> resetWorldInternalAsync(Dimension dimension) {
         boolean isDefault = dimension == plugin.getSettings().getWorlds().getDefaultWorldDimension();
         List<java.util.concurrent.CompletableFuture<Void>> evacuations = new ArrayList<>();
-        Island destination = isDefault ? plugin.getGrid().getSpawnIsland() : this;
+        // The whole island is fenced by the reset intent. Folia arrivals must
+        // not bypass that fence to reach another dimension of the same island.
+        Island destination = isDefault || BukkitExecutor.isFolia() ? plugin.getGrid().getSpawnIsland() : this;
         for (SuperiorPlayer player : getAllPlayersInside()) {
             Location location = player.getLocation();
             if (location != null && plugin.getGrid().getIslandsWorldInfo(this, dimension).getName().equals(location.getWorld().getName())) {
@@ -1263,6 +1265,9 @@ public class SIsland implements Island {
             }
         }
         return java.util.concurrent.CompletableFuture.allOf(evacuations.toArray(new java.util.concurrent.CompletableFuture[0]))
+                .thenCompose(unused -> dimension.getEnvironment() == World.Environment.THE_END ?
+                        plugin.getNMSDragonFight().removeDragonBattleAsync(this, dimension) :
+                        java.util.concurrent.CompletableFuture.completedFuture(null))
                 .thenCompose(unused -> resetChunksAsync(dimension, IslandChunkFlags.NO_EMPTY_CHUNKS)).thenCompose(unused -> {
                     com.bgsoftware.superiorskyblock.api.schematic.Schematic schematic = isDefault ? plugin.getSchematics().getSchematic(getSchematicName()) : null;
                     if (schematic == null)

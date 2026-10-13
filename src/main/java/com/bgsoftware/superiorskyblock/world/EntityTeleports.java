@@ -6,6 +6,8 @@ import com.bgsoftware.superiorskyblock.api.events.IslandSetHomeEvent;
 import com.bgsoftware.superiorskyblock.api.island.Island;
 import com.bgsoftware.superiorskyblock.api.island.IslandChunkFlags;
 import com.bgsoftware.superiorskyblock.api.player.algorithm.PlayerTeleportAlgorithm;
+import com.bgsoftware.superiorskyblock.api.service.region.MoveResult;
+import com.bgsoftware.superiorskyblock.api.service.region.RegionManagerService;
 import com.bgsoftware.superiorskyblock.api.world.Dimension;
 import com.bgsoftware.superiorskyblock.api.world.WorldInfo;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
@@ -30,6 +32,8 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
+import com.bgsoftware.superiorskyblock.player.SuperiorNPCPlayer;
 
 import java.time.Duration;
 import java.util.Comparator;
@@ -64,13 +68,16 @@ public class EntityTeleports {
     }
 
     public static void teleport(Entity entity, Location location, @Nullable Consumer<PlayerTeleportAlgorithm.TeleportResult> teleportResult) {
-        Island island = plugin.getGrid().getIslandAt(location);
+        // Callers may pass a pooled or otherwise mutable location. The native
+        // asynchronous path must own its detached destination throughout.
+        Location target = location.clone();
+        Island island = plugin.getGrid().getIslandAt(target);
 
         if (island != null) {
-            plugin.getProviders().getWorldsProvider().prepareTeleport(island, location.clone(),
-                    () -> teleportEntity(entity, location, teleportResult));
+            plugin.getProviders().getWorldsProvider().prepareTeleport(island, target.clone(),
+                    () -> teleportEntity(entity, target, teleportResult));
         } else {
-            teleportEntity(entity, location, teleportResult);
+            teleportEntity(entity, target, teleportResult);
         }
     }
 
@@ -269,13 +276,52 @@ public class EntityTeleports {
     }
 
     private static void teleportEntity(Entity entity, Location location, @Nullable Consumer<PlayerTeleportAlgorithm.TeleportResult> teleportResult) {
+        java.util.concurrent.atomic.AtomicBoolean completed = new java.util.concurrent.atomic.AtomicBoolean();
+        Consumer<PlayerTeleportAlgorithm.TeleportResult> reply = result -> {
+            if (completed.compareAndSet(false, true) && teleportResult != null) teleportResult.accept(result);
+        };
         BukkitExecutor.entity(entity, () -> {
-            entity.eject();
-            plugin.getProviders().getAsyncProvider().teleport(entity, location, res -> {
-                if (teleportResult != null) teleportResult.accept(Boolean.TRUE.equals(res)
-                        ? PlayerTeleportAlgorithm.TeleportResult.SUCCESS : PlayerTeleportAlgorithm.TeleportResult.GENERAL_FAILURE);
-            });
-        }, 0L, () -> { if (teleportResult != null) teleportResult.accept(PlayerTeleportAlgorithm.TeleportResult.GENERAL_FAILURE); });
+            try {
+                Player player = BukkitExecutor.isFolia() && entity instanceof Player && !entity.hasMetadata("NPC") ? (Player) entity : null;
+                Location from = player == null ? null : player.getLocation();
+                Island origin = from == null ? null : plugin.getGrid().getIslandAt(from);
+                FoliaPlayerPresence.Target target = player == null ? null : FoliaPlayerPresence.capture(plugin, location);
+                if (player != null) {
+                    SuperiorPlayer account = plugin.getPlayers().getSuperiorPlayer(player);
+                    if (!(account instanceof SuperiorNPCPlayer) &&
+                            (!FoliaPlayerPresence.isCurrent(plugin, target) || plugin.getServices()
+                                    .getService(RegionManagerService.class).handlePlayerTeleport(account, from, location) != MoveResult.SUCCESS ||
+                                    !FoliaPlayerPresence.isCurrent(plugin, target))) {
+                        FoliaPlayerPresence.reconcile(plugin, player, target.island, FoliaPlayerPresence.capture(plugin, from));
+                        reply.accept(PlayerTeleportAlgorithm.TeleportResult.GENERAL_FAILURE);
+                        return;
+                    }
+                }
+                entity.eject();
+                plugin.getProviders().getAsyncProvider().teleport(entity, location, res -> {
+                    Runnable finish = () -> {
+                        try {
+                            boolean success = Boolean.TRUE.equals(res);
+                            if (player != null) {
+                                if (success) success = FoliaPlayerPresence.reconcile(plugin, player, origin, target);
+                                else if (player.isOnline() && player.isValid())
+                                    FoliaPlayerPresence.reconcile(plugin, player, target.island,
+                                            FoliaPlayerPresence.capture(plugin, player.getLocation()));
+                            }
+                            reply.accept(success ? PlayerTeleportAlgorithm.TeleportResult.SUCCESS : PlayerTeleportAlgorithm.TeleportResult.GENERAL_FAILURE);
+                        } catch (Throwable failure) {
+                            plugin.getLogger().warning("Player teleport arrival reconciliation failed: " + failure);
+                            reply.accept(PlayerTeleportAlgorithm.TeleportResult.GENERAL_FAILURE);
+                        }
+                    };
+                    try { BukkitExecutor.entity(entity, finish, 0L, () -> reply.accept(PlayerTeleportAlgorithm.TeleportResult.GENERAL_FAILURE)); }
+                    catch (java.util.concurrent.RejectedExecutionException stopping) { reply.accept(PlayerTeleportAlgorithm.TeleportResult.GENERAL_FAILURE); }
+                });
+            } catch (Throwable failure) {
+                plugin.getLogger().warning("Player teleport failed before physical arrival: " + failure);
+                reply.accept(PlayerTeleportAlgorithm.TeleportResult.GENERAL_FAILURE);
+            }
+        }, 0L, () -> reply.accept(PlayerTeleportAlgorithm.TeleportResult.GENERAL_FAILURE));
     }
 
     private static Location adjustLocationToHome(Island island, Block block, float yaw, float pitch) {
