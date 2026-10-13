@@ -95,6 +95,8 @@ tasks.withType(Test).configureEach {
     maxHeapSize = '512m'
     if (System.getProperty('pvc.fixture.config'))
         systemProperty 'pvc.fixture.config', System.getProperty('pvc.fixture.config')
+    if (System.getProperty('pvc.brand.baseline'))
+        systemProperty 'pvc.brand.baseline', System.getProperty('pvc.brand.baseline')
 }
 
 sourceSets {
