@@ -105,7 +105,8 @@ public class CmdAdminRankup implements IAdminIslandCommand {
                             command -> CmdRankup.isOwnUpgradeMutation(plugin, parseCommand(command, owner)),
                             command -> {
                                 String parsed = parseCommand(command, owner);
-                                try { return Bukkit.dispatchCommand(Bukkit.getConsoleSender(), parsed); }
+                                try { return com.bgsoftware.superiorskyblock.commands.CapturedCommandDispatch.dispatch(
+                                        plugin, Bukkit.getConsoleSender(), parsed, island); }
                                 catch (Throwable error) {
                                     com.bgsoftware.superiorskyblock.core.logging.Log.error(error, "Cannot execute the configured island upgrade command", parsed);
                                     return false;

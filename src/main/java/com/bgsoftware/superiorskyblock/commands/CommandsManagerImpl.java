@@ -193,6 +193,17 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
         return label;
     }
 
+    /** Same command validation path, with an explicit source subject for own configured chains. */
+    public boolean dispatchCapturedCommand(CommandSender sender, String command, com.bgsoftware.superiorskyblock.api.island.Island target) {
+        String[] words = command.split(" ");
+        if (pluginCommand == null || words.length == 0 || !pluginCommand.ownsLabel(words[0]))
+            return Bukkit.dispatchCommand(sender, command);
+        try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope scope =
+                     com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.openInherited(target)) {
+            return pluginCommand.execute(sender, words[0], Arrays.copyOfRange(words, 1, words.length));
+        }
+    }
+
     public static void registerListeners(PluginEventsDispatcher dispatcher) {
         dispatcher.registerCallback(PluginEventType.SETTINGS_UPDATE_EVENT, CommandsManagerImpl::onSettingsUpdate);
         // Admin commands can be registered after settings are loaded (e.g. by modules).
@@ -498,6 +509,18 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
 
         PluginCommand(String islandCommandLabel) {
             super(islandCommandLabel);
+        }
+
+        private boolean ownsLabel(String candidate) {
+            String plain = candidate;
+            int namespace = candidate.indexOf(':');
+            if (namespace >= 0) {
+                if (!candidate.substring(0, namespace).equalsIgnoreCase(plugin.getName())) return false;
+                plain = candidate.substring(namespace + 1);
+            }
+            if (getName().equalsIgnoreCase(plain)) return true;
+            for (String alias : getAliases()) if (alias.equalsIgnoreCase(plain)) return true;
+            return false;
         }
 
         @Override

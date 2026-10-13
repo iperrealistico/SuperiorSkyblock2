@@ -143,7 +143,8 @@ public class CmdRankup implements IPermissibleCommand {
                                 command -> isOwnUpgradeMutation(plugin, parseCommand(command, superiorPlayer, island)),
                                 command -> {
                                     String parsed = parseCommand(command, superiorPlayer, island);
-                                    try { return Bukkit.dispatchCommand(Bukkit.getConsoleSender(), parsed); }
+                                    try { return com.bgsoftware.superiorskyblock.commands.CapturedCommandDispatch.dispatch(
+                                            plugin, Bukkit.getConsoleSender(), parsed, island); }
                                     catch (Throwable error) {
                                         ModuleLogger logger = (ModuleLogger) BuiltinModules.UPGRADES.getLogger();
                                         logger.e("An unexpected error occurred while executing command:\n" + parsed, error);

@@ -1,14 +1,17 @@
 package club.peacefulvanilla.superior.probe;
 
 import com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin;
+import com.bgsoftware.superiorskyblock.api.commands.SuperiorCommand;
 import com.bgsoftware.superiorskyblock.api.events.IslandChatEvent;
 import com.bgsoftware.superiorskyblock.api.events.PlayerChangeChatStateEvent;
 import com.bgsoftware.superiorskyblock.api.island.Island;
+import com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope;
 import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.upgrades.Upgrade;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.core.database.sql.SQLDatabaseBridge;
 import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
+import com.bgsoftware.superiorskyblock.module.upgrades.commands.CmdAdminSetUpgrade;
 import com.bgsoftware.superiorskyblock.player.chat.ChatStates;
 import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.node.types.PermissionNode;
@@ -54,6 +57,9 @@ public final class NativeCommandProbe implements Listener {
         this.observer = observer; this.superior = superior;
         root = observer.getServer().getWorldContainer().toPath().toAbsolutePath().normalize();
         guard(); Bukkit.getPluginManager().registerEvents(this, observer);
+        SuperiorCommand original = superior.getCommands().getAdminCommand("setupgrade");
+        if (!(original instanceof CmdAdminSetUpgrade)) throw new IllegalStateException("The original setupgrade handler is required");
+        superior.getCommands().registerAdminCommand(new SetupgradeTrace(original));
     }
 
     private void guard() {
@@ -390,5 +396,22 @@ public final class NativeCommandProbe implements Listener {
     private void fail(Player actor, Throwable error) {
         failed = true; observer.getLogger().log(java.util.logging.Level.SEVERE, "SUPERIOR_COMMAND_PROBE_FAIL", error);
         reply(actor, "SUPERIOR_COMMAND_PROBE_FAIL " + error.getClass().getSimpleName());
+    }
+
+    /** Keeps the real mutation handler and its type identity; observes only its invocation boundary. */
+    private final class SetupgradeTrace extends CmdAdminSetUpgrade {
+        private final SuperiorCommand original;
+        SetupgradeTrace(SuperiorCommand original) { this.original = original; }
+        @Override public void execute(SuperiorSkyblockPlugin plugin, CommandSender sender, String[] arguments) {
+            Island target = IslandExecutionScope.current();
+            SuperiorPlayer subject = arguments.length > 2 ? plugin.getPlayers().getSuperiorPlayer(arguments[2]) : null;
+            observer.getLogger().info("SUPERIOR_COMMAND_SETUPGRADE_TRACE target=" + (target == null ? "none" : target.getShortId()) +
+                    " active=" + IslandExecutionScope.isActive() + " explicit=" + IslandExecutionScope.isExplicitTarget() +
+                    " inherited=" + IslandExecutionScope.isInheritedTarget() +
+                    " thread=" + Thread.currentThread().getName().replace(' ', '_') +
+                    " subject=" + (subject == null ? "none" : subject.getName()) +
+                    " member=" + (target != null && subject != null && target.isMember(subject)));
+            original.execute(plugin, sender, arguments);
+        }
     }
 }

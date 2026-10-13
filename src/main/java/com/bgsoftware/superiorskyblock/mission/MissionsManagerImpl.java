@@ -408,12 +408,13 @@ public class MissionsManagerImpl extends Manager implements MissionsManager {
                             Log.warn("Stopped configured mission rewards because the completed island subject changed: ", mission.getName());
                             return;
                         }
-                        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command
+                        com.bgsoftware.superiorskyblock.commands.CapturedCommandDispatch.dispatch(plugin, Bukkit.getConsoleSender(), command
                                 .replace("%mission%", mission.getName())
                                 .replace("%player%", superiorPlayer.getName())
                                 .replace("%island%", getIslandPlaceholder(missionsHolder))
                                 .replace("%island_id%", missionsHolder instanceof Island ? String.valueOf(((Island) missionsHolder).getShortId()) : "")
-                                .replace("%island_uuid%", missionsHolder instanceof Island ? ((Island) missionsHolder).getUniqueId().toString() : "")
+                                .replace("%island_uuid%", missionsHolder instanceof Island ? ((Island) missionsHolder).getUniqueId().toString() : ""),
+                                missionsHolder instanceof Island ? (Island) missionsHolder : null
                         );
                     }
                 })) Log.warn("Skipped configured mission rewards because the completed island subject is no longer current: ", mission.getName());
