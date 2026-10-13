@@ -38,6 +38,7 @@ public final class NativeSharedStateProbe {
         BigDecimal worth = target.getWorth(), unitWorth = superior.getBlockValues().getBlockValue(block).getWorth();
         int originalEntities = target.getEntitiesTracker().getEntityCount(entity);
         BigDecimal bank = target.getIslandBank().getBalance();
+        observer.getLogger().info("SUPERIOR_SHARED_STATE_BASELINE " + state(target, block, entity, original, worth, originalEntities));
         java.util.concurrent.atomic.AtomicReference<org.bukkit.Location> restore = new java.util.concurrent.atomic.AtomicReference<>();
         CompletableFuture<Void> separated = new CompletableFuture<>();
         BukkitExecutor.entity(other, () -> {
@@ -55,15 +56,21 @@ public final class NativeSharedStateProbe {
             if (BukkitExecutor.isFolia() && BukkitExecutor.owns(other)) throw new IllegalStateException("Fixture actors must occupy actual distinct Folia regions");
             add(target, block, entity);
         }), action(other, () -> add(target, block, entity)))).thenCompose(unused -> {
+            observer.getLogger().info("SUPERIOR_SHARED_STATE_ADDED " + state(target, block, entity,
+                    original.add(BigInteger.valueOf(2)), worth.add(unitWorth.multiply(BigDecimal.valueOf(2))), originalEntities + 2));
             if (!target.getExactBlockCountAsBigInteger(block).equals(original.add(BigInteger.valueOf(2))) ||
                     target.getWorth().compareTo(worth.add(unitWorth.multiply(BigDecimal.valueOf(2)))) != 0 ||
                     target.getEntitiesTracker().getEntityCount(entity) != originalEntities + 2)
-                return failed(new IllegalStateException("Shared tracker mutation lost a count or derived worth"));
+                return failed(new IllegalStateException("Shared tracker mutation lost a count or derived worth: " +
+                        state(target, block, entity, original.add(BigInteger.valueOf(2)),
+                                worth.add(unitWorth.multiply(BigDecimal.valueOf(2))), originalEntities + 2)));
             return CompletableFuture.allOf(action(actor, () -> remove(target, block, entity)), action(other, () -> remove(target, block, entity)));
         }).thenCompose(unused -> {
+            observer.getLogger().info("SUPERIOR_SHARED_STATE_REMOVED " + state(target, block, entity, original, worth, originalEntities));
             if (!target.getExactBlockCountAsBigInteger(block).equals(original) || target.getWorth().compareTo(worth) != 0 ||
                     target.getEntitiesTracker().getEntityCount(entity) != originalEntities)
-                return failed(new IllegalStateException("Shared tracker cleanup did not restore exact metadata"));
+                return failed(new IllegalStateException("Shared tracker cleanup did not restore exact metadata: " +
+                        state(target, block, entity, original, worth, originalEntities)));
             return CompletableFuture.allOf(action(actor, () -> target.getIslandBank().depositAdminMoney(Bukkit.getConsoleSender(), BigDecimal.ONE)),
                     action(other, () -> target.getIslandBank().depositAdminMoney(Bukkit.getConsoleSender(), BigDecimal.ONE)));
         }).thenCompose(unused -> {
@@ -89,6 +96,20 @@ public final class NativeSharedStateProbe {
         }).thenRun(() -> observer.getLogger().info("SUPERIOR_SHARED_STATE_NATIVE_PASS actors=2 sharedIsland=" +
                 target.getShortId() + " blockActions=4 entityActions=4 adminBankActions=4 durableBankACK=true uncachedSQLReadback=true"))
                 .orTimeout(45, TimeUnit.SECONDS);
+    }
+    private static String state(Island target, Key block, Key entity, BigInteger expectedBlocks,
+                                BigDecimal expectedWorth, int expectedEntities) {
+        return "blocks=" + target.getExactBlockCountAsBigInteger(block) + "/" + expectedBlocks +
+                " worth=" + target.getWorth() + "/" + expectedWorth +
+                " entities=" + target.getEntitiesTracker().getEntityCount(entity) + "/" + expectedEntities +
+                " rawWorth=" + target.getRawWorth() + " bonusWorth=" + target.getBonusWorth() +
+                " bank=" + target.getIslandBank().getBalance() + " entityRecalc=" + entityRecalculating(target);
+    }
+    private static Object entityRecalculating(Island target) {
+        try {
+            var flag = target.getEntitiesTracker().getClass().getDeclaredField("beingRecalculated"); flag.setAccessible(true);
+            return ((java.util.concurrent.atomic.AtomicBoolean) flag.get(target.getEntitiesTracker())).get();
+        } catch (ReflectiveOperationException unsupported) { return "unavailable:" + unsupported.getClass().getSimpleName(); }
     }
     private static void add(Island target, Key block, Key entity) {
         if (target.handleBlockPlaceWithResult(block, 1, IslandBlockFlags.SAVE_BLOCK_COUNTS) != BlockChangeResult.SUCCESS ||
