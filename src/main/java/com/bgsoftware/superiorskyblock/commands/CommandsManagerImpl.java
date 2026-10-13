@@ -540,9 +540,6 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
                                         }
                                     } else {
                                         target = limit > 1 ? selected : MultiIslandCommands.legacyIsland(account.getOwnedIslands(), account.getIslands(), selected);
-                                        if (target != null && (!target.isMember(account) || !plugin.getPvcIslandService().isAvailable(target.getUniqueId()))) {
-                                            Message.INVALID_ISLAND.send(actor); return;
-                                        }
                                     }
                                     try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope scope = wasInherited ?
                                                  com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.openInherited(target) :

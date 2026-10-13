@@ -287,6 +287,7 @@ try {
             $config=$config.Replace('max-island-size: 1000','max-island-size: 96').Replace('  island-size: 100','  island-size: 32').Replace('  warps-limit: 0','  warps-limit: 4').Replace('  team-limit: 1','  team-limit: 4')
             $config=[regex]::Replace($config,'(?ms)^disabled-commands:.*?(?=^[a-zA-Z][a-zA-Z0-9-]*:)', 'disabled-commands: []'+"`n")
             $config=$config.Replace('dangerous-commands: []','dangerous-commands: [demote, kick, setsize, addsize, removeratings, adddisbands]')
+            $config=$config.Replace('public-warps: false','public-warps: true')
             $privateDatabase=[IO.Path]::GetFullPath((Join-Path $root 'plugins/SuperiorSkyblock2/datastore/database.db'))
             if(-not$privateDatabase.StartsWith($root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'Unsafe fresh command database path.'}
             if(Test-Path -LiteralPath $privateDatabase){Remove-Item -LiteralPath $privateDatabase -Force}
