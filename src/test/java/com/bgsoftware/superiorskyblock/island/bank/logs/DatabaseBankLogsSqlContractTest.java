@@ -57,8 +57,8 @@ public class DatabaseBankLogsSqlContractTest {
         return positions;
     }
 
-    private static final class Args extends SQLDatabaseSession.Args {
-        private Args(String prefix) {
+    private static final class BankArgs extends SQLDatabaseSession.Args {
+        private BankArgs(String prefix) {
             super(prefix, "Bank logs SQL contract test", new ILogger() {
                 @Override public void error(String message, Throwable error) { throw new AssertionError(message, error); }
                 @Override public boolean hasDebugEnabled() { return false; }
@@ -68,10 +68,10 @@ public class DatabaseBankLogsSqlContractTest {
         }
     }
 
-    private static final class Session extends SQLDatabaseSession<Args> implements AutoCloseable {
+    private static final class Session extends SQLDatabaseSession<BankArgs> implements AutoCloseable {
         private Connection anchor;
         private Session(String prefix) throws Exception {
-            super(new Args(prefix));
+            super(new BankArgs(prefix));
             assertTrue(connect());
             try (java.sql.Statement statement = anchor.createStatement()) {
                 statement.executeUpdate("CREATE TABLE `" + prefix + "bank_transactions` (`island` TEXT, `position` INTEGER)");
