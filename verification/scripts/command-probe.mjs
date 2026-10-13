@@ -90,14 +90,25 @@ async function userInterface(expectTools, label) {
   await pause(500)
   const help = messages[0].slice(from).join('\n')
   const names = matches(await primary.tabComplete('/is ', true, false))
-  const selectors = matches(await primary.tabComplete('/is home --island ', true, false))
+  let selectors, selectorResponse = 'packet'
+  try {
+    selectors = matches(await primary.tabComplete('/is home --island ', true, false, 5000))
+  } catch (error) {
+    if (expectTools || !/^Event tab_complete did not fire within timeout of 5000ms$/.test(error.message)) throw error
+    // An unavailable selector can reject this Brigadier request without a reply.
+    // Record the actual absence of an ID response, then require a fresh normal
+    // completion packet to exclude a dead listener or disconnected client.
+    selectors = []; selectorResponse = 'none-within-5000ms'
+    const ordinary = matches(await primary.tabComplete('/is ', true, false))
+    assert(ordinary.some(value => value.toLowerCase() === 'help'), 'Normal completion did not acknowledge the live native listener after a hidden-selector request')
+  }
   assert.equal(names.some(value => value.toLowerCase() === 'list'), expectTools, label + ' native list TAB visibility')
   assert.equal(names.some(value => value.toLowerCase() === 'select'), expectTools, label + ' native select TAB visibility')
   assert.equal(/\b(?:is|island|islands) list\b/i.test(help), expectTools, label + ' native list help visibility')
   assert.equal(/\b(?:is|island|islands) select\b/i.test(help), expectTools, label + ' native select help visibility')
   assert.equal(selectors.length > 0, expectTools, label + ' native temporary-selector TAB visibility')
   assert(tabPackets.length > 0, 'No actual server tab-complete packet was observed')
-  console.log('SUPERIOR_COMMAND_NATIVE_UI_PASS case=' + label + ' tools=' + expectTools + ' receivedTabPackets=' + tabPackets.length)
+  console.log('SUPERIOR_COMMAND_NATIVE_UI_PASS case=' + label + ' tools=' + expectTools + ' selectorResponse=' + selectorResponse + ' receivedTabPackets=' + tabPackets.length)
 }
 async function rate(islandId) {
   const opening = new Promise((resolve, reject) => {

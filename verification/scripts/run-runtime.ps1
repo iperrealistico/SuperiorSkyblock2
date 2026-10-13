@@ -208,7 +208,7 @@ function Run-Phase([string]$Root,[string]$Phase,[string]$Java,[int]$Port,[string
         if($known){$knownRuntimeWarnings++}else{$qualifiedBlocks.Add($block)}
     }
     $qualifiedOutput=$qualifiedBlocks-join''
-    $ownershipError=$qualifiedOutput-match'TickThread.ensureTickThread|Accessing entity state off owning region|Not on any region|java.lang.(UnsupportedOperationException|NullPointerException|NoSuchMethodError|AbstractMethodError|NoClassDefFoundError|ExceptionInInitializerError)|UnsupportedClassVersionError|Error occurred while enabling Superior|Error initializing plugin|Exception in thread|SUPERIOR_((ADVANCED_|LEGACY_|MISSION_)?PROBE_FAIL|DOMAIN_FAIL|UPSTREAM_SEED_FAIL|UPGRADE_FAIL)'
+    $ownershipError=$qualifiedOutput-match'TickThread.ensureTickThread|Accessing entity state off owning region|Not on any region|java.lang.(UnsupportedOperationException|NullPointerException|NoSuchMethodError|AbstractMethodError|NoClassDefFoundError|ExceptionInInitializerError)|UnsupportedClassVersionError|Error occurred while enabling Superior|Error initializing plugin|Exception in thread|SUPERIOR_((ADVANCED_|LEGACY_|MISSION_|COMMAND_)?PROBE_FAIL|DOMAIN_FAIL|UPSTREAM_SEED_FAIL|UPGRADE_FAIL)'
     $result=@{phase=$Phase;profile=$Profile;ready=$ready;probePassed=$passed;clientPassed=$clientPassed;ownershipError=$ownershipError;knownRuntimeWarnings=$knownRuntimeWarnings;forcedStop=$forced;intentionalOwnedCrash=$intentionalCrash;exitCode=$server.ExitCode;productionTouched=$false;serverPID=$server.Id;clientPID=$clientPID}
     [IO.File]::WriteAllText((Join-Path $Root ($Phase+'-result.json')),($result|ConvertTo-Json),$utf8)
     $server.Dispose();Write-Output ($result|ConvertTo-Json -Compress)
@@ -294,7 +294,9 @@ try {
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../runtime-probe/native-commands-upgrades.yml') -Destination (Join-Path $root 'plugins/SuperiorSkyblock2/modules/upgrades/config.yml') -Force
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../runtime-probe/native-commands-missions.yml') -Destination (Join-Path $root 'plugins/SuperiorSkyblock2/modules/missions/config.yml') -Force
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../runtime-probe/native-commands-items.yml') -Destination (Join-Path $root 'plugins/SuperiorSkyblock2/modules/missions/categories/pvc_native/pvc_command_items.yml') -Force
-            Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../../src/main/resources/menus/island-rate.yml') -Destination (Join-Path $root 'plugins/SuperiorSkyblock2/menus/island-rate.yml') -Force
+            # Retain the upstream layout/handler; modern fixtures use the native material name.
+            $ratingMenu=[IO.File]::ReadAllText((Join-Path $PSScriptRoot '../../src/main/resources/menus/island-rate.yml')).Replace('type: SKULL_ITEM','type: PLAYER_HEAD')
+            [IO.File]::WriteAllText((Join-Path $root 'plugins/SuperiorSkyblock2/menus/island-rate.yml'),$ratingMenu,$utf8)
             [IO.File]::WriteAllText((Join-Path $root '.superior-commands-owned'),'command fixture',$utf8)
         }
         if($Profile-notin@('legacy','upgrade')){$config+="`npvc:`n  size-mode: PERMISSION_AUTOMATIC`n  entitlements:`n    refresh-seconds: 1`n"}

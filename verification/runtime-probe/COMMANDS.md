@@ -45,7 +45,12 @@ actual wrapper/JDK versions and private phase results.
   while only one island exists. The tools appear after a second real island is
   created. IDs survive revocation. The driver also records real command-tree
   packets; Bukkit's opaque greedy argument tree is not represented as fabricated
-  literal subcommand nodes.
+  literal subcommand nodes. A hidden selector's actual protocol request may be
+  rejected without a TAB reply. Only for this negative case, the driver accepts
+  the specific five-second tab-event timeout as no exposed ID response, records
+  it explicitly, and then requires another real ordinary completion containing
+  `help` to prove the listener is still responsive. Ordinary and positive
+  selector completions always require actual reply packets.
 - An actual external client reaches a public island warp.
 - Actual rating GUI clicks populate both islands. Nickname author removal clears
   both after real console approval; an explicit island clear, also approved by

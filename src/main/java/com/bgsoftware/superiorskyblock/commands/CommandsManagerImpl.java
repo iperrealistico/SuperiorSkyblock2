@@ -502,8 +502,57 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
 
         @Override
         public boolean execute(CommandSender sender, String label, String[] args) {
+            return executeWithPolicy(sender, label, args, false);
+        }
+
+        private boolean executeWithPolicy(CommandSender sender, String label, String[] args, boolean resumed) {
             if (!plugin.getPvcIslandService().isReady()) {
                 Message.CUSTOM.send(sender, "&eIsland metadata is being initialized or recovered. Please wait.", true); return false;
+            }
+            if (sender instanceof Player) {
+                Player actor = (Player) sender;
+                SuperiorPlayer account = plugin.getPlayers().getSuperiorPlayer(sender);
+                if (account.getIslands().size() > 1) {
+                    plugin.getPvcEntitlements().getSnapshot(account.getUniqueId());
+                    try { plugin.getPvcEntitlements().getVerifiedOwnershipLimit(account.getUniqueId()); }
+                    catch (IllegalStateException unavailable) {
+                        if (resumed) { policyUnavailable(sender); return false; }
+                        String[] capturedArgs = args.clone();
+                        com.bgsoftware.superiorskyblock.api.island.Island captured =
+                                com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current();
+                        boolean wasExplicit = com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isExplicitTarget();
+                        boolean wasInherited = com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isInheritedTarget();
+                        com.bgsoftware.superiorskyblock.api.island.Island selected = account.getSelectedIsland();
+                        IslandTarget snapshot = captured == null ? null : new IslandTarget(captured,
+                                plugin.getPvcIslandService().getRevision(captured.getUniqueId()),
+                                plugin.getPvcIslandService().getMembershipRevision(captured.getUniqueId()));
+                        plugin.getPvcEntitlements().refreshOwnershipLimit(account.getUniqueId()).whenComplete((limit, error) ->
+                                BukkitExecutor.entity(actor, () -> {
+                                    if (!actor.isOnline() || error != null) { if (actor.isOnline()) policyUnavailable(actor); return; }
+                                    com.bgsoftware.superiorskyblock.api.island.Island target;
+                                    if (snapshot != null) {
+                                        target = plugin.getGrid().getIslandByUUID(snapshot.island);
+                                        if (target == null || !plugin.getPvcIslandService().isAvailable(snapshot.island) ||
+                                                !java.util.Objects.equals(snapshot.owner, target.getOwner() == null ? null : target.getOwner().getUniqueId()) ||
+                                                snapshot.revision != plugin.getPvcIslandService().getRevision(snapshot.island) ||
+                                                snapshot.membershipRevision != plugin.getPvcIslandService().getMembershipRevision(snapshot.island)) {
+                                            Message.INVALID_ISLAND.send(actor); return;
+                                        }
+                                    } else {
+                                        target = limit > 1 ? selected : MultiIslandCommands.legacyIsland(account.getOwnedIslands(), account.getIslands(), selected);
+                                        if (target != null && (!target.isMember(account) || !plugin.getPvcIslandService().isAvailable(target.getUniqueId()))) {
+                                            Message.INVALID_ISLAND.send(actor); return;
+                                        }
+                                    }
+                                    try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope scope = wasInherited ?
+                                                 com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.openInherited(target) :
+                                                 com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.open(target, wasExplicit)) {
+                                        executeWithPolicy(actor, label, capturedArgs, true);
+                                    } catch (Throwable failure) { Log.error(failure, "Cannot resume an island command after policy refresh"); }
+                                }));
+                        return true;
+                    }
+                }
             }
             boolean advanced = MultiIslandCommands.unlocked(plugin, sender);
             boolean administrative = isAdministrativeCommand(sender, args);
@@ -528,6 +577,10 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
                  com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope scope = executionScope(sender, target, parsed.selector != null)) {
                 return executeResolved(sender, label, parsed.arguments);
             }
+        }
+
+        private void policyUnavailable(CommandSender sender) {
+            Message.CUSTOM.send(sender, "&eIsland commands are temporarily unavailable. Please try again shortly.", true);
         }
 
         private String playerFamily(String alias) {
