@@ -44,10 +44,7 @@ public interface IAdminIslandCommand extends ISuperiorCommand {
             if (supportMultipleIslands()) {
                 tabVariables = adminTabComplete(plugin, sender, null, args);
             } else {
-                SuperiorPlayer targetPlayer = plugin.getPlayers().getSuperiorPlayer(args[2]);
-                Island island = com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isExplicitTarget() ?
-                        com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current() : targetPlayer == null ?
-                        plugin.getPvcIslandService().resolve(args[2]) : targetPlayer.getIslands().size() == 1 ? targetPlayer.getIslands().get(0) : null;
+                Island island = CommandArguments.findIsland(plugin, sender, args[2]);
                 if (island != null) {
                     tabVariables = adminTabComplete(plugin, sender, island, args);
                     if (tabVariables.isEmpty())

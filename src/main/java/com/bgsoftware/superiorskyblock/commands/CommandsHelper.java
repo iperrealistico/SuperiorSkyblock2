@@ -16,7 +16,9 @@ public class CommandsHelper {
 
     public static boolean hasCommandAccess(SuperiorCommand superiorCommand, CommandSender executor) {
         String permission = superiorCommand.getPermission();
-        return Text.isBlank(permission) || executor.hasPermission(permission);
+        return (!MultiIslandCommands.personalTool(superiorCommand) ||
+                MultiIslandCommands.unlocked(com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin.getPlugin(), executor)) &&
+                (Text.isBlank(permission) || executor.hasPermission(permission));
     }
 
 }

@@ -11,7 +11,6 @@ import com.bgsoftware.superiorskyblock.commands.arguments.CommandArguments;
 import com.bgsoftware.superiorskyblock.core.formatting.Formatters;
 import com.bgsoftware.superiorskyblock.core.messages.Message;
 import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
-import com.bgsoftware.superiorskyblock.island.top.SortingComparators;
 import com.bgsoftware.superiorskyblock.player.PlayerLocales;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -19,6 +18,7 @@ import org.bukkit.entity.Player;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -89,7 +89,7 @@ public class CmdTeam implements ISuperiorCommand {
             String offlineStatus = Message.ISLAND_TEAM_STATUS_OFFLINE.getMessage(locale);
 
             members.stream()
-                    .sorted(Collections.reverseOrder(SortingComparators.ISLAND_ROLES_COMPARATOR))
+                    .sorted(teamComparator(island))
                     .forEach(islandMember -> {
                         PlayerRole playerRole = islandMember.getPlayerRole(island);
                         long time = islandMember.getLastTimeStatus() == -1 ? -1 : ((System.currentTimeMillis() / 1000) - islandMember.getLastTimeStatus());
@@ -104,6 +104,15 @@ public class CmdTeam implements ISuperiorCommand {
         }
 
         Message.ISLAND_TEAM_STATUS_FOOTER.sendPlayerOrConsole(superiorPlayer);
+    }
+
+    static Comparator<SuperiorPlayer> teamComparator(Island island) {
+        return (first, second) -> {
+            int roleOrder = Integer.compare(first.getPlayerRole(island).getWeight(),
+                    second.getPlayerRole(island).getWeight());
+            // Preserve the original reverse-name tie break without consulting another island's roles.
+            return roleOrder == 0 ? second.getName().compareTo(first.getName()) : roleOrder;
+        };
     }
 
     @Override

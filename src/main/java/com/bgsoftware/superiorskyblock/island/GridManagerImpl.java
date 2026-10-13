@@ -301,7 +301,10 @@ public class GridManagerImpl extends Manager implements GridManager {
             if (denial != null) {
                 plugin.getPvcIslandService().cancelCreation(builder.uuid);
                 switch (denial.getReason()) {
-                    case QUOTA_REACHED: Message.PVC_OWNERSHIP_LIMIT_REACHED.send(builder.owner, denial.getLimit()); break;
+                    case QUOTA_REACHED:
+                        if (denial.getLimit() <= 1) Message.ISLAND_ALREADY_EXIST.send(builder.owner);
+                        else Message.PVC_OWNERSHIP_LIMIT_REACHED.send(builder.owner, denial.getLimit());
+                        break;
                     case QUEUE_FULL: Message.PVC_ISLAND_CREATION_QUEUE_FULL.send(builder.owner); break;
                     case NAME_OCCUPIED: Message.ISLAND_ALREADY_EXIST.send(builder.owner); break;
                     case POLICY_UNAVAILABLE:

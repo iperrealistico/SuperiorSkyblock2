@@ -103,8 +103,11 @@ public class CmdAdminPromote implements IAdminPlayerCommand {
     @Override
     public List<String> tabComplete(SuperiorSkyblockPlugin plugin, CommandSender sender, String[] args) {
         return args.length == 3 ? CommandTabCompletes.getOnlinePlayersWithIsland(plugin, args[2], false,
-                superiorPlayer -> !superiorPlayer.getIslandLeader().equals(superiorPlayer) &&
-                        !superiorPlayer.getPlayerRole().getNextRole().isLastRole()) : Collections.emptyList();
+                superiorPlayer -> AdminMemberTargets.anyEligibleIsland(superiorPlayer, island -> {
+                    PlayerRole nextRole = superiorPlayer.getPlayerRole(island).getNextRole();
+                    return plugin.getPvcIslandService().isAvailable(island.getUniqueId()) &&
+                            !island.getOwner().equals(superiorPlayer) && nextRole != null && !nextRole.isLastRole();
+                })) : Collections.emptyList();
     }
 
 }

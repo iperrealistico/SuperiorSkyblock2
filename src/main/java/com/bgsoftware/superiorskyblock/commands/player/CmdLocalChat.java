@@ -63,7 +63,8 @@ public class CmdLocalChat implements ISuperiorCommand {
         if (island == null)
             return;
 
-        SuperiorPlayer superiorPlayer = arguments.getSuperiorPlayer();
+        // The island argument may describe its owner; chat always belongs to the command sender.
+        SuperiorPlayer superiorPlayer = plugin.getPlayers().getSuperiorPlayer(sender);
 
         if (args.length == 1) {
             ChatState oldChatState = superiorPlayer.getChatState();

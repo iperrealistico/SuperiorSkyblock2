@@ -387,26 +387,36 @@ public class MissionsManagerImpl extends Manager implements MissionsManager {
         }
 
         if (!rewardedItems.isEmpty() || !event.getArgs().commandRewards.isEmpty()) {
+            FrozenMissionRewardScope rewardScope = new FrozenMissionRewardScope(
+                    missionsHolder instanceof Island ? (Island) missionsHolder : null,
+                    island -> plugin.getPvcIslandService().isAvailable(island.getUniqueId()),
+                    island -> plugin.getPvcIslandService().getRevision(island.getUniqueId()));
             BukkitExecutor.ensureMain(() -> {
-                if (!rewardedItems.isEmpty()) {
-                    superiorPlayer.runIfOnline(player -> {
-                        try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
-                            for (ItemStack toGive : rewardedItems) {
-                                BukkitItems.addItem(toGive, player.getInventory(), player.getLocation(wrapper.getHandle()));
+                if (!rewardScope.runIfCurrent(() -> {
+                    if (!rewardedItems.isEmpty()) {
+                        superiorPlayer.runIfOnline(player -> {
+                            try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
+                                for (ItemStack toGive : rewardedItems) {
+                                    BukkitItems.addItem(toGive, player.getInventory(), player.getLocation(wrapper.getHandle()));
+                                }
                             }
-                        }
-                    });
-                }
+                        });
+                    }
 
-                for (String command : event.getArgs().commandRewards) {
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command
-                            .replace("%mission%", mission.getName())
-                            .replace("%player%", superiorPlayer.getName())
-                            .replace("%island%", getIslandPlaceholder(missionsHolder))
-                            .replace("%island_id%", missionsHolder instanceof Island ? String.valueOf(((Island) missionsHolder).getShortId()) : "")
-                            .replace("%island_uuid%", missionsHolder instanceof Island ? ((Island) missionsHolder).getUniqueId().toString() : "")
-                    );
-                }
+                    for (String command : event.getArgs().commandRewards) {
+                        if (!rewardScope.isCurrent()) {
+                            Log.warn("Stopped configured mission rewards because the completed island subject changed: ", mission.getName());
+                            return;
+                        }
+                        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command
+                                .replace("%mission%", mission.getName())
+                                .replace("%player%", superiorPlayer.getName())
+                                .replace("%island%", getIslandPlaceholder(missionsHolder))
+                                .replace("%island_id%", missionsHolder instanceof Island ? String.valueOf(((Island) missionsHolder).getShortId()) : "")
+                                .replace("%island_uuid%", missionsHolder instanceof Island ? ((Island) missionsHolder).getUniqueId().toString() : "")
+                        );
+                    }
+                })) Log.warn("Skipped configured mission rewards because the completed island subject is no longer current: ", mission.getName());
             });
         }
 

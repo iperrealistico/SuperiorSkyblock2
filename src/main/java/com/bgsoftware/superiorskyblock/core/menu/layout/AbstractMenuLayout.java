@@ -48,7 +48,7 @@ public abstract class AbstractMenuLayout<V extends MenuView<V, ?>> implements Me
         String result = this.title.getContent(menuView.getInventoryViewer().asOfflinePlayer(), titleArgs).orElse("");
         if (menuView instanceof com.bgsoftware.superiorskyblock.core.menu.view.IIslandMenuView) {
             com.bgsoftware.superiorskyblock.api.island.Island target = ((com.bgsoftware.superiorskyblock.core.menu.view.IIslandMenuView) menuView).getIsland();
-            if (target != null && target.getShortId() > 0 && (menuView.getInventoryViewer().getIslands().size() > 1 || target.getOwner().getOwnedIslands().size() > 1)) {
+            if (target != null && target.getShortId() > 0 && com.bgsoftware.superiorskyblock.commands.MultiIslandCommands.unlocked(com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin.getPlugin(), menuView.getInventoryViewer())) {
                 String suffix = " #" + target.getShortId();
                 if (result.length() + suffix.length() > 32) result = result.substring(0, Math.max(0, 32 - suffix.length()));
                 if (result.endsWith("\u00a7")) result = result.substring(0, result.length() - 1);

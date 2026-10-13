@@ -113,11 +113,7 @@ public class CmdHelp implements ISuperiorCommand {
 
         List<SuperiorCommand> commandsOfPage;
         if (commandsPerPageCount > 0) {
-            commandsOfPage = commandsPerPageCache.get(page);
-            if (commandsOfPage == null) {
-                commandsOfPage = subCommands.subList((page - 1) * commandsPerPageCount, Math.min(subCommands.size(), page * commandsPerPageCount));
-                commandsPerPageCache.put(page, commandsOfPage);
-            }
+            commandsOfPage = subCommands.subList((page - 1) * commandsPerPageCount, Math.min(subCommands.size(), page * commandsPerPageCount));
         } else {
             commandsOfPage = subCommands;
         }

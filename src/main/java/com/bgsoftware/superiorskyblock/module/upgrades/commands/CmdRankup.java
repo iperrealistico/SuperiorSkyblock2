@@ -3,6 +3,7 @@ package com.bgsoftware.superiorskyblock.module.upgrades.commands;
 import com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin;
 import com.bgsoftware.superiorskyblock.api.events.IslandUpgradeEvent;
 import com.bgsoftware.superiorskyblock.api.island.Island;
+import com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope;
 import com.bgsoftware.superiorskyblock.api.island.IslandPrivilege;
 import com.bgsoftware.superiorskyblock.api.modules.ModuleLogger;
 import com.bgsoftware.superiorskyblock.api.service.placeholders.PlaceholdersService;
@@ -30,6 +31,8 @@ import org.bukkit.Bukkit;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
 
 public class CmdRankup implements IPermissibleCommand {
 
@@ -132,22 +135,31 @@ public class CmdRankup implements IPermissibleCommand {
                     hasNextLevel = false;
 
                 } else {
-                    upgradeCosts.forEach(upgradeCost -> upgradeCost.withdrawCost(superiorPlayer));
-
-                    for (String command : event.getArgs().commands) {
-                        String parsedCommand = placeholdersService.get().parsePlaceholders(superiorPlayer.asOfflinePlayer(), command
-                                .replace("%player%", superiorPlayer.getName())
-                                .replace("%leader%", island.getOwner().getName()));
-
-                        try {
-                            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), parsedCommand);
-                        } catch (Throwable error) {
-                            ModuleLogger logger = (ModuleLogger) BuiltinModules.UPGRADES.getLogger();
-                            logger.e("An unexpected error occurred while executing command:\n" + parsedCommand, error);
-                        }
+                    UUID owner = island.getOwner().getUniqueId();
+                    long revision = plugin.getPvcIslandService().getRevision(island.getUniqueId());
+                    ConfiguredUpgradeCommands.Result result;
+                    try (IslandExecutionScope scope = IslandExecutionScope.open(island, true)) {
+                        result = ConfiguredUpgradeCommands.execute(event.getArgs().commands,
+                                command -> isOwnUpgradeMutation(plugin, parseCommand(command, superiorPlayer, island)),
+                                command -> {
+                                    String parsed = parseCommand(command, superiorPlayer, island);
+                                    try { return Bukkit.dispatchCommand(Bukkit.getConsoleSender(), parsed); }
+                                    catch (Throwable error) {
+                                        ModuleLogger logger = (ModuleLogger) BuiltinModules.UPGRADES.getLogger();
+                                        logger.e("An unexpected error occurred while executing command:\n" + parsed, error);
+                                        return false;
+                                    }
+                                },
+                                () -> plugin.getPvcIslandService().isAvailable(island.getUniqueId()) &&
+                                        owner.equals(island.getOwner().getUniqueId()) &&
+                                        revision == plugin.getPvcIslandService().getRevision(island.getUniqueId()) &&
+                                        island.hasPermission(superiorPlayer, IslandPrivileges.RANKUP),
+                                () -> nextLevel != null && island.getUpgradeLevel(upgrade).getLevel() >= nextLevel.getLevel(),
+                                () -> upgradeCosts.forEach(upgradeCost -> upgradeCost.withdrawCost(superiorPlayer)));
                     }
-
-                    hasNextLevel = true;
+                    hasNextLevel = result == ConfiguredUpgradeCommands.Result.SUCCESS;
+                    if (!hasNextLevel)
+                        Message.CUSTOM.send(superiorPlayer, "&cThe upgrade could not be completed. Earlier configured actions may already have taken effect.", true);
                 }
             }
         }
@@ -158,6 +170,29 @@ public class CmdRankup implements IPermissibleCommand {
             if (sound != null)
                 superiorPlayer.runIfOnline(player -> GameSoundImpl.playSound(player, sound));
         }
+    }
+
+    private static String parseCommand(String command, SuperiorPlayer superiorPlayer, Island island) {
+        return placeholdersService.get().parsePlaceholders(superiorPlayer.asOfflinePlayer(), command
+                .replace("%player%", superiorPlayer.getName())
+                .replace("%leader%", island.getOwner().getName()));
+    }
+
+    static boolean isOwnUpgradeMutation(SuperiorSkyblockPlugin plugin, String command) {
+        String[] words = command.trim().split("\\s+");
+        if (words.length < 3) return false;
+        String label = words[0].toLowerCase(Locale.ENGLISH);
+        if (label.startsWith("/")) label = label.substring(1);
+        int namespace = label.indexOf(':');
+        if (namespace >= 0) {
+            if (!label.substring(0, namespace).equals(plugin.getDescription().getName().toLowerCase(Locale.ENGLISH))) return false;
+            label = label.substring(namespace + 1);
+        }
+        boolean ownLabel = false;
+        for (String alias : plugin.getSettings().getIslandCommand().split(","))
+            if (label.equalsIgnoreCase(alias.trim())) { ownLabel = true; break; }
+        return ownLabel && plugin.getCommands().getCommand(words[1]) instanceof com.bgsoftware.superiorskyblock.commands.player.CmdAdmin &&
+                plugin.getCommands().getAdminCommand(words[2]) instanceof CmdAdminSetUpgrade;
     }
 
     @Override

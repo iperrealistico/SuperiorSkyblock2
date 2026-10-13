@@ -106,11 +106,11 @@ public class CommandTabCompletes {
                 List<Island> memberships = onlinePlayer.getIslands();
                 for (Island onlineIsland : memberships) {
                     if (predicate != null && !predicate.test(onlinePlayer, onlineIsland)) continue;
-                    if (memberships.size() == 1 && onlinePlayer.getName().toLowerCase(Locale.ENGLISH).contains(lowerArgument))
+                    if ((!CommandPresentation.identifiersVisible() || onlinePlayer.getOwnedIslands().size() == 1 || memberships.size() == 1) && onlinePlayer.getName().toLowerCase(Locale.ENGLISH).contains(lowerArgument))
                         tabArguments.add(onlinePlayer.getName());
                     if (onlineIsland.getStrippedName().toLowerCase(Locale.ENGLISH).contains(lowerArgument)) tabArguments.add(onlineIsland.getStrippedName());
                     String id = Long.toString(onlineIsland.getShortId());
-                    if (id.startsWith(lowerArgument)) tabArguments.add(id);
+                    if (CommandPresentation.identifiersVisible() && id.startsWith(lowerArgument)) tabArguments.add(id);
                 }
             }
         }

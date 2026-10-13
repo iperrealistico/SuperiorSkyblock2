@@ -6,7 +6,7 @@ param(
     [Parameter(Mandatory=$true)][string]$LuckPermsJar,
     [string[]]$Lanes=@('leaf-12111','leaf-262','folia-12111','folia-262'),
     [string]$RunLabel=([DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')),
-    [ValidateSet('core','end','legacy','domain','missions','upgrade')][string]$Profile='core',
+    [ValidateSet('core','end','legacy','domain','missions','upgrade','commands')][string]$Profile='core',
     [string]$UpstreamJar,
     [string]$SeedJar,
     [int]$TimeoutSeconds=550
@@ -142,6 +142,8 @@ function Run-Phase([string]$Root,[string]$Phase,[string]$Java,[int]$Port,[string
             'storage-reset-crash-restart' {'SUPERIOR_DOMAIN_STORAGE_RESTART_PASS'}
             default {'SUPERIOR_DOMAIN_RESTART_PASS'}
         }
+    }elseif($Profile-eq'commands'){
+        if($Phase-eq'restart'){'SUPERIOR_COMMAND_RESTART_PASS'}else{'SUPERIOR_COMMAND_PROBE_PASS'}
     }elseif($Profile-eq'missions'){
         if($Phase-eq'restart'){'SUPERIOR_MISSION_RESTART_PASS'}else{'SUPERIOR_MISSION_PROBE_PASS'}
     }else{if($Phase-eq'restart'){'SUPERIOR_RESTART_PASS'}else{'SUPERIOR_PROBE_PASS'}}
@@ -155,19 +157,19 @@ function Run-Phase([string]$Root,[string]$Phase,[string]$Java,[int]$Port,[string
                     [void]$stdout.AppendLine($line)
                     if($line-match'Done \([0-9.]+s\)!'-and-not$ready) {
                         $ready=$true
-                        $driver=if($Profile-eq'upgrade'){'upstream-upgrade-probe.mjs'}elseif($Profile-eq'legacy'){'legacy-probe.mjs'}elseif($Profile-eq'domain'){'domain-probe.mjs'}elseif($Profile-eq'missions'){'mission-probe.mjs'}else{'player-probe.mjs'}
+                        $driver=if($Profile-eq'upgrade'){'upstream-upgrade-probe.mjs'}elseif($Profile-eq'legacy'){'legacy-probe.mjs'}elseif($Profile-eq'domain'){'domain-probe.mjs'}elseif($Profile-eq'commands'){'command-probe.mjs'}elseif($Profile-eq'missions'){'mission-probe.mjs'}else{'player-probe.mjs'}
                         $client=New-Process $node $PSScriptRoot @('--max-old-space-size=256',(Join-Path $PSScriptRoot $driver)) @{
                             SUPERIOR_TEST_PORT=[string]$Port;SUPERIOR_TEST_VERSION=$Version;SUPERIOR_MINEFLAYER=$Mineflayer;SUPERIOR_PHASE=$Phase;SUPERIOR_PROFILE=$Profile;SUPERIOR_TEST_ROOT=$Root
                         }
                         [void]$client.Start();$clientPID=$client.Id;$client.PriorityClass='BelowNormal';$out=$client.StandardOutput.ReadToEndAsync();$err=$client.StandardError.ReadToEndAsync()
                     }
-                    if($line-match'SUPERIOR_((ADVANCED_|LEGACY_|MISSION_)?PROBE_FAIL|DOMAIN_FAIL|UPSTREAM_SEED_FAIL|UPGRADE_FAIL)'){break}
+                    if($line-match'SUPERIOR_((ADVANCED_|LEGACY_|MISSION_|COMMAND_)?PROBE_FAIL|DOMAIN_FAIL|UPSTREAM_SEED_FAIL|UPGRADE_FAIL)'){break}
                     if($line.Contains($expected)){$passed=$true}
                 }
                 $read=$server.StandardOutput.ReadLineAsync()
             }
             if($null-ne$client-and$client.HasExited) {
-                $clientPassed=$client.ExitCode-eq0-and$out.Result-match'SUPERIOR_(LEGACY_|MISSION_|UPGRADE_)?CLIENT_PASS'
+                $clientPassed=$client.ExitCode-eq0-and$out.Result-match'SUPERIOR_(LEGACY_|MISSION_|UPGRADE_|COMMAND_)?CLIENT_PASS'
                 if(-not$clientPassed){break}
             }
             if($passed-and$clientPassed){$intentionalCrash=$Profile-eq'domain'-and$Phase-eq'storage-reset-hold';break}
@@ -281,6 +283,20 @@ try {
             Copy-Item -Path (Join-Path $PSScriptRoot '../fixtures/native-missions/*') -Destination $missionTarget -Recurse -Force
             [IO.File]::WriteAllText((Join-Path $root '.superior-missions-owned'),'mission fixture',$utf8)
         }
+        if($Profile-eq'commands'){
+            $config=$config.Replace('max-island-size: 1000','max-island-size: 96').Replace('  island-size: 100','  island-size: 32').Replace('  warps-limit: 0','  warps-limit: 4').Replace('  team-limit: 1','  team-limit: 4')
+            $config=[regex]::Replace($config,'(?ms)^disabled-commands:.*?(?=^[a-zA-Z][a-zA-Z0-9-]*:)', 'disabled-commands: []'+"`n")
+            $config=$config.Replace('dangerous-commands: []','dangerous-commands: [demote, kick, setsize, addsize, removeratings, adddisbands]')
+            $privateDatabase=[IO.Path]::GetFullPath((Join-Path $root 'plugins/SuperiorSkyblock2/datastore/database.db'))
+            if(-not$privateDatabase.StartsWith($root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'Unsafe fresh command database path.'}
+            if(Test-Path -LiteralPath $privateDatabase){Remove-Item -LiteralPath $privateDatabase -Force}
+            foreach($target in @('modules/upgrades','modules/missions/categories/pvc_native','menus')){[void][IO.Directory]::CreateDirectory((Join-Path $root ('plugins/SuperiorSkyblock2/'+$target)))}
+            Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../runtime-probe/native-commands-upgrades.yml') -Destination (Join-Path $root 'plugins/SuperiorSkyblock2/modules/upgrades/config.yml') -Force
+            Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../runtime-probe/native-commands-missions.yml') -Destination (Join-Path $root 'plugins/SuperiorSkyblock2/modules/missions/config.yml') -Force
+            Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../runtime-probe/native-commands-items.yml') -Destination (Join-Path $root 'plugins/SuperiorSkyblock2/modules/missions/categories/pvc_native/pvc_command_items.yml') -Force
+            Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../../src/main/resources/menus/island-rate.yml') -Destination (Join-Path $root 'plugins/SuperiorSkyblock2/menus/island-rate.yml') -Force
+            [IO.File]::WriteAllText((Join-Path $root '.superior-commands-owned'),'command fixture',$utf8)
+        }
         if($Profile-notin@('legacy','upgrade')){$config+="`npvc:`n  size-mode: PERMISSION_AUTOMATIC`n  entitlements:`n    refresh-seconds: 1`n"}
         if($Profile-eq'upgrade'){
             if([regex]::IsMatch($config,'(?m)^pvc\s*:')){throw 'Populated upstream upgrade fixture must not preseed PVC settings.'}
@@ -296,7 +312,7 @@ try {
         # Folia counts pending simultaneous login reservations in its capacity
         # check. Leave two spare admission slots while still using only the two
         # fixed synthetic accounts; this does not grant a permission bypass.
-        $maxPlayers=if($Profile-in@('end','domain','missions')){4}else{2}
+        $maxPlayers=if($Profile-in@('end','domain','missions','commands')){4}else{2}
         [IO.File]::WriteAllText((Join-Path $root 'eula.txt'),"eula=true`n",$utf8)
         [IO.File]::WriteAllText((Join-Path $root 'server.properties'),@"
 online-mode=false

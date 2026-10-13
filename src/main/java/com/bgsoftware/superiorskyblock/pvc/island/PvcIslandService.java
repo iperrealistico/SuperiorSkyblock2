@@ -36,6 +36,7 @@ public final class PvcIslandService implements AutoCloseable {
     private final Map<UUID, CompletableFuture<Void>> resets = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> transfers = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> departingOwners = new ConcurrentHashMap<>();
+    private final Map<UUID, AtomicLong> membershipRevisions = new ConcurrentHashMap<>();
     private final Map<UUID, AtomicLong> revisions = new ConcurrentHashMap<>();
     private final Map<UUID, AtomicLong> worldGenerations = new ConcurrentHashMap<>();
     private final Map<String, UUID> reservedNames = new ConcurrentHashMap<>();
@@ -56,6 +57,9 @@ public final class PvcIslandService implements AutoCloseable {
     public Object getPositionLock() { return positionLock; }
     public boolean isAvailable(UUID island) { return !candidates.containsKey(island) && !deletions.containsKey(island) && !transfers.containsKey(island) && !resets.containsKey(island); }
     public long getRevision(UUID island) { AtomicLong revision = revisions.get(island); return revision == null ? 0L : revision.get(); }
+    /** Transient generation for confirmation requests, including remove/rejoin and role ABA. */
+    public long getMembershipRevision(UUID island) { AtomicLong value = membershipRevisions.get(island); return value == null ? 0L : value.get(); }
+    public void membershipChanged(UUID island) { membershipRevisions.computeIfAbsent(island, unused -> new AtomicLong()).incrementAndGet(); }
     public long getWorldGeneration(UUID island) { AtomicLong generation = worldGenerations.get(island); return generation == null ? 0L : generation.get(); }
     public long advanceWorldGeneration(UUID island) {
         synchronized (worldWriteLock(island)) { return worldGenerations.computeIfAbsent(island, unused -> new AtomicLong()).incrementAndGet(); }
@@ -222,6 +226,7 @@ public final class PvcIslandService implements AutoCloseable {
             return null;
         });
         for (SuperiorPlayer player : island.getIslandMembers(true)) player.removeIslandMembership(island);
+        membershipRevisions.remove(island.getUniqueId());
     }
     public void transfer(Island island, UUID previousOwner) {
         transfer(island, previousOwner, null);

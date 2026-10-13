@@ -9,7 +9,7 @@ from collections import Counter
 from pathlib import Path
 
 
-def inspect(jar: Path) -> dict:
+def inspect(jar: Path, expected_version: str = "2026.3-pvc.2") -> dict:
     failures = []
     versions = Counter()
     with zipfile.ZipFile(jar) as archive:
@@ -39,7 +39,7 @@ def inspect(jar: Path) -> dict:
             if core and not modern and major != 52:
                 failures.append("Java8 core/API baseline changed: " + name + " major=" + str(major))
         descriptor = archive.read("plugin.yml").decode("utf-8")
-        if "2026.3-pvc.1" not in descriptor or "folia-supported: true" not in descriptor:
+        if ("version: " + expected_version) not in descriptor.splitlines() or "folia-supported: true" not in descriptor:
             failures.append("Release descriptor mismatch")
         for version in ("v1_8_R3", "v1_12_R1", "v1_16_R3", "v1_17", "v1_18", "v1_19",
                         "v1_20_3", "v1_20_4", "v1_21", "v1_21_3", "v1_21_4", "v1_21_5",
@@ -63,7 +63,8 @@ def inspect(jar: Path) -> dict:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("jar", type=Path)
+    parser.add_argument("--version", default="2026.3-pvc.2")
     arguments = parser.parse_args()
-    result = inspect(arguments.jar)
+    result = inspect(arguments.jar, arguments.version)
     print(json.dumps(result, indent=2))
     raise SystemExit(0 if result["passed"] else 1)

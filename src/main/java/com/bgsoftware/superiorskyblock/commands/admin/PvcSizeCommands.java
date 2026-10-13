@@ -14,7 +14,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-final class PvcSizeCommands {
+public final class PvcSizeCommands {
     private PvcSizeCommands() { }
 
     static void feedback(SuperiorSkyblockPlugin plugin, CommandSender sender, String text) {
@@ -36,7 +36,6 @@ final class PvcSizeCommands {
     }
 
     static void set(SuperiorSkyblockPlugin plugin, CommandSender sender, String argument, int number, boolean additive) {
-        PvcEntitlementService service = plugin.getPvcEntitlements();
         Set<UUID> owners = new LinkedHashSet<>();
         Island captured = com.bgsoftware.superiorskyblock.pvc.island.IslandExecutionContext.current();
         if (captured != null && captured.getOwner() != null &&
@@ -50,6 +49,15 @@ final class PvcSizeCommands {
             if (owner == null) return;
             owners.add(owner.getUniqueId());
         }
+        setFrozenOwners(plugin, sender, owners, number, additive);
+    }
+
+    /** A confirmation keeps its captured owners and the original bounded bulk write chain. */
+    public static void setFrozenOwners(SuperiorSkyblockPlugin plugin, CommandSender sender,
+                                      Iterable<UUID> capturedOwners, int number, boolean additive) {
+        PvcEntitlementService service = plugin.getPvcEntitlements();
+        Set<UUID> owners = new LinkedHashSet<>();
+        for (UUID owner : capturedOwners) owners.add(owner);
         if (owners.isEmpty()) { feedback(plugin, sender, "No island owners matched."); return; }
         // Chaining admits one durable write at a time rather than flooding storage with bulk futures.
         CompletableFuture<Void> work = CompletableFuture.completedFuture(null);

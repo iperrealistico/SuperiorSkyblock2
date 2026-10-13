@@ -26,6 +26,7 @@ public final class SuperiorProbe extends JavaPlugin {
     private SuperiorDomainProbe domain;
     private SuperiorLegacyProbe legacy;
     private NativeMissionProbe mission;
+    private NativeCommandProbe commands;
     private SuperiorPlayerDiagnostics playerDiagnostics;
     private boolean failed;
 
@@ -48,8 +49,13 @@ public final class SuperiorProbe extends JavaPlugin {
     }
 
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (commands != null && commands.handleConsole(sender, args)) return true;
         if (!(sender instanceof Player player) || !player.getName().equals(ACCOUNT)) return true;
         String action = args.length == 0 ? "status" : args[0];
+        if (action.startsWith("command-")) {
+            if (commands == null) commands = new NativeCommandProbe(this, superior);
+            return commands.execute(player, action.substring(8));
+        }
         if (action.startsWith("advanced-")) return advanced.execute(player, action.substring(9));
         if (action.startsWith("domain-")) {
             if (domain == null) domain = new SuperiorDomainProbe(this, superior);

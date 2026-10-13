@@ -690,7 +690,10 @@ public class SSuperiorPlayer implements SuperiorPlayer {
 
     @Override public void addIslandMembership(Island island, PlayerRole role) {
         synchronized (membershipLock) {
-        memberships.put(island.getUniqueId(), island); islandRoles.put(island.getUniqueId(), role.getId());
+        Island previous = memberships.put(island.getUniqueId(), island);
+        Integer previousRole = islandRoles.put(island.getUniqueId(), role.getId());
+        if (previous != island || !java.util.Objects.equals(previousRole, role.getId()))
+            plugin.getPvcIslandService().membershipChanged(island.getUniqueId());
         if (playerIsland == null && memberships.size() == 1) playerIsland = island;
         }
     }
@@ -699,7 +702,8 @@ public class SSuperiorPlayer implements SuperiorPlayer {
         Island selected;
         boolean changed;
         synchronized (membershipLock) {
-        memberships.remove(island.getUniqueId()); islandRoles.remove(island.getUniqueId());
+        Island removed = memberships.remove(island.getUniqueId()); islandRoles.remove(island.getUniqueId());
+        if (removed != null) plugin.getPvcIslandService().membershipChanged(island.getUniqueId());
         changed = playerIsland == island;
         if (changed) {
             playerIsland = memberships.size() == 1 ? memberships.values().iterator().next() : null;
@@ -796,8 +800,11 @@ public class SSuperiorPlayer implements SuperiorPlayer {
     }
 
     @Override public void setPlayerRole(Island island, PlayerRole role) {
-        Preconditions.checkArgument(memberships.containsKey(island.getUniqueId()), "Player is not a member of this island");
-        islandRoles.put(island.getUniqueId(), role.getId());
+        synchronized (membershipLock) {
+            Preconditions.checkArgument(memberships.containsKey(island.getUniqueId()), "Player is not a member of this island");
+            Integer previous = islandRoles.put(island.getUniqueId(), role.getId());
+            if (!java.util.Objects.equals(previous, role.getId())) plugin.getPvcIslandService().membershipChanged(island.getUniqueId());
+        }
         if (island.getOwner() != this) IslandsDatabaseBridge.saveMemberRole(island, this);
     }
 

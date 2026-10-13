@@ -57,6 +57,11 @@ public class CmdAdminDemote implements IAdminPlayerCommand {
     }
 
     @Override
+    public boolean requireIsland() {
+        return true;
+    }
+
+    @Override
     public void execute(SuperiorSkyblockPlugin plugin, CommandSender sender, SuperiorPlayer targetPlayer, String[] args) {
         Island island = targetPlayer.getIsland();
 
@@ -97,8 +102,10 @@ public class CmdAdminDemote implements IAdminPlayerCommand {
     @Override
     public List<String> tabComplete(SuperiorSkyblockPlugin plugin, CommandSender sender, String[] args) {
         return args.length == 3 ? CommandTabCompletes.getOnlinePlayersWithIsland(plugin, args[2], false,
-                superiorPlayer -> !superiorPlayer.getIslandLeader().equals(superiorPlayer) &&
-                        !superiorPlayer.getPlayerRole().isFirstRole()) : Collections.emptyList();
+                superiorPlayer -> AdminMemberTargets.anyEligibleIsland(superiorPlayer, island ->
+                        plugin.getPvcIslandService().isAvailable(island.getUniqueId()) &&
+                                !island.getOwner().equals(superiorPlayer) &&
+                                !superiorPlayer.getPlayerRole(island).isFirstRole())) : Collections.emptyList();
     }
 
 }
