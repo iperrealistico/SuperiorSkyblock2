@@ -13,6 +13,8 @@ import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import com.bgsoftware.superiorskyblock.core.ChunkPosition;
 import com.bgsoftware.superiorskyblock.world.chunk.ChunkStorageAdapter;
 import com.bgsoftware.superiorskyblock.world.chunk.NativeRegionFiles;
+import com.bgsoftware.superiorskyblock.world.chunk.ChunkRetention;
+import com.bgsoftware.superiorskyblock.core.threads.OwnedStage;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -123,12 +125,35 @@ public final class RegionalChunkStorage implements ChunkStorageAdapter {
     @Override
     public CompletableFuture<Void> save(Chunk chunk, BooleanSupplier currentWriter, Consumer<Runnable> admitWriter) {
         CompletableFuture<Void> result = new CompletableFuture<>();
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(plugin.getPvcConfig().getChunkLoadTimeoutSeconds());
-        org.bukkit.scheduler.BukkitTask timeout = BukkitExecutor.async(() ->
-                result.completeExceptionally(new TimeoutException("Native storage acknowledgement timed out")),
-                20L * plugin.getPvcConfig().getChunkLoadTimeoutSeconds());
-        result.whenComplete((unused, error) -> { if (timeout != null) timeout.cancel(); });
-        capture(chunk, currentWriter, admitWriter, deadline, 0, result);
+        CompletableFuture<Void> acknowledged = new CompletableFuture<>();
+        try {
+            if (!BukkitExecutor.owns(chunk.getWorld(), chunk.getX(), chunk.getZ()))
+                throw new IllegalStateException("Storage retention requires the chunk owner");
+            ServerLevel level = ((CraftWorld) chunk.getWorld()).getHandle();
+            NewChunkHolder holder = ((ChunkSystemServerLevel) level).moonrise$getChunkTaskScheduler().chunkHolderManager.getChunkHolder(chunk.getX(), chunk.getZ());
+            if (holder == null || !(holder.getCurrentChunk() instanceof LevelChunk))
+                throw new IllegalStateException("Storage retention requires an existing full chunk");
+            ChunkRetention.acquire(chunk.getWorld(), chunk.getX(), chunk.getZ());
+        } catch (Throwable failure) { result.completeExceptionally(failure); return result; }
+        acknowledged.whenComplete((unused, failure) -> OwnedStage.submit(
+                task -> BukkitExecutor.region(chunk.getWorld(), chunk.getX(), chunk.getZ(), task), () -> {
+                    ChunkRetention.release(chunk.getWorld(), chunk.getX(), chunk.getZ());
+                    return CompletableFuture.<Void>completedFuture(null);
+                }).whenComplete((released, releaseFailure) -> {
+                    if (releaseFailure != null) {
+                        plugin.getPvcIslandService().blockOperations(releaseFailure);
+                        result.completeExceptionally(releaseFailure);
+                    } else if (failure != null) result.completeExceptionally(failure);
+                    else result.complete(null);
+                }));
+        try {
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(plugin.getPvcConfig().getChunkLoadTimeoutSeconds());
+            org.bukkit.scheduler.BukkitTask timeout = BukkitExecutor.async(() ->
+                    acknowledged.completeExceptionally(new TimeoutException("Native storage acknowledgement timed out")),
+                    20L * plugin.getPvcConfig().getChunkLoadTimeoutSeconds());
+            acknowledged.whenComplete((unused, error) -> { if (timeout != null) timeout.cancel(); });
+            capture(chunk, currentWriter, admitWriter, deadline, 0, acknowledged);
+        } catch (Throwable failure) { acknowledged.completeExceptionally(failure); }
         return result;
     }
 

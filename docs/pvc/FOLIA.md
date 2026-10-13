@@ -173,6 +173,12 @@ block/entity/POI readback/flush barriers remain mandatory.
 After shutdown or timeout, wrapper counters do not prove that uncancellable
 native IO has drained; the closed service and retained intent prohibit replacement
 admission until restart reconciliation.
+
+Qualified modern Paper/Leaf cleanup starts its live reset events on the main
+owner and uses the same owned existing-chunk deletion stage. Completion forwards
+the actual native clear outcome rather than treating entry from an IO worker
+as a valid world-access context. Older adapters retain their synchronous owner
+entry and original deletion callback contracts.
 The storage acknowledgement service has its own bounded admission using the
 same configured concurrency, queue limit and deadline. Queue residence counts
 toward those deadlines.
@@ -268,6 +274,17 @@ that bypasses readback. Qualification of one concrete Leaf configuration does
 not qualify every alternative region format or future Leaf ABI.
 
 ## Regional End fights
+
+Modern storage and regional arenas share the same owner-only chunk-ticket
+reference service. Storage retains an already-existing full chunk from snapshot
+capture through any readback retry and native flush, then releases its reference
+on the owner before completing the ACK. Arena release cannot remove a storage
+reference, and storage completion cannot remove an arena reference. Only the
+last shared reference removes the native plugin ticket; failed last removal
+retains that reference and fails the caller. Arena reservation counters describe
+arena admission, while up to the independently bounded storage window can still
+retain IO references. A pre-existing Superior plugin ticket outside this shared
+service fails closed rather than allowing an untracked owner to lose its ticket.
 
 Each active Folia End fight requests a contiguous **17 × 17 chunk** arena
 (289 chunks) around its island center. Activation loads/tickets chunks on their

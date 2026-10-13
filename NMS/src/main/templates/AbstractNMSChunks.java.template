@@ -95,7 +95,9 @@ public abstract class AbstractNMSChunks implements NMSChunks {
 
     @Override
     public CompletableFuture<Void> deleteChunksAsync(Island island, List<ChunkPosition> positions) {
-        if (!com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.isFolia())
+        if (!com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.isFolia() &&
+                com.bgsoftware.superiorskyblock.core.QualifiedNativeVersion.adapterFor(
+                        com.bgsoftware.superiorskyblock.core.ServerVersion.getBukkitVersion()) == null)
             return NMSChunks.super.deleteChunksAsync(island, positions);
         NMSUtils.ChunkCallback deletion = getDeleteChunkCallback(null);
         long generation = plugin.getPvcIslandService().getWorldGeneration(island.getUniqueId());

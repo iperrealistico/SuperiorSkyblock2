@@ -5,16 +5,13 @@ import com.bgsoftware.superiorskyblock.core.ChunkPosition;
 import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import com.bgsoftware.superiorskyblock.world.chunk.ChunkLoadReason;
 import com.bgsoftware.superiorskyblock.world.chunk.ChunksProvider;
+import com.bgsoftware.superiorskyblock.world.chunk.ChunkRetention;
 import org.bukkit.World;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
@@ -28,13 +25,9 @@ public final class RegionalDragonArena {
     private static final Object admissionLock = new Object();
     private static final Queue<Admission> waiting = new ArrayDeque<>();
     private static int reservedChunks;
-    private static final Object ticketLock = new Object();
-    private static final Map<ChunkPosition, Integer> ticketReferences = new HashMap<>();
     private static BukkitTask admissionTask;
     private static final int RADIUS = 8;
     private static final int CHUNKS = (RADIUS * 2 + 1) * (RADIUS * 2 + 1);
-    private static final Method ADD_TICKET = ticketMethod("addPluginChunkTicket");
-    private static final Method REMOVE_TICKET = ticketMethod("removePluginChunkTicket");
 
     private final World world;
     private final int centerX, centerZ;
@@ -285,47 +278,11 @@ public final class RegionalDragonArena {
         Admission(RegionalDragonArena arena, long generation) { this.arena = arena; this.generation = generation; }
     }
 
-    private static Method ticketMethod(String name) {
-        try { return World.class.getMethod(name, int.class, int.class, Plugin.class); }
-        catch (ReflectiveOperationException error) { throw new IllegalStateException("Folia requires plugin chunk tickets", error); }
-    }
-
-    private void invokeTicket(Method method, int x, int z) {
-        try { method.invoke(world, x, z, plugin); }
-        catch (ReflectiveOperationException error) { throw new IllegalStateException("Could not update dragon arena ticket", error); }
-    }
-
     private void acquireTicket(int x, int z) {
-        ChunkPosition key = ChunkPosition.of(world, x, z, false);
-        boolean first;
-        synchronized (ticketLock) {
-            int references = ticketReferences.getOrDefault(key, 0);
-            first = references == 0;
-            ticketReferences.put(key, references + 1);
-        }
-        if (first) {
-            try { invokeTicket(ADD_TICKET, x, z); }
-            catch (Throwable failure) {
-                synchronized (ticketLock) { ticketReferences.remove(key); }
-                throw failure;
-            }
-        }
+        ChunkRetention.acquire(world, x, z);
     }
 
     private void releaseTicket(int x, int z) {
-        ChunkPosition key = ChunkPosition.of(world, x, z, false);
-        boolean last;
-        synchronized (ticketLock) {
-            Integer references = ticketReferences.get(key);
-            if (references == null)
-                return;
-            last = references == 1;
-            if (!last)
-                ticketReferences.put(key, references - 1);
-        }
-        if (last) {
-            invokeTicket(REMOVE_TICKET, x, z);
-            synchronized (ticketLock) { ticketReferences.remove(key); }
-        }
+        ChunkRetention.release(world, x, z);
     }
 }
