@@ -88,7 +88,7 @@ public final class SuperiorProbe extends JavaPlugin {
                     reply(player, "SUPERIOR_ADMIN_REQUESTED");
                 }, 0);
                 case "status" -> status(player);
-                case "legacy-size-regression" -> {
+                case "geometry-size-regression" -> {
                     com.bgsoftware.superiorskyblock.island.SIsland island =
                             (com.bgsoftware.superiorskyblock.island.SIsland) owned(player).get(0);
                     int originalRaw = island.getIslandSizeRaw(), radius = island.getIslandSize();
