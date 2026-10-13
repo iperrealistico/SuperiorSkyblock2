@@ -36,23 +36,39 @@ import com.bgsoftware.superiorskyblock.player.chat.PlayerChat;
 import com.bgsoftware.superiorskyblock.player.permissions.PlayerPermissionsStore;
 import com.bgsoftware.superiorskyblock.player.respawn.RespawnActions;
 import com.bgsoftware.superiorskyblock.world.BukkitEntities;
+import com.bgsoftware.superiorskyblock.world.FoliaPlayerPresence;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.Event;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityEvent;
 import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 public class PlayersListener extends AbstractGameEventListener {
+
+    // One bounded arrival check per player, following the entity across a
+    // native asynchronous teleport rather than guessing a fixed arrival tick.
+    private final ConcurrentMap<UUID, EndArrival> pendingEndArrivals = new ConcurrentHashMap<>();
 
     private final LazyReference<RegionManagerService> regionManagerService = new LazyReference<RegionManagerService>() {
         @Override
@@ -64,6 +80,7 @@ public class PlayersListener extends AbstractGameEventListener {
     public PlayersListener(SuperiorSkyblockPlugin plugin) {
         super(plugin);
         registerListeners();
+        registerFoliaArrivalObserver();
     }
 
     /* PLAYER NOTIFIERS */
@@ -110,6 +127,7 @@ public class PlayersListener extends AbstractGameEventListener {
 
     private void onPlayerJoin(GameEvent<GameEventArgs.PlayerJoinEvent> e) {
         Player player = e.getArgs().player;
+        refreshLocationSnapshot(player, null);
 
         SuperiorPlayer superiorPlayer = plugin.getPlayers().getSuperiorPlayer(player);
 
@@ -144,7 +162,7 @@ public class PlayersListener extends AbstractGameEventListener {
 
         boolean teleportToSpawn = moveResult != MoveResult.SUCCESS;
 
-        BukkitExecutor.sync(() -> {
+        BukkitExecutor.entity(player, () -> {
             if (!player.isOnline())
                 return;
 
@@ -167,7 +185,7 @@ public class PlayersListener extends AbstractGameEventListener {
             }
 
             // Checking auto language detection
-            if (plugin.getSettings().isAutoLanguageDetection() && !player.hasPlayedBefore()) {
+            if (plugin.getSettings().isAutoLanguageDetection() && !PlayerLocales.isDefaultLanguageForced() && !player.hasPlayedBefore()) {
                 Locale playerLocale = plugin.getNMSPlayers().getPlayerLocale(player);
                 if (playerLocale != null && PlayerLocales.isValidLocale(playerLocale) &&
                         !superiorPlayer.getUserLocale().equals(playerLocale)) {
@@ -180,11 +198,17 @@ public class PlayersListener extends AbstractGameEventListener {
 
     private void onPlayerQuit(GameEvent<GameEventArgs.PlayerQuitEvent> e) {
         Player player = e.getArgs().player;
+        cancelEndArrival(player.getUniqueId());
 
         // Pending requests of dangerous commands should not be executed after the player left.
         plugin.getCommands().cancelDangerousRequests(player.getUniqueId());
 
         SuperiorPlayer superiorPlayer = plugin.getPlayers().getSuperiorPlayer(player);
+        if (superiorPlayer instanceof com.bgsoftware.superiorskyblock.player.SSuperiorPlayer)
+            ((com.bgsoftware.superiorskyblock.player.SSuperiorPlayer) superiorPlayer).clearLocationSnapshot();
+        Inventory closingInventory = player.getOpenInventory().getTopInventory();
+        if (closingInventory != null && closingInventory.getHolder() instanceof com.bgsoftware.superiorskyblock.island.SIslandChest)
+            ((com.bgsoftware.superiorskyblock.island.SIslandChest) closingInventory.getHolder()).onViewerClose(player, closingInventory);
 
         if (superiorPlayer instanceof SuperiorNPCPlayer) {
             ((SuperiorNPCPlayer) superiorPlayer).release();
@@ -297,6 +321,9 @@ public class PlayersListener extends AbstractGameEventListener {
 
     private void onPlayerChangeWorld(GameEvent<GameEventArgs.PlayerChangedWorldEvent> e) {
         Player player = e.getArgs().player;
+        Location previous = FoliaPlayerPresence.previousLocation(plugin, player);
+        queueEndArrival(player, previous, player.getLocation());
+        refreshLocationSnapshot(player, null);
 
         // We do not care about spawn island when spawn protection is disabled,
         // and therefore only island worlds are relevant.
@@ -311,7 +338,7 @@ public class PlayersListener extends AbstractGameEventListener {
 
         if (island != null && superiorPlayer.hasIslandFlyEnabled() && !player.getAllowFlight() &&
                 island.hasPermission(superiorPlayer, IslandPrivileges.FLY)) {
-            BukkitExecutor.sync(() -> {
+            BukkitExecutor.entity(player, () -> {
                 player.setAllowFlight(true);
                 player.setFlying(true);
             }, 1L);
@@ -411,7 +438,7 @@ public class PlayersListener extends AbstractGameEventListener {
         if (superiorPlayer.getChatState() == ChatStates.LOCAL_CHAT) {
             Island island;
             try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
-                island = plugin.getGrid().getIslandAt((e.getArgs().player).getLocation(wrapper.getHandle()));
+                island = plugin.getGrid().getIslandAt(superiorPlayer.getLocation(wrapper.getHandle()));
             }
 
             if (island == null || island.isSpawn()) {
@@ -426,7 +453,7 @@ public class PlayersListener extends AbstractGameEventListener {
 
             IslandChat.handleIslandChat(island, superiorPlayer, ChatStates.LOCAL_CHAT, e.getArgs().message);
         } else if (superiorPlayer.getChatState() == ChatStates.TEAM_CHAT) {
-            Island island = superiorPlayer.getIsland();
+            Island island = superiorPlayer.getSelectedIsland();
 
             if (island == null) {
                 if (!PluginEventsFactory.callPlayerChangeChatStateEvent(superiorPlayer, ChatStates.GLOBAL) ||
@@ -531,7 +558,7 @@ public class PlayersListener extends AbstractGameEventListener {
         Location respawnLocation = e.getArgs().bukkitEvent.getRespawnLocation();
         Player player = e.getArgs().player;
 
-        BukkitExecutor.sync(() -> {
+        BukkitExecutor.entity(player, () -> {
             if (!player.isOnline())
                 return;
 
@@ -550,6 +577,8 @@ public class PlayersListener extends AbstractGameEventListener {
     private void registerListeners() {
         registerCallback(GameEventType.PLAYER_LOGIN_EVENT, GameEventPriority.MONITOR, this::onPlayerLogin);
         registerCallback(GameEventType.PLAYER_JOIN_EVENT, GameEventPriority.MONITOR, this::onPlayerJoin);
+        registerCallback(GameEventType.ENTITY_MOVE_EVENT, GameEventPriority.MONITOR, this::onMovementSnapshot);
+        registerCallback(GameEventType.ENTITY_TELEPORT_EVENT, GameEventPriority.MONITOR, this::onTeleportSnapshot);
         registerCallback(GameEventType.PLAYER_QUIT_EVENT, GameEventPriority.MONITOR, this::onPlayerQuit);
         registerCallback(GameEventType.PLAYER_GAMEMODE_CHANGE, GameEventPriority.MONITOR, this::onPlayerGameModeChange);
         registerCallback(GameEventType.ENTITY_MOVE_EVENT, GameEventPriority.NORMAL, this::onPlayerMove);
@@ -565,6 +594,119 @@ public class PlayersListener extends AbstractGameEventListener {
         // PlayerChat should be on LOWEST priority so other chat plugins don't conflict.
         registerCallback(GameEventType.PLAYER_CHAT_EVENT, GameEventPriority.LOWEST, this::onPlayerChatLowest);
         registerCallback(GameEventType.PLAYER_CHAT_EVENT, GameEventPriority.NORMAL, this::onPlayerChat);
+    }
+
+    private void refreshLocationSnapshot(Player player, Location destination) {
+        SuperiorPlayer superiorPlayer = plugin.getPlayers().getSuperiorPlayer(player);
+        if (superiorPlayer instanceof com.bgsoftware.superiorskyblock.player.SSuperiorPlayer) {
+            com.bgsoftware.superiorskyblock.player.SSuperiorPlayer concrete =
+                    (com.bgsoftware.superiorskyblock.player.SSuperiorPlayer) superiorPlayer;
+            concrete.refreshRuntimeState(player);
+            concrete.refreshOpenedView(player);
+            if (destination == null) concrete.refreshLocationSnapshot(player);
+            else concrete.refreshLocationSnapshot(player, destination);
+        }
+    }
+
+    private void onMovementSnapshot(GameEvent<GameEventArgs.EntityMoveEvent> event) {
+        if (!event.isCancelled() && event.getArgs().entity instanceof Player && event.getArgs().to != null)
+            refreshLocationSnapshot((Player) event.getArgs().entity, event.getArgs().to);
+    }
+
+    private void onTeleportSnapshot(GameEvent<GameEventArgs.EntityTeleportEvent> event) {
+        if (!event.isCancelled() && event.getArgs().entity instanceof Player && event.getArgs().to != null) {
+            Player player = (Player) event.getArgs().entity;
+            refreshLocationSnapshot(player, event.getArgs().to);
+            queueEndArrival(player, event.getArgs().from, event.getArgs().to);
+        }
+    }
+
+    private void queueEndArrival(Player player, Location from, Location destination) {
+        if (!BukkitExecutor.isFolia() || player.hasMetadata("NPC")) return;
+        UUID playerId = player.getUniqueId();
+        FoliaPlayerPresence.Target target = FoliaPlayerPresence.capture(plugin, destination);
+        World world = target.world;
+        Island island = target.island;
+        Island origin = from == null ? null : plugin.getGrid().getIslandAt(from);
+        EndArrival previous = pendingEndArrivals.get(playerId);
+        if (origin == null && previous != null && previous.island == island && previous.world == world)
+            origin = previous.origin;
+        EndArrival arrival = new EndArrival(island, origin, world,
+                target.generation,
+                System.nanoTime() + TimeUnit.SECONDS.toNanos(plugin.getPvcConfig().getChunkLoadTimeoutSeconds()));
+        previous = pendingEndArrivals.put(playerId, arrival);
+        if (previous != null) previous.cancel();
+        scheduleEndArrival(player, arrival, 1L);
+    }
+
+    private void scheduleEndArrival(Player player, EndArrival arrival, long delay) {
+        UUID playerId = player.getUniqueId();
+        try {
+            BukkitTask task = BukkitExecutor.entity(player, () -> checkEndArrival(player, arrival), delay,
+                    () -> pendingEndArrivals.remove(playerId, arrival));
+            arrival.task = task;
+            if (pendingEndArrivals.get(playerId) != arrival && task != null) task.cancel();
+        } catch (java.util.concurrent.RejectedExecutionException stopping) {
+            pendingEndArrivals.remove(playerId, arrival);
+        }
+    }
+
+    private void checkEndArrival(Player player, EndArrival arrival) {
+        UUID playerId = player.getUniqueId();
+        if (pendingEndArrivals.get(playerId) != arrival) return;
+        FoliaPlayerPresence.Target target = new FoliaPlayerPresence.Target(arrival.world, arrival.island, arrival.generation);
+        if (!player.isOnline() || !player.isValid() || !FoliaPlayerPresence.isCurrent(plugin, target)) {
+            pendingEndArrivals.remove(playerId, arrival);
+            return;
+        }
+        Location actual = player.getLocation();
+        if (actual.getWorld() != arrival.world || plugin.getGrid().getIslandAt(actual) != arrival.island) {
+            if (System.nanoTime() < arrival.deadline) scheduleEndArrival(player, arrival, 5L);
+            else pendingEndArrivals.remove(playerId, arrival);
+            return;
+        }
+        if (!pendingEndArrivals.remove(playerId, arrival)) return;
+        FoliaPlayerPresence.reconcile(plugin, player, arrival.origin, target);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void registerFoliaArrivalObserver() {
+        if (!BukkitExecutor.isFolia()) return;
+        try {
+            // The maintained Folia async teleport implementation omits the
+            // usual teleport/changed-world events, but destination tracking
+            // fires this real event while the player is valid on its owner.
+            Class<? extends Event> eventClass = (Class<? extends Event>) Class.forName(
+                    "com.destroystokyo.paper.event.entity.EntityAddToWorldEvent");
+            plugin.getServer().getPluginManager().registerEvent(eventClass, new Listener() { }, EventPriority.MONITOR,
+                    (listener, event) -> {
+                        if (!(event instanceof EntityEvent)) return;
+                        org.bukkit.entity.Entity entity = ((EntityEvent) event).getEntity();
+                        if (!(entity instanceof Player) || !BukkitExecutor.owns(entity)) return;
+                        Player player = (Player) entity;
+                        Location previous = FoliaPlayerPresence.previousLocation(plugin, player);
+                        queueEndArrival(player, previous, player.getLocation());
+                    }, plugin);
+        } catch (ClassNotFoundException missing) {
+            throw new IllegalStateException("Folia requires the native entity arrival event", missing);
+        }
+    }
+
+    private void cancelEndArrival(UUID playerId) {
+        EndArrival arrival = pendingEndArrivals.remove(playerId);
+        if (arrival != null) arrival.cancel();
+    }
+
+    private static final class EndArrival {
+        final Island island, origin;
+        final World world;
+        final long generation, deadline;
+        volatile BukkitTask task;
+        EndArrival(Island island, Island origin, World world, long generation, long deadline) {
+            this.island = island; this.origin = origin; this.world = world;
+            this.generation = generation; this.deadline = deadline;
+        }
+        void cancel() { BukkitTask scheduled = task; if (scheduled != null) scheduled.cancel(); }
     }
 
 }

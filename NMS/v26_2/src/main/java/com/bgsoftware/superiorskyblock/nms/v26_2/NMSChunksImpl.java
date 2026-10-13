@@ -85,7 +85,7 @@ public class NMSChunksImpl extends com.bgsoftware.superiorskyblock.nms.v26_2.Abs
 
                 levelChunk.markUnsaved();
 
-                BukkitExecutor.ensureMain(() -> {
+                BukkitExecutor.region(levelChunk.getLevel().getWorld(), levelChunk.getPos().x(), levelChunk.getPos().z(), () -> {
                     ServerLevel serverLevel = (ServerLevel) levelChunk.getLevel();
                     if (playersToUpdate.isEmpty() || serverLevel.getChunkSource().getChunkNow(
                             levelChunk.getPos().getMinBlockX() >> 4, levelChunk.getPos().getMinBlockZ() >> 4) != levelChunk)
@@ -100,6 +100,16 @@ public class NMSChunksImpl extends com.bgsoftware.superiorskyblock.nms.v26_2.Abs
                             levelChunk, serverLevel.getLightEngine(), null, null);
 
                     playersToUpdate.forEach(player -> {
+                        if (BukkitExecutor.isFolia()) {
+                            BukkitExecutor.entity(player, () -> {
+                                if (!player.isOnline() || player.getWorld() != serverLevel.getWorld())
+                                    return;
+                                ServerPlayer serverPlayer = ((CraftPlayer) player).getHandle();
+                                if (trackingPlayers.contains(serverPlayer))
+                                    serverPlayer.connection.send(mapChunkPacket);
+                            });
+                            return;
+                        }
                         if (!player.isOnline() || player.getWorld() != serverLevel.getWorld())
                             return;
 
@@ -298,6 +308,11 @@ public class NMSChunksImpl extends com.bgsoftware.superiorskyblock.nms.v26_2.Abs
             public void onFinish() {
                 completableFuture.complete(allCalculatedChunks);
             }
+
+            @Override
+            public void onFailure(Throwable failure) {
+                completableFuture.completeExceptionally(failure);
+            }
         };
     }
 
@@ -324,6 +339,13 @@ public class NMSChunksImpl extends com.bgsoftware.superiorskyblock.nms.v26_2.Abs
 
             @Override
             public void onFinish() {
+                if (BukkitExecutor.isFolia()) {
+                    if (unloadedChunkCompounds.isEmpty())
+                        completableFuture.complete(allCalculatedChunks);
+                    else
+                        completableFuture.completeExceptionally(new IllegalStateException("Regional entity calculation must load chunks"));
+                    return;
+                }
                 BukkitExecutor.ensureMain(() -> {
                     for (NMSUtils.UnloadedChunkCompound unloadedChunkCompound : unloadedChunkCompounds) {
                         ListTag entitiesTag = unloadedChunkCompound.chunkCompound().getListOrEmpty("Entities");
@@ -333,6 +355,11 @@ public class NMSChunksImpl extends com.bgsoftware.superiorskyblock.nms.v26_2.Abs
 
                     completableFuture.complete(allCalculatedChunks);
                 });
+            }
+
+            @Override
+            public void onFailure(Throwable failure) {
+                completableFuture.completeExceptionally(failure);
             }
         };
     }

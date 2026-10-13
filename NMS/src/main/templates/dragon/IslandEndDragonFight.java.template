@@ -2,17 +2,24 @@ package com.bgsoftware.superiorskyblock.nms.${NMS_VERSION}.dragon;
 
 import com.bgsoftware.common.annotations.Nullable;
 import com.bgsoftware.common.reflection.ReflectField;
+import com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin;
 import com.bgsoftware.superiorskyblock.api.island.Island;
 import com.bgsoftware.superiorskyblock.api.world.WorldInfo;
 import com.bgsoftware.superiorskyblock.core.IslandWorldsPlayersStrategy;
 import com.bgsoftware.superiorskyblock.core.ObjectsPools;
 import com.bgsoftware.superiorskyblock.core.SequentialListBuilder;
+import com.bgsoftware.superiorskyblock.core.logging.Log;
+import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
+import com.bgsoftware.superiorskyblock.world.RegionalDragonArena;
 import com.bgsoftware.superiorskyblock.nms.${NMS_VERSION}.NMSUtils;
 import com.bgsoftware.superiorskyblock.nms.${NMS_VERSION}.dragon.DragonUtils;
 import com.bgsoftware.superiorskyblock.nms.${NMS_VERSION}.utils.NMSUtilsVersioned;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerBossEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.BossEvent;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
@@ -37,12 +44,17 @@ import ${CRAFTBUKKIT_PACKAGE}.entity.CraftPlayer;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 
 public class IslandEndDragonFight extends EndDragonFightWrapper {
+
+    private static final SuperiorSkyblockPlugin plugin = SuperiorSkyblockPlugin.getPlugin();
 
     private static final ReflectField<${END_DRAGON_FIGHT_CLASS}> DRAGON_BATTLE = initializeDragonBattleField();
     private static final ReflectField<Boolean> SCAN_FOR_LEGACY_PORTALS = new ReflectField<>(
@@ -79,12 +91,18 @@ public class IslandEndDragonFight extends EndDragonFightWrapper {
     private final ServerLevel serverLevel;
     @Nullable
     private final SpikesCache.IslandSpikes islandSpikes;
-    private IslandEntityEnderDragon entityEnderDragon;
+    private volatile IslandEntityEnderDragon entityEnderDragon;
     private final Runnable tickTask;
     private final Runnable respawnTickTask;
     private final Runnable resetSpikeCrystalsTask;
 
     private byte currentTick = 0;
+    private final RegionalDragonArena regionalArena;
+    private final Method regionalTick;
+    private final AtomicBoolean loopScheduled = new AtomicBoolean();
+    private final AtomicBoolean retryScheduled = new AtomicBoolean();
+    private volatile boolean stopped;
+    private boolean relativeGateway;
 
     public IslandEndDragonFight(Island island, ServerLevel serverLevel, Location location) {
         this(island, serverLevel, new BlockPos(location.getBlockX(), location.getBlockY(), location.getBlockZ()), null);
@@ -99,27 +117,38 @@ public class IslandEndDragonFight extends EndDragonFightWrapper {
         this.islandBlockVectored = Vec3.atBottomCenterOf(islandBlockPos);
         this.serverLevel = serverLevel;
 
+        if (BukkitExecutor.isFolia()) {
+            this.regionalArena = new RegionalDragonArena(serverLevel.getWorld(), islandBlockPos.getX() >> 4, islandBlockPos.getZ() >> 4);
+            this.regionalTick = installRegionalAdapters();
+        } else {
+            this.regionalArena = null;
+            this.regionalTick = null;
+        }
+
         // Must be initialized before spawning the dragon, as it resets the spike crystals.
         SpikesCache.IslandSpikes islandSpikes = SpikesCache.createIslandSpikes(serverLevel, islandBlockPos);
         this.islandSpikes = islandSpikes;
         if (islandSpikes == null) {
-            this.tickTask = super::tick;
+            this.tickTask = BukkitExecutor.isFolia() ? this::tickRegionalVanilla : super::tick;
             this.resetSpikeCrystalsTask = super::resetSpikeCrystals;
         } else {
-            this.tickTask = () -> islandSpikes.runWith(super::tick);
+            this.tickTask = () -> islandSpikes.runWith(BukkitExecutor.isFolia() ? this::tickRegionalVanilla : super::tick);
             this.resetSpikeCrystalsTask = () -> islandSpikes.runWith(super::resetSpikeCrystals);
         }
         // When respawning the dragon, vanilla rebuilds the end spikes, which would modify the island.
         // We hide the spikes during the respawn, which makes vanilla skip this stage.
-        this.respawnTickTask = () -> SpikesCache.runWithoutSpikes(islandSpikes, super::tick);
+        this.respawnTickTask = () -> SpikesCache.runWithoutSpikes(islandSpikes,
+                BukkitExecutor.isFolia() ? this::tickRegionalVanilla : super::tick);
 
-        this.entityEnderDragon = islandEntityEnderDragon == null ? spawnEnderDragon() : islandEntityEnderDragon;
+        this.entityEnderDragon = islandEntityEnderDragon == null && !BukkitExecutor.isFolia() ? spawnEnderDragon() : islandEntityEnderDragon;
         // Vanilla only registers the death of the dragon with this uuid.
-        DRAGON_UUID.set(this, this.entityEnderDragon.getUUID());
+        if (this.entityEnderDragon != null)
+            DRAGON_UUID.set(this, this.entityEnderDragon.getUUID());
 
         SCAN_FOR_LEGACY_PORTALS.set(this, false);
         WAS_DRAGON_KILLED.set(this, false);
-        DRAGON_BATTLE.set(this.entityEnderDragon, this);
+        if (this.entityEnderDragon != null)
+            DRAGON_BATTLE.set(this.entityEnderDragon, this);
 
         TICKS_SINCE_LAST_PLAYER_SCAN.set(this, Integer.MIN_VALUE);
     }
@@ -127,6 +156,12 @@ public class IslandEndDragonFight extends EndDragonFightWrapper {
     @Override
     public void tick() {
         // doServerTick
+
+        if (BukkitExecutor.isFolia()) {
+            if (!canTickRegionally())
+                return;
+            updateBattlePlayers();
+        }
 
         boolean isRespawning = this.respawnStage != null;
 
@@ -138,13 +173,15 @@ public class IslandEndDragonFight extends EndDragonFightWrapper {
         DragonUtils.runWithPodiumPosition(this.islandBlockPos, isRespawning ? this.respawnTickTask : this.tickTask);
 
         // Vanilla keeps the chunks around (0, 0) loaded while players are in the fight. Island fights don't need it.
-        if (!this.dragonEvent.getPlayers().isEmpty())
+        if (!BukkitExecutor.isFolia() && !this.dragonEvent.getPlayers().isEmpty())
             NMSUtilsVersioned.removeDragonTicket(this.serverLevel);
 
         if (isRespawning)
             updateRespawnCrystalsBeamTarget();
 
         syncEnderDragon();
+        if (this.entityEnderDragon == null)
+            return;
 
         DragonPhaseInstance currentPhase = this.entityEnderDragon.getPhaseManager().getCurrentPhase();
         if (currentPhase instanceof DragonLandingPhase && !this.islandBlockVectored.equals(currentPhase.getFlyTargetLocation())) {
@@ -152,7 +189,10 @@ public class IslandEndDragonFight extends EndDragonFightWrapper {
         }
 
         if (++currentTick >= 20) {
-            updateBattlePlayers();
+            if (!BukkitExecutor.isFolia())
+                updateBattlePlayers();
+            else if (this.respawnStage == null && Boolean.TRUE.equals(WAS_DRAGON_KILLED.get(this)))
+                tryRespawn();
             currentTick = 0;
             TICKS_SINCE_LAST_PLAYER_SCAN.set(this, Integer.MIN_VALUE);
         }
@@ -233,8 +273,154 @@ public class IslandEndDragonFight extends EndDragonFightWrapper {
         return this.island;
     }
 
+    public org.bukkit.World getBukkitWorld() {
+        return this.serverLevel.getWorld();
+    }
+
     public IslandEntityEnderDragon getEnderDragon() {
         return this.entityEnderDragon;
+    }
+
+    public RegionalDragonArena getRegionalArena() {
+        return this.regionalArena;
+    }
+
+    public ServerBossEvent getRegionalBossEvent() {
+        return this.dragonEvent;
+    }
+
+    public UUID getNativeDragonUuid() {
+        return DRAGON_UUID.get(this);
+    }
+
+    /** Woken by player entry rather than a repeating scan over every offline island. */
+    public void wake() {
+        if (!BukkitExecutor.isFolia() || stopped || !hasEndPlayers())
+            return;
+        if (regionalArena.isReady()) { scheduleLoop(); return; }
+        boolean queued = regionalArena.request(() -> {
+            if (stopped) { regionalArena.release(); return; }
+            if (entityEnderDragon == null)
+                entityEnderDragon = spawnEnderDragon();
+            scheduleLoop();
+        }, error -> {
+            Log.error(error, "Could not activate regional dragon arena for island " + island.getUniqueId());
+            scheduleActivationRetry();
+        });
+        if (!queued)
+            scheduleActivationRetry();
+    }
+
+    public boolean canTickRegionally() {
+        return !stopped && regionalArena != null && regionalArena.ownsArena() &&
+                (entityEnderDragon == null || !entityEnderDragon.getBukkitEntity().isValid() ||
+                        BukkitExecutor.owns(entityEnderDragon.getBukkitEntity()));
+    }
+
+    public void stop() {
+        stopAsync();
+    }
+
+    public java.util.concurrent.CompletableFuture<Void> stopAsync() {
+        stopped = true;
+        removeBattlePlayers();
+        return regionalArena == null ? java.util.concurrent.CompletableFuture.completedFuture(null) : regionalArena.releaseAsync();
+    }
+
+    private boolean hasEndPlayers() {
+        try (IslandWorldsPlayersStrategy strategy = IslandWorldsPlayersStrategy.create(island)) {
+            return !strategy.getSuperiorPlayers(WorldInfo.of(serverLevel.getWorld())).isEmpty();
+        }
+    }
+
+    private void scheduleActivationRetry() {
+        if (!stopped && retryScheduled.compareAndSet(false, true)) {
+            try { BukkitExecutor.async(() -> { retryScheduled.set(false); wake(); }, 100L); }
+            catch (Throwable stopping) { retryScheduled.set(false); }
+        }
+    }
+
+    private void scheduleLoop() {
+        if (stopped || !regionalArena.isReady() || !loopScheduled.compareAndSet(false, true))
+            return;
+        Runnable step = () -> {
+            loopScheduled.set(false);
+            if (stopped)
+                return;
+            if (!hasEndPlayers()) { removeBattlePlayers(); regionalArena.release(); return; }
+            if (canTickRegionally())
+                tick();
+            scheduleLoop();
+        };
+        IslandEntityEnderDragon dragon = entityEnderDragon;
+        if (dragon != null && dragon.getBukkitEntity().isValid()) {
+            BukkitExecutor.entity(dragon.getBukkitEntity(), step, 1L, () -> {
+                loopScheduled.set(false);
+                if (!stopped)
+                    BukkitExecutor.region(serverLevel.getWorld(), islandBlockPos.getX() >> 4, islandBlockPos.getZ() >> 4, this::scheduleLoop, 1L);
+            });
+        } else {
+            BukkitExecutor.region(serverLevel.getWorld(), islandBlockPos.getX() >> 4, islandBlockPos.getZ() >> 4, step, 1L);
+        }
+    }
+
+    private Method installRegionalAdapters() {
+        String version = org.bukkit.Bukkit.getBukkitVersion().startsWith("26.2") ? "v26_2" : "v1_21_11";
+        String base = "com.bgsoftware.superiorskyblock.platform.folia.nms." + version + ".";
+        try {
+            ServerBossEvent bossEvent = (ServerBossEvent) Class.forName(base + "RegionalDragonBossEvent", true,
+                    plugin.getPluginClassLoader()).getConstructor(Component.class, BossEvent.BossBarColor.class,
+                    BossEvent.BossBarOverlay.class).newInstance(this.dragonEvent.getName(),
+                    BossEvent.BossBarColor.PINK, BossEvent.BossBarOverlay.PROGRESS);
+            bossEvent.setPlayBossMusic(true).setCreateWorldFog(true);
+            ReflectField<ServerBossEvent> bossField = new ReflectField<>(${END_DRAGON_FIGHT_CLASS}.class,
+                    ServerBossEvent.class, Modifier.PUBLIC | Modifier.FINAL, 1);
+            if (bossField.isValid())
+                bossField = bossField.removeFinal();
+            else
+                bossField = new ReflectField<>(${END_DRAGON_FIGHT_CLASS}.class, ServerBossEvent.class, Modifier.PUBLIC, 1);
+            bossField.set(this, bossEvent);
+            return Class.forName(base + "RegionalDragonFightTick", true, plugin.getPluginClassLoader()).getMethod("tick", Object.class);
+        } catch (ReflectiveOperationException error) {
+            throw new IllegalStateException("Regional dragon adapters are unavailable", error);
+        }
+    }
+
+    private void tickRegionalVanilla() {
+        try { regionalTick.invoke(null, this); }
+        catch (ReflectiveOperationException error) { throw new IllegalStateException("Regional dragon progression failed", error); }
+    }
+
+    public boolean tryRespawnRegionally(@Nullable BlockPos crystalPosition, BooleanSupplier vanilla) {
+        if (BukkitExecutor.isFolia() && !canTickRegionally()) { wake(); return false; }
+        final boolean[] result = new boolean[1];
+        DragonUtils.runWithPodiumPosition(islandBlockPos, () -> {
+            if (islandSpikes == null)
+                result[0] = vanilla.getAsBoolean();
+            else
+                islandSpikes.runWith(() -> result[0] = vanilla.getAsBoolean());
+        });
+        return result[0];
+    }
+
+    @Override
+    public void setDragonKilled(EnderDragon dragon) {
+        if (BukkitExecutor.isFolia() && !canTickRegionally()) {
+            BukkitExecutor.region(serverLevel.getWorld(), islandBlockPos.getX() >> 4, islandBlockPos.getZ() >> 4,
+                    () -> { if (regionalArena.ownsArena()) setDragonKilledOwned(dragon); }, 1L);
+            return;
+        }
+        setDragonKilledOwned(dragon);
+    }
+
+    private void setDragonKilledOwned(EnderDragon dragon) {
+        relativeGateway = BukkitExecutor.isFolia();
+        try { DragonUtils.runWithPodiumPosition(islandBlockPos, () -> super.setDragonKilled(dragon)); }
+        finally { relativeGateway = false; }
+    }
+
+    public BlockPos adjustGatewayPosition(BlockPos position) {
+        return relativeGateway ? position.offset(islandBlockPos.getX(), islandBlockPos.getY() - 64, islandBlockPos.getZ()) : position;
     }
 
     private void updateBattlePlayers() {
@@ -244,6 +430,9 @@ public class IslandEndDragonFight extends EndDragonFightWrapper {
 
         try(IslandWorldsPlayersStrategy strategy = IslandWorldsPlayersStrategy.create(island)) {
             strategy.getPlayers(worldInfo).forEach(player -> {
+                if (BukkitExecutor.isFolia() && (!BukkitExecutor.owns(player) ||
+                        player.getWorld() != serverLevel.getWorld() || !island.isInside(player.getLocation())))
+                    return;
                 ServerPlayer serverPlayer = ((CraftPlayer) player).getHandle();
                 this.dragonEvent.addPlayer(serverPlayer);
                 nearbyPlayers.add(serverPlayer.getUUID());
@@ -263,6 +452,7 @@ public class IslandEndDragonFight extends EndDragonFightWrapper {
 
         entityEnderDragon.getPhaseManager().setPhase(EnderDragonPhase.HOLDING_PATTERN);
         moveToSpawnPosition(entityEnderDragon);
+        DRAGON_BATTLE.set(entityEnderDragon, this);
 
         NMSUtilsVersioned.addEntity(this.serverLevel, entityEnderDragon, CreatureSpawnEvent.SpawnReason.NATURAL);
 
@@ -278,10 +468,13 @@ public class IslandEndDragonFight extends EndDragonFightWrapper {
                 NMSUtilsVersioned.getMaxBuildHeight(this.serverLevel) - 1);
         NMSUtilsVersioned.moveEntity(entityEnderDragon, this.islandBlockPos.getX(), spawnY, this.islandBlockPos.getZ(),
                 this.serverLevel.getRandom().nextFloat() * 360.0F, 0.0F);
+        entityEnderDragon.initializeRegionalParts();
     }
 
     private void syncEnderDragon() {
         UUID dragonUUID = DRAGON_UUID.get(this);
+        if (this.entityEnderDragon == null)
+            return;
         if (this.entityEnderDragon.getUUID().equals(dragonUUID))
             return;
 

@@ -1,14 +1,11 @@
 package com.bgsoftware.superiorskyblock.missions;
 
 import com.bgsoftware.superiorskyblock.api.key.Key;
-import com.bgsoftware.superiorskyblock.api.key.KeyMap;
 import com.bgsoftware.superiorskyblock.api.key.KeySet;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.objects.Pair;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
-import com.bgsoftware.superiorskyblock.core.Counter;
-import com.bgsoftware.superiorskyblock.core.ObjectsPool;
-import com.bgsoftware.superiorskyblock.core.ObjectsPools;
+import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import com.bgsoftware.superiorskyblock.core.key.KeyIndicator;
 import com.bgsoftware.superiorskyblock.core.key.map.KeyMaps;
 import com.bgsoftware.superiorskyblock.missions.common.BuiltinMission;
@@ -31,22 +28,18 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import static com.bgsoftware.superiorskyblock.core.ObjectsPools.Wrapper;
 
 @SuppressWarnings("unused")
 public final class ItemsMissions extends BuiltinMission<ItemsMissions.ItemsTracker> implements Listener {
 
     private static final long COUNT_INVENTORY_THRESHOLD = TimeUnit.SECONDS.toMillis(1);
-    private final ObjectsPool<Wrapper<ItemProgress[]>> ITEM_PROGRESS_POOL = ObjectsPools.createNewPool(this::createProgressLookup);
 
     private final Map<KeyRequirements, Integer> requiredItems = new LinkedHashMap<>();
     private int totalRequiredAmount;
@@ -75,7 +68,7 @@ public final class ItemsMissions extends BuiltinMission<ItemsMissions.ItemsTrack
 
     @Override
     protected void clearModuleData(ItemsTracker data) {
-        data.itemsTracker.clear();
+        data.clear();
     }
 
     @Override
@@ -105,46 +98,62 @@ public final class ItemsMissions extends BuiltinMission<ItemsMissions.ItemsTrack
     }
 
     private int countItemsForPlayerInternal(Player player, ItemsTracker itemsTracker) {
-        long currTime = System.currentTimeMillis();
+        return countSnapshot(player, itemsTracker, false).totalItemAmount;
+    }
 
-        if (itemsTracker.lastCountTime > 0 && currTime < itemsTracker.lastCountTime)
-            return itemsTracker.totalItemAmount;
-
-        try (Wrapper<ItemProgress[]> progressLookupWrapper = ITEM_PROGRESS_POOL.obtain()) {
-            ItemProgress[] progressLookup = progressLookupWrapper.getHandle();
-            for (ItemProgress itemProgress : progressLookup) {
-                itemProgress.count = 0;
-            }
-
-            itemsTracker.clear(currTime);
-
-            for (ItemStack itemStack : player.getInventory().getContents()) {
-                if (itemStack != null && itemStack.getType() != Material.AIR) {
-                    Pair<Key, Integer> missionItemData = getMissionItemData(itemStack);
-                    if (missionItemData != null) {
-                        ItemProgress itemProgress = progressLookup[missionItemData.getValue()];
-                        int counted = itemProgress.track(itemStack.getAmount());
-                        itemsTracker.track(itemStack, missionItemData.getKey(), counted);
-                    }
-                }
+    /** Inventory references never escape this player's owning thread. */
+    private CountSnapshot countSnapshot(Player player, ItemsTracker itemsTracker, boolean force) {
+        long now = System.currentTimeMillis();
+        CountSnapshot cached = itemsTracker.cached(player.getUniqueId(), this, now);
+        if (!force && cached != null) return cached;
+        if (BukkitExecutor.isFolia() && !BukkitExecutor.owns(player)) {
+            if (force) throw new IllegalStateException("Item mission consumption requires the player's owning thread");
+            return cached == null ? CountSnapshot.EMPTY : cached;
+        }
+        ItemProgress[] progressLookup = createProgressLookup();
+        Map<Key, Integer> counts = KeyMaps.createHashMap(KeyIndicator.MATERIAL);
+        Map<Integer, Integer> removals = new LinkedHashMap<>();
+        int total = 0;
+        ItemStack[] contents = player.getInventory().getContents();
+        for (int slot = 0; slot < contents.length; slot++) {
+            ItemStack item = contents[slot];
+            Pair<Key, Integer> data = getMissionItemData(item);
+            if (data == null) continue;
+            int counted = progressLookup[data.getValue()].track(item.getAmount());
+            if (counted > 0) {
+                removals.put(slot, counted);
+                counts.put(data.getKey(), counts.getOrDefault(data.getKey(), 0) + counted);
+                total += counted;
             }
         }
-
-        return itemsTracker.totalItemAmount;
+        CountSnapshot result = new CountSnapshot(this, counts, removals, total, now + COUNT_INVENTORY_THRESHOLD);
+        itemsTracker.publish(player.getUniqueId(), result);
+        return result;
     }
 
     @Override
     public void onComplete(SuperiorPlayer superiorPlayer) {
-        getProgress(superiorPlayer);
-        ItemsTracker itemsTracker = get(superiorPlayer);
-
-        if (itemsTracker == null)
-            return;
-
+        ItemsTracker tracker = get(superiorPlayer);
         Player player = superiorPlayer.asPlayer();
-        assert player != null;
-
-        removeItems(player.getInventory(), itemsTracker);
+        if (tracker == null || player == null)
+            throw new IllegalStateException("Item mission actor is no longer available");
+        // Recount after the completion event, rather than consume a stale or another member's cache.
+        CountSnapshot snapshot = countSnapshot(player, tracker, true);
+        if (snapshot.totalItemAmount < this.totalRequiredAmount)
+            throw new IllegalStateException("Required mission items changed before consumption");
+        PlayerInventory inventory = player.getInventory();
+        for (Map.Entry<Integer, Integer> removal : snapshot.removals.entrySet()) {
+            ItemStack item = inventory.getItem(removal.getKey());
+            if (item == null || item.getAmount() < removal.getValue())
+                throw new IllegalStateException("Mission inventory changed during consumption");
+        }
+        for (Map.Entry<Integer, Integer> removal : snapshot.removals.entrySet()) {
+            ItemStack item = inventory.getItem(removal.getKey()).clone();
+            int remaining = item.getAmount() - removal.getValue();
+            item.setAmount(remaining);
+            inventory.setItem(removal.getKey(), remaining == 0 ? null : item);
+        }
+        tracker.invalidate(superiorPlayer.getUniqueId());
     }
 
     @Override
@@ -154,18 +163,20 @@ public final class ItemsMissions extends BuiltinMission<ItemsMissions.ItemsTrack
         if (itemsTracker == null)
             return;
 
+        Player actor = superiorPlayer.asPlayer();
+        CountSnapshot counts = actor == null ? CountSnapshot.EMPTY : countSnapshot(actor, itemsTracker, false);
         ItemMeta itemMeta = itemStack.getItemMeta();
 
         if (itemMeta == null)
             return;
 
         if (itemMeta.hasDisplayName())
-            itemMeta.setDisplayName(Placeholders.parseKeyPlaceholders(this.requiredItems, itemsTracker::getCount, itemMeta.getDisplayName(), true));
+            itemMeta.setDisplayName(Placeholders.parseKeyPlaceholders(this.requiredItems, counts::getCount, itemMeta.getDisplayName(), true));
 
         if (itemMeta.hasLore()) {
             List<String> lore = new ArrayList<>();
             for (String line : Objects.requireNonNull(itemMeta.getLore()))
-                lore.add(Placeholders.parseKeyPlaceholders(this.requiredItems, itemsTracker::getCount, line, true));
+                lore.add(Placeholders.parseKeyPlaceholders(this.requiredItems, counts::getCount, line, true));
             itemMeta.setLore(lore);
         }
 
@@ -196,7 +207,9 @@ public final class ItemsMissions extends BuiltinMission<ItemsMissions.ItemsTrack
         if (!this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
-        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(unused -> {
+        laterPlayer(superiorPlayer, () -> superiorPlayer.runIfOnline(unused -> {
+            ItemsTracker tracker = get(superiorPlayer);
+            if (tracker != null) tracker.invalidate(superiorPlayer.getUniqueId());
             if (canComplete(superiorPlayer))
                 this.plugin.getMissions().rewardMission(this, superiorPlayer, true);
         }), 2L);
@@ -217,19 +230,6 @@ public final class ItemsMissions extends BuiltinMission<ItemsMissions.ItemsTrack
         }
 
         return null;
-    }
-
-    private static void removeItems(PlayerInventory inventory, ItemsTracker itemsTracker) {
-        if (itemsTracker.itemsTracker.isEmpty())
-            return;
-
-        for (Pair<ItemStack, Integer> itemToRemove : itemsTracker.itemsTracker) {
-            ItemStack itemStack = itemToRemove.getKey();
-            int removeCount = itemToRemove.getValue();
-            int itemAmount = itemStack.getAmount();
-            int newCount = Math.max(0, itemAmount - removeCount);
-            itemStack.setAmount(newCount);
-        }
     }
 
     private ItemProgress[] createProgressLookup() {
@@ -266,48 +266,43 @@ public final class ItemsMissions extends BuiltinMission<ItemsMissions.ItemsTrack
 
     }
 
+    /** Bounded immutable per-actor caches; shared island subjects never share live inventories. */
     public class ItemsTracker {
+        private final LinkedHashMap<java.util.UUID, CountSnapshot> actors = new LinkedHashMap<>();
 
-        private final Set<Pair<ItemStack, Integer>> itemsTracker = new HashSet<>();
-        private final KeyMap<Counter> countedItems = KeyMaps.createHashMap(KeyIndicator.MATERIAL);
-        private int totalItemAmount = 0;
-        private long lastCountTime = -1;
-
-        void track(ItemStack itemStack, Key itemKey, int count) {
-            if (count > 0) {
-                itemsTracker.add(new Pair<>(itemStack, count));
-                this.totalItemAmount += count;
-                this.countedItems.computeIfAbsent(itemKey, i -> new Counter(0)).inc(count);
-            }
+        synchronized CountSnapshot cached(java.util.UUID actor, Object definition, long now) {
+            CountSnapshot value = actors.get(actor);
+            return value != null && value.definition == definition && now < value.expiresAt ? value : null;
         }
 
-        int getCount(Key key) {
-            Counter counter = this.countedItems.get(key);
-            return counter == null ? 0 : counter.get();
+        synchronized void publish(java.util.UUID actor, CountSnapshot value) {
+            actors.put(actor, value);
+            while (actors.size() > 128) actors.remove(actors.keySet().iterator().next());
         }
 
-        void clear(long currTime) {
-            itemsTracker.clear();
-            countedItems.clear();
-            totalItemAmount = 0;
-            lastCountTime = currTime + COUNT_INVENTORY_THRESHOLD;
+        synchronized void invalidate(java.util.UUID actor) { actors.remove(actor); }
+        synchronized void clear() { actors.clear(); }
+    }
+
+    private static final class CountSnapshot {
+        static final CountSnapshot EMPTY = new CountSnapshot(null, java.util.Collections.emptyMap(),
+                java.util.Collections.emptyMap(), 0, 0);
+        final Object definition;
+        final Map<Key, Integer> counts;
+        final Map<Integer, Integer> removals;
+        final int totalItemAmount;
+        final long expiresAt;
+
+        CountSnapshot(Object definition, Map<Key, Integer> counts, Map<Integer, Integer> removals,
+                      int totalItemAmount, long expiresAt) {
+            this.definition = definition;
+            this.counts = java.util.Collections.unmodifiableMap(counts);
+            this.removals = java.util.Collections.unmodifiableMap(removals);
+            this.totalItemAmount = totalItemAmount;
+            this.expiresAt = expiresAt;
         }
 
-        @Nullable
-        private Key getMissionItemKey(@Nullable ItemStack itemStack) {
-            if (itemStack == null || itemStack.getType() == Material.AIR)
-                return null;
-
-            Key itemKey = Key.of(itemStack);
-
-            for (KeyRequirements requirements : requiredItems.keySet()) {
-                if (requirements.contains(itemKey))
-                    return requirements.getKey(itemKey);
-            }
-
-            return null;
-        }
-
+        int getCount(Key key) { return counts.getOrDefault(key, 0); }
     }
 
 }

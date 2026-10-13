@@ -27,7 +27,7 @@ public class MembersPagedObjectButton extends AbstractPagedMenuButton<MenuIsland
     public ItemStack modifyViewItem(ItemBuilder itemBuilder) {
         return itemBuilder
                 .replaceAll("{0}", pagedObject.getName())
-                .replaceAll("{1}", pagedObject.getPlayerRole() + "")
+                .replaceAll("{1}", pagedObject.getPlayerRole(menuView.getIsland()) + "")
                 .asSkullOf(pagedObject)
                 .build(pagedObject);
     }

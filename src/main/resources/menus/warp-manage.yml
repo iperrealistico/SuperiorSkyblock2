@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&lWarp: {0}'
+title: '&6&lWarp: {0}'
 previous-menu: true
 
 pattern:
@@ -29,30 +29,30 @@ items:
     type: BOOK
     name: '&6Rename Warp'
     lore:
-      - '&f '
-      - '&f '
-      - '&7&o(( &f&oClick &7&oto rename the warp. ))'
+      - '&7 '
+      - '&7 '
+      - '&7&o(( &7&oClick &7&oto rename the warp. ))'
   '~':
     type: STONE
     lore:
-      - '&f '
-      - '&f '
+      - '&7 '
+      - '&7 '
       - '&7&oYou can use the following placeholders:'
       - '&7&o{0} is used for the warp''s name.'
       - '&7&o{1} is used for the warp''s location.'
       - '&7&o{2} is used for the warp''s public status.'
-      - '&7&o(( &f&oClick &7&oto edit the icon. ))'
+      - '&7&o(( &7&oClick &7&oto edit the icon. ))'
   '$':
     type: ENDER_PEARL
     name: '&6Warp Location'
     lore:
-      - '&f '
-      - '&f '
-      - '&7&o(( &f&oClick &7&oto update the warp location. ))'
+      - '&7 '
+      - '&7 '
+      - '&7&o(( &7&oClick &7&oto update the warp location. ))'
   '%':
     type: FEATHER
     name: '&6Private Warp'
     lore:
-      - '&f '
-      - '&f '
-      - '&7&o(( &f&oClick &7&oto toggle warp to the public. ))'
+      - '&7 '
+      - '&7 '
+      - '&7&o(( &7&oClick &7&oto toggle warp to the public. ))'

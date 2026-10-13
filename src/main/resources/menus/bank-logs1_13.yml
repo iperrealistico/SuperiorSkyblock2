@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&lTransaction Logs &r{0}'
+title: '&6&lTransaction Logs &r&7{0}'
 previous-menu: true
 
 pattern:
@@ -27,7 +27,7 @@ money-sort: '-'
 items:
   '@':
     type: PAPER
-    name: '&eTransaction #{0}'
+    name: '&6Transaction #{0}'
     lore:
       - '&7Player: {1}'
       - '&7Status: {2}'
@@ -40,7 +40,7 @@ items:
     name: '{0}Previous Page'
   '*':
     type: SUNFLOWER
-    name: '&aCurrent Page'
+    name: '&6Current Page'
     lore:
       - '&7Page {0}'
   '^':
@@ -48,7 +48,7 @@ items:
     name: '{0}Next Page'
   '$':
     type: BLACK_STAINED_GLASS_PANE
-    name: '&f'
+    name: '&8'
   '!':
     type: CLOCK
     name: '&6Sort by creation time'

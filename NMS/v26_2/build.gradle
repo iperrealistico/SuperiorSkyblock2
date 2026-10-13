@@ -13,7 +13,7 @@ paperweight.reobfArtifactConfiguration = io.papermc.paperweight.userdev.ReobfArt
 group 'NMS:v26_2'
 
 dependencies {
-    paperweight.paperDevBundle("26.2.build.+")
+    paperweight.paperDevBundle("26.2.build.133-stable")
     compileOnly project(":NMS:Spigot-1_20_3")
     compileOnly project(":NMS:Paper-1_20_3")
     compileOnly project(":API")

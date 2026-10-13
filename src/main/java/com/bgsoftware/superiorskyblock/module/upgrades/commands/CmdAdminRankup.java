@@ -4,6 +4,7 @@ import com.bgsoftware.common.annotations.Nullable;
 import com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin;
 import com.bgsoftware.superiorskyblock.api.events.IslandUpgradeEvent;
 import com.bgsoftware.superiorskyblock.api.island.Island;
+import com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope;
 import com.bgsoftware.superiorskyblock.api.service.placeholders.PlaceholdersService;
 import com.bgsoftware.superiorskyblock.api.upgrades.Upgrade;
 import com.bgsoftware.superiorskyblock.api.upgrades.UpgradeLevel;
@@ -22,6 +23,7 @@ import org.bukkit.entity.Player;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 public class CmdAdminRankup implements IAdminIslandCommand {
 
@@ -86,25 +88,50 @@ public class CmdAdminRankup implements IAdminIslandCommand {
 
         SuperiorPlayer playerSender = sender instanceof Player ? plugin.getPlayers().getSuperiorPlayer(sender) : null;
 
-        islands.forEach(island -> {
-            UpgradeLevel currentLevel = island.getUpgradeLevel(upgrade);
-            UpgradeLevel nextLevel = upgrade.getUpgradeLevel(currentLevel.getLevel() + 1);
+        int islandsChangedCount = 0;
+        for (Island island : islands) {
+            try (IslandExecutionScope scope = IslandExecutionScope.open(island, true)) {
+                UpgradeLevel currentLevel = island.getUpgradeLevel(upgrade);
+                UpgradeLevel nextLevel = upgrade.getUpgradeLevel(currentLevel.getLevel() + 1);
 
-            PluginEvent<PluginEventArgs.IslandUpgrade> event = PluginEventsFactory.callIslandUpgradeEvent(
-                    island, playerSender, upgrade, currentLevel, nextLevel, IslandUpgradeEvent.Cause.PLAYER_RANKUP);
+                PluginEvent<PluginEventArgs.IslandUpgrade> event = PluginEventsFactory.callIslandUpgradeEvent(
+                        island, playerSender, upgrade, currentLevel, nextLevel, IslandUpgradeEvent.Cause.PLAYER_RANKUP);
 
-            if (!event.isCancelled()) {
-                SuperiorPlayer owner = island.getOwner();
-
-                for (String command : event.getArgs().commands) {
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
-                            placeholdersService.get().parsePlaceholders(owner.asOfflinePlayer(), command
-                                    .replace("%player%", owner.getName())
-                                    .replace("%leader%", owner.getName()))
-                    );
+                if (!event.isCancelled()) {
+                    SuperiorPlayer owner = island.getOwner();
+                    UUID ownerId = owner.getUniqueId();
+                    long revision = plugin.getPvcIslandService().getRevision(island.getUniqueId());
+                    ConfiguredUpgradeCommands.Result result = ConfiguredUpgradeCommands.execute(event.getArgs().commands,
+                            command -> CmdRankup.isOwnUpgradeMutation(plugin, parseCommand(command, owner)),
+                            command -> {
+                                String parsed = parseCommand(command, owner);
+                                try { return com.bgsoftware.superiorskyblock.commands.CapturedCommandDispatch.dispatch(
+                                        plugin, Bukkit.getConsoleSender(), parsed, island); }
+                                catch (Throwable error) {
+                                    com.bgsoftware.superiorskyblock.core.logging.Log.error(error, "Cannot execute the configured island upgrade command", parsed);
+                                    return false;
+                                }
+                            },
+                            () -> plugin.getPvcIslandService().isAvailable(island.getUniqueId()) &&
+                                    ownerId.equals(island.getOwner().getUniqueId()) &&
+                                    revision == plugin.getPvcIslandService().getRevision(island.getUniqueId()),
+                            () -> nextLevel != null && island.getUpgradeLevel(upgrade).getLevel() >= nextLevel.getLevel(),
+                            () -> { });
+                    if (result == ConfiguredUpgradeCommands.Result.SUCCESS) ++islandsChangedCount;
+                    else {
+                        com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "Island &e" + island.getShortId() +
+                                " &7could not complete this upgrade. Earlier configured actions may already have taken effect.");
+                    }
                 }
             }
-        });
+        }
+
+        if (islandsChangedCount == 0) return;
+        if (islandsChangedCount < islands.size()) {
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "Completed the configured upgrade for &e" + islandsChangedCount +
+                    " &7of &e" + islands.size() + " &7islands.");
+            return;
+        }
 
         if (islands.size() > 1)
             Message.RANKUP_SUCCESS_ALL.send(sender, upgrade.getName());
@@ -112,6 +139,11 @@ public class CmdAdminRankup implements IAdminIslandCommand {
             Message.RANKUP_SUCCESS_NAME.send(sender, upgrade.getName(), islands.get(0).getName());
         else
             Message.RANKUP_SUCCESS.send(sender, upgrade.getName(), targetPlayer.getName());
+    }
+
+    private static String parseCommand(String command, SuperiorPlayer owner) {
+        return placeholdersService.get().parsePlaceholders(owner.asOfflinePlayer(), command
+                .replace("%player%", owner.getName()).replace("%leader%", owner.getName()));
     }
 
     @Override

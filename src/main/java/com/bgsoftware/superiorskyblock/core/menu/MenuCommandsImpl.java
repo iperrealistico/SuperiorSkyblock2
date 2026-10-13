@@ -54,6 +54,8 @@ public class MenuCommandsImpl implements MenuCommands {
 
     @Override
     public void runCommand(MenuView<?, ?> menuView, String command, ButtonClickContext<?> context) {
+        if (menuView instanceof AbstractMenuView && !((AbstractMenuView<?, ?>) menuView).isIslandContextCurrent())
+            return;
         MenuLayout<?> menuLayout = menuView.getMenu().getLayout();
         if (menuLayout instanceof InventoryMenuLayout) {
             Player player = context.getPlayer();
@@ -100,9 +102,40 @@ public class MenuCommandsImpl implements MenuCommands {
         else
             command = placeholdersService.get().parsePlaceholders(player, command);
 
-        Bukkit.dispatchCommand(
-                sender instanceof Player || command.startsWith("PLAYER:") ? player : Bukkit.getConsoleSender(),
-                command.replace("PLAYER:", "").replace("%player%", player.getName()));
+        CommandSender effectiveSender = sender instanceof Player || command.startsWith("PLAYER:") ? player : Bukkit.getConsoleSender();
+        String expandedCommand = command.replace("PLAYER:", "").replace("%player%", player.getName());
+        com.bgsoftware.superiorskyblock.api.island.Island capturedIsland = menuView instanceof AbstractMenuView ?
+                ((AbstractMenuView<?, ?>) menuView).getActionTarget() : null;
+        dispatchConfiguredCommand(menuView, effectiveSender, expandedCommand, capturedIsland);
+    }
+
+    /** Shared boundary for generic and built-in configured hooks, including global-list item targets. */
+    public void dispatchConfiguredCommand(MenuView<?, ?> menuView, CommandSender effectiveSender,
+                                          String expandedCommand, com.bgsoftware.superiorskyblock.api.island.Island capturedIsland) {
+        if (menuView instanceof AbstractMenuView && !((AbstractMenuView<?, ?>) menuView).isIslandContextCurrent()) return;
+        if (capturedIsland != null && (plugin.getGrid().getIslandByUUID(capturedIsland.getUniqueId()) != capturedIsland ||
+                !plugin.getPvcIslandService().isAvailable(capturedIsland.getUniqueId()))) return;
+        if (!(effectiveSender instanceof Player) &&
+                !com.bgsoftware.superiorskyblock.commands.CapturedCommandDispatch.isOwnCommand(plugin, expandedCommand)) {
+            java.util.UUID capturedOwner = capturedIsland == null || capturedIsland.getOwner() == null ? null : capturedIsland.getOwner().getUniqueId();
+            long revision = capturedIsland == null ? 0L : plugin.getPvcIslandService().getRevision(capturedIsland.getUniqueId());
+            long membershipRevision = capturedIsland == null ? 0L : plugin.getPvcIslandService().getMembershipRevision(capturedIsland.getUniqueId());
+            com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.global(() -> {
+                if (menuView instanceof AbstractMenuView && !((AbstractMenuView<?, ?>) menuView).isIslandContextCurrent()) return;
+                if (capturedIsland != null && (plugin.getGrid().getIslandByUUID(capturedIsland.getUniqueId()) != capturedIsland ||
+                        !plugin.getPvcIslandService().isAvailable(capturedIsland.getUniqueId()) ||
+                        !java.util.Objects.equals(capturedOwner, capturedIsland.getOwner() == null ? null : capturedIsland.getOwner().getUniqueId()) ||
+                        revision != plugin.getPvcIslandService().getRevision(capturedIsland.getUniqueId()) ||
+                        membershipRevision != plugin.getPvcIslandService().getMembershipRevision(capturedIsland.getUniqueId()))) return;
+                com.bgsoftware.superiorskyblock.commands.CapturedCommandDispatch.dispatch(plugin, effectiveSender, expandedCommand, capturedIsland);
+            });
+        } else {
+            // Own handlers stay synchronous so following hooks observe their actual mutation.
+            if (capturedIsland == null)
+                com.bgsoftware.superiorskyblock.commands.CapturedCommandDispatch.dispatchCurrent(plugin, effectiveSender, expandedCommand);
+            else
+                com.bgsoftware.superiorskyblock.commands.CapturedCommandDispatch.dispatch(plugin, effectiveSender, expandedCommand, capturedIsland);
+        }
     }
 
     private void handleSubCommand(MenuView<?, ?> menuView, String subCommand, String args,
@@ -124,7 +157,9 @@ public class MenuCommandsImpl implements MenuCommands {
                 onBack.run();
                 break;
             default:
-                plugin.getCommands().dispatchSubCommand(sender, subCommand, args);
+                dispatchConfiguredCommand(menuView, sender, plugin.getCommands().getLabel() + " " + subCommand +
+                        (args.isEmpty() ? "" : " " + args),
+                        menuView instanceof AbstractMenuView ? ((AbstractMenuView<?, ?>) menuView).getActionTarget() : null);
                 break;
         }
     }

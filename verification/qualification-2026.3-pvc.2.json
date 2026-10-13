@@ -1,0 +1,845 @@
+{
+  "version": "2026.3-pvc.2",
+  "completedUTC": "2026-10-13T09:55:52.564144+00:00",
+  "codeCommit": "21ee0ecd44fe07d5a114d6fda2b405a2563e121b",
+  "upstreamCommit": "868bebf41df19615621828619f59e2d8386f7ace",
+  "mainSHA256": "A860A1DD9A56C250FA805204D79D7F0254DD4319D4183245DEF5203461D2AF2D",
+  "mainBytes": 8866847,
+  "unitTests": 172,
+  "unitFailures": 0,
+  "unitErrors": 0,
+  "reproducibleCleanBuilds": 2,
+  "exportedApiClasses": 363,
+  "dependencyArtifacts": 695,
+  "dependencyUses": 5731,
+  "nativePhases": 95,
+  "nativePassed": 95,
+  "nativeInputs": [
+    {
+      "id": "leaf-12111",
+      "minecraft": "1.21.11",
+      "platform": "Leaf",
+      "build": 174,
+      "channel": "default",
+      "java": "21",
+      "sha256": "1E38B84653381B63640829312D8EE209E94D6A12D660DD47787A59871ECA7B4C",
+      "metadataURL": "https://api.leafmc.one/v2/projects/leaf/versions/1.21.11/builds/174"
+    },
+    {
+      "id": "leaf-262",
+      "minecraft": "26.2",
+      "platform": "Leaf",
+      "build": 123,
+      "channel": "experimental",
+      "java": "25",
+      "sha256": "AA84A1816829721F3C48E918E3A06236470570E4BA575BD4191FB2CA6D461C07",
+      "metadataURL": "https://api.leafmc.one/v2/projects/leaf/versions/26.2/builds/123"
+    },
+    {
+      "id": "folia-262",
+      "minecraft": "26.2",
+      "platform": "Folia",
+      "build": 7,
+      "channel": "BETA",
+      "java": "25",
+      "sha256": "128A634192261CD38BB4A5DC54075018A0F896FD6C6F529E37DCA6E99E32B3B3",
+      "metadataURL": "https://fill.papermc.io/v3/projects/folia/versions/26.2/builds/7"
+    },
+    {
+      "id": "folia-12111",
+      "minecraft": "1.21.11",
+      "platform": "Folia",
+      "build": 14,
+      "channel": "STABLE",
+      "java": "21",
+      "sha256": "F52C408490A0225611E67907A3CA19F7E6DA2C6BC899E715D5F46844E7103C39",
+      "metadataURL": "https://fill.papermc.io/v3/projects/folia/versions/1.21.11/builds/14"
+    }
+  ],
+  "profileCounts": [
+    {
+      "lane": "folia-12111",
+      "profile": "commands",
+      "passed": 2
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "core",
+      "passed": 2
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "passed": 14
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "end",
+      "passed": 2
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "legacy",
+      "passed": 2
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "missions",
+      "passed": 2
+    },
+    {
+      "lane": "folia-262",
+      "profile": "commands",
+      "passed": 2
+    },
+    {
+      "lane": "folia-262",
+      "profile": "core",
+      "passed": 2
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "passed": 14
+    },
+    {
+      "lane": "folia-262",
+      "profile": "end",
+      "passed": 2
+    },
+    {
+      "lane": "folia-262",
+      "profile": "legacy",
+      "passed": 2
+    },
+    {
+      "lane": "folia-262",
+      "profile": "missions",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "commands",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "core",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "passed": 14
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "legacy",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "missions",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "commands",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "core",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "passed": 14
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "legacy",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "missions",
+      "passed": 2
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "upgrade",
+      "passed": 3
+    }
+  ],
+  "phases": [
+    {
+      "lane": "leaf-12111",
+      "profile": "commands",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "commands",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "commands",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "commands",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "commands",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "commands",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "commands",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "commands",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "core",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "core",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "core",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "core",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "core",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "core",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "core",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "core",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "legacy",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "legacy",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "legacy",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "legacy",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "legacy",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "legacy",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "legacy",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "legacy",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "missions",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "missions",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "missions",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "missions",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "missions",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "missions",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "missions",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "missions",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "cold-reset-intent",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "reset-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "cold-transfer-intent",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "transfer-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "cold-delete-intent",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "delete-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "storage-reset-failure",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "storage-reset-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "storage-reset-hold",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": true
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "storage-reset-crash-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "storage-delete-failure",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-12111",
+      "profile": "domain",
+      "phase": "storage-delete-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "cold-reset-intent",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "reset-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "cold-transfer-intent",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "transfer-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "cold-delete-intent",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "delete-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "storage-reset-failure",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "storage-reset-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "storage-reset-hold",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": true
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "storage-reset-crash-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "storage-delete-failure",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "domain",
+      "phase": "storage-delete-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "cold-reset-intent",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "reset-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "cold-transfer-intent",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "transfer-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "cold-delete-intent",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "delete-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "storage-reset-failure",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "storage-reset-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "storage-reset-hold",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": true
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "storage-reset-crash-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "storage-delete-failure",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "domain",
+      "phase": "storage-delete-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "cold-reset-intent",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "reset-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "cold-transfer-intent",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "transfer-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "cold-delete-intent",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "delete-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "storage-reset-failure",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "storage-reset-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "storage-reset-hold",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": true
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "storage-reset-crash-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "storage-delete-failure",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "domain",
+      "phase": "storage-delete-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "end",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-12111",
+      "profile": "end",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "end",
+      "phase": "initial",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "folia-262",
+      "profile": "end",
+      "phase": "restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "upgrade",
+      "phase": "upstream-seed",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "upgrade",
+      "phase": "fork-upgrade",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    },
+    {
+      "lane": "leaf-262",
+      "profile": "upgrade",
+      "phase": "fork-upgrade-restart",
+      "result": "PASS",
+      "intentionalIsolatedJvmTermination": false
+    }
+  ],
+  "productionWrites": false,
+  "scope": "Isolated offline loopback fixtures, retained restarts and up to two actual native protocol clients. Controlled storage adapter errors/holds; selected owned JVM termination, not hardware power-loss testing. No population/TPS benchmark or whole production plugin-stack qualification. See docs/pvc/VERIFICATION.md."
+}

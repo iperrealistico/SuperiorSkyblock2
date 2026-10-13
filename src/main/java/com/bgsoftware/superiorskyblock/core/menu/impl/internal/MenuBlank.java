@@ -26,6 +26,9 @@ public class MenuBlank extends AbstractMenu<BaseMenuView, EmptyViewArgs> {
     }
 
     @Override
+    protected boolean capturesViewerIsland() { return false; }
+
+    @Override
     protected BaseMenuView createViewInternal(SuperiorPlayer superiorPlayer, EmptyViewArgs unused,
                                               @Nullable MenuView<?, ?> previousMenuView) {
         return new BaseMenuView(superiorPlayer, previousMenuView, this);
@@ -42,15 +45,15 @@ public class MenuBlank extends AbstractMenu<BaseMenuView, EmptyViewArgs> {
 
         InventoryMenuLayout.Builder<BaseMenuView> patternBuilder = InventoryMenuLayout.newBuilder();
 
-        patternBuilder.setTitle("" + ChatColor.RED + ChatColor.BOLD + "ERROR");
+        patternBuilder.setTitle(ChatColor.GOLD + "Skyblock " + ChatColor.DARK_GRAY + "| " + ChatColor.GOLD + "Menu Error");
         patternBuilder.setRowsCount(3);
 
         DummyButton.Builder<BaseMenuView> button = new DummyButton.Builder<>();
         button.setButtonItem(new TemplateItem(new ItemBuilder(Material.BEDROCK)
-                .withName("&cUnloaded Menu")
+                .withName("&6Unloaded Menu")
                 .withLore(Arrays.asList(
                         "&7There was an issue with loading the menu.",
-                        "&7Contact administrator to fix the issue.")
+                        "&7Contact an administrator to fix the issue.")
                 )));
         button.setClickSound(new GameSoundImpl(sound, 0.2f, 0.2f));
         patternBuilder.setButton(13, button.build());

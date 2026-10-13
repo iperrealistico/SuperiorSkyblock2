@@ -2,11 +2,9 @@ package com.bgsoftware.superiorskyblock.world;
 
 import com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin;
 import com.bgsoftware.superiorskyblock.api.island.Island;
-import com.bgsoftware.superiorskyblock.api.key.Key;
 import com.bgsoftware.superiorskyblock.core.ChunkPosition;
 import com.bgsoftware.superiorskyblock.core.LazyWorldLocation;
 import com.bgsoftware.superiorskyblock.core.key.Keys;
-import com.bgsoftware.superiorskyblock.core.key.types.MaterialKey;
 import org.bukkit.Bukkit;
 import org.bukkit.ChunkSnapshot;
 import org.bukkit.Location;
@@ -14,6 +12,7 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import java.lang.reflect.Method;
 
 public class WorldBlocks {
 
@@ -58,8 +57,28 @@ public class WorldBlocks {
         if (plugin.getNMSWorld().canPlayerSuffocate(chunkSnapshot, x, y, z))
             return true;
 
-        Key blockKey = plugin.getNMSWorld().getBlockKey(chunkSnapshot, x, y, z);
-        return blockKey != null && canPlayerGetHurtFromBlock(((MaterialKey) blockKey).getMaterial());
+        return canPlayerGetHurtFromBlock(SnapshotMaterial.read(chunkSnapshot, x, y, z));
+    }
+
+    /** API signatures changed after the retained 1.8 baseline; no live world is read. */
+    private static final class SnapshotMaterial {
+        private static final Method getter;
+        private static final Method legacyMaterial;
+        static {
+            try {
+                Method modern;
+                try { modern = ChunkSnapshot.class.getMethod("getBlockType", int.class, int.class, int.class); }
+                catch (NoSuchMethodException legacy) { modern = null; }
+                getter = modern != null ? modern : ChunkSnapshot.class.getMethod("getBlockTypeId", int.class, int.class, int.class);
+                legacyMaterial = modern == null ? Material.class.getMethod("getMaterial", int.class) : null;
+            } catch (ReflectiveOperationException error) { throw new ExceptionInInitializerError(error); }
+        }
+        static Material read(ChunkSnapshot snapshot, int x, int y, int z) {
+            try {
+                Object value = getter.invoke(snapshot, x, y, z);
+                return legacyMaterial == null ? (Material) value : (Material) legacyMaterial.invoke(null, value);
+            } catch (ReflectiveOperationException error) { throw new IllegalStateException("Could not read snapshot material", error); }
+        }
     }
 
     private static boolean canPlayerGetHurtFromBlock(Material material) {

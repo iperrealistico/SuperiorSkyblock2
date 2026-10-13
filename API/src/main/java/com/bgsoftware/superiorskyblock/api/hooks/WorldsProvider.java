@@ -14,6 +14,27 @@ import java.util.UUID;
 public interface WorldsProvider {
 
     /**
+     * Whether this provider implements region-owned world work and startup-only
+     * world adoption on Folia. Legacy providers opt in explicitly after testing.
+     * This metadata query must not perform world work, I/O, or callbacks.
+     */
+    default boolean supportsFoliaExecution() { return false; }
+
+    /**
+     * Whether storage, world identity, allocation and cleanup use the island UUID
+     * independently of its owner, including concurrent creations and transfers.
+     * This metadata query must not perform world work, I/O, or callbacks.
+     */
+    default boolean supportsMultipleOwnedIslands() { return false; }
+
+    /**
+     * Whether changing permission-based protected bounds is supported without
+     * moving, reallocating or destroying the island's reserved physical cell.
+     * This metadata query must not perform world work, I/O, or callbacks.
+     */
+    default boolean supportsAutomaticIslandSizePolicy() { return false; }
+
+    /**
      * Prepare all the island worlds on startup.
      */
     void prepareWorlds();

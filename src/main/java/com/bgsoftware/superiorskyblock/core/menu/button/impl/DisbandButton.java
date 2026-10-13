@@ -34,25 +34,17 @@ public class DisbandButton extends AbstractMenuViewButton<IslandMenuView> {
         SuperiorPlayer inventoryViewer = menuView.getInventoryViewer();
         Island targetIsland = menuView.getIsland();
 
+        if (!menuView.claimIslandAction(targetIsland, com.bgsoftware.superiorskyblock.island.privilege.IslandPrivileges.DISBAND_ISLAND)) return;
+
         if (getTemplate().disbandIsland && PluginEventsFactory.callIslandDisbandEvent(targetIsland, inventoryViewer)) {
-            IslandUtils.sendMessage(targetIsland, Message.DISBAND_ANNOUNCEMENT, Collections.emptyList(), inventoryViewer.getName());
-
-            Message.DISBANDED_ISLAND.send(inventoryViewer);
-
-            if (BuiltinModules.BANK.getConfiguration().hasDisbandRefund()) {
-                BigDecimal disbandRefund = BuiltinModules.BANK.getConfiguration().getDisbandRefund();
-                Message.DISBAND_ISLAND_BALANCE_REFUND.send(targetIsland.getOwner(), Formatters.NUMBER_FORMATTER.format(
-                        targetIsland.getIslandBank().getBalance().multiply(disbandRefund)));
-            }
-
-            if (plugin.getSettings().getDisbandCount() >= 0) {
-                inventoryViewer.setDisbands(inventoryViewer.getDisbands() - 1);
-            }
-
-            targetIsland.disbandIsland();
+            IslandUtils.disbandWithFeedback(targetIsland, context.getPlayer(), inventoryViewer.getName(), () -> {
+                if (plugin.getSettings().getDisbandCount() >= 0)
+                    inventoryViewer.setDisbands(inventoryViewer.getDisbands() - 1);
+                Message.DISBANDED_ISLAND.send(inventoryViewer);
+            });
         }
 
-        BukkitExecutor.sync(menuView::closeView, 1L);
+        plugin.executePlayer(menuView.getInventoryViewer(), menuView::closeView, 1L);
     }
 
     public static class Builder extends AbstractMenuTemplateButton.AbstractBuilder<IslandMenuView> {

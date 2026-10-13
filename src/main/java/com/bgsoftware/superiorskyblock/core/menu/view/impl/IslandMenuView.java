@@ -17,6 +17,7 @@ public class IslandMenuView extends AbstractMenuView<IslandMenuView, IslandViewA
                           Menu<IslandMenuView, IslandViewArgs> menu, IslandViewArgs args) {
         super(inventoryViewer, previousMenuView, menu);
         this.island = args.getIsland();
+        bindActionTarget(this.island);
         this.cachedTitleArgs = new Object[]{this.island.getName()};
     }
 

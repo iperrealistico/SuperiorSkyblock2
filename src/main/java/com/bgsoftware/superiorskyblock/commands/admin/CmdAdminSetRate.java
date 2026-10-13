@@ -75,11 +75,11 @@ public class CmdAdminSetRate implements IAdminIslandCommand {
             return;
 
         if (rating == Rating.UNKNOWN) {
-            if (PluginEventsFactory.callIslandRemoveRatingEvent(island, sender, superiorPlayer)) {
+            if (PluginEventsFactory.callIslandRemoveRatingEvent(island, sender, targetPlayer)) {
                 island.removeRating(targetPlayer);
                 Message.RATE_REMOVE_ALL.send(sender, targetPlayer.getName());
             }
-        } else if (PluginEventsFactory.callIslandRateEvent(island, sender, superiorPlayer, rating)) {
+        } else if (PluginEventsFactory.callIslandRateEvent(island, sender, targetPlayer, rating)) {
             island.setRating(targetPlayer, rating);
             Message.RATE_CHANGE_OTHER.send(sender, targetPlayer.getName(), Formatters.CAPITALIZED_FORMATTER.format(rating.name()));
         }

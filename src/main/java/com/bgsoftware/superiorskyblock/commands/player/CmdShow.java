@@ -132,7 +132,7 @@ public class CmdShow implements ISuperiorCommand {
 
             if (!Message.ISLAND_INFO_PLAYER_LINE.isEmpty(locale)) {
                 members.forEach(islandMember -> {
-                    StringBuilder rolesString = rolesStrings.get(islandMember.getPlayerRole());
+                    StringBuilder rolesString = rolesStrings.get(islandMember.getPlayerRole(island));
 
                     if(rolesString == null) {
                         Log.warn("It seems like ", islandMember.getName(), " isn't part of the island of "

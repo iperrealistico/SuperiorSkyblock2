@@ -24,14 +24,13 @@ import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import com.bgsoftware.superiorskyblock.module.BuiltinModules;
 import com.bgsoftware.superiorskyblock.module.upgrades.type.UpgradeTypeCropGrowth;
 import com.bgsoftware.superiorskyblock.nms.world.WorldEditSession;
+import com.bgsoftware.superiorskyblock.island.SIsland;
 import com.bgsoftware.superiorskyblock.tag.CompoundTag;
 import com.bgsoftware.superiorskyblock.tag.ListTag;
 import com.bgsoftware.superiorskyblock.tag.Tag;
 import com.bgsoftware.superiorskyblock.world.chunk.ChunkLoadReason;
 import com.bgsoftware.superiorskyblock.world.chunk.ChunksProvider;
 import com.bgsoftware.superiorskyblock.world.schematic.BaseSchematic;
-import org.bukkit.Bukkit;
-import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.entity.EntityType;
 
@@ -42,9 +41,8 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.TreeSet;
 import java.util.function.Consumer;
 
 public class SuperiorSchematic extends BaseSchematic implements Schematic {
@@ -54,8 +52,7 @@ public class SuperiorSchematic extends BaseSchematic implements Schematic {
 
     private final Data data;
 
-    private List<ChunkPosition> affectedChunks = null;
-    private Runnable onTeleportCallback = null;
+    private final ThreadLocal<CallbackReceipt> callbackReceipt = new ThreadLocal<>();
 
     public SuperiorSchematic(String name, CompoundTag compoundTag) {
         super(name);
@@ -237,9 +234,9 @@ public class SuperiorSchematic extends BaseSchematic implements Schematic {
                                      Island island, Location location, long profiler, Runnable callback,
                                      Consumer<Throwable> onFailure) {
         List<ChunkPosition> affectedChunks = worldEditSession.getAffectedChunks();
-        List<CompletableFuture<Chunk>> chunkFutures = new ArrayList<>(affectedChunks.size());
-
-        AtomicBoolean failed = new AtomicBoolean(false);
+        List<ChunkPosition> approvedChunks = new ArrayList<>(affectedChunks.size());
+        java.util.concurrent.atomic.AtomicBoolean sessionReleased = new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.atomic.AtomicLong generation = new java.util.concurrent.atomic.AtomicLong(-1L);
         MutableBoolean printedWarning = new MutableBoolean(false);
 
         affectedChunks.forEach(chunkPosition -> {
@@ -251,47 +248,34 @@ public class SuperiorSchematic extends BaseSchematic implements Schematic {
                 return;
             }
 
-            chunkFutures.add(ChunksProvider.loadChunk(chunkPosition, ChunkLoadReason.SCHEMATIC_PLACE, chunk -> {
-                if (failed.get())
-                    return;
-
-                try {
-                    worldEditSession.applyBlocks(chunk);
-
-                    boolean cropGrowthEnabled = BuiltinModules.UPGRADES.isUpgradeTypeEnabled(UpgradeTypeCropGrowth.class);
-                    if (cropGrowthEnabled && island.isInsideRange(chunk)) {
-                        BukkitExecutor.ensureMain(() -> plugin.getNMSChunks().startTickingChunk(island, chunk, false));
-                    }
-
-                    island.markChunkDirty(chunk.getWorld(), chunk.getX(), chunk.getZ(), true);
-
-                    Log.debugResult(Debug.PASTE_SCHEMATIC, "Loaded Chunk", chunkPosition);
-                } catch (Throwable error) {
-                    Log.debugResult(Debug.PASTE_SCHEMATIC, "Failed Loading Chunk", error);
-                    failed.set(true);
-                    Profiler.end(profiler);
-                    if (onFailure != null)
-                        onFailure.accept(error);
-                }
-            }));
+            approvedChunks.add(chunkPosition);
         });
 
-        CompletableFuture.allOf(chunkFutures.toArray(new CompletableFuture[0])).whenCompleteAsync((v, error) -> {
-            if (failed.get())
+        prepareWorldWriteIntent(island, approvedChunks).thenCompose(intent -> {
+            generation.set(plugin.getPvcIslandService().getWorldGeneration(island.getUniqueId()));
+            return ChunksProvider.processSequential(approvedChunks, ChunkLoadReason.SCHEMATIC_PLACE, chunk -> {
+            assertCurrentWorldWriter(island, generation.get());
+            worldEditSession.applyBlocks(chunk);
+            boolean cropGrowthEnabled = BuiltinModules.UPGRADES.isUpgradeTypeEnabled(UpgradeTypeCropGrowth.class);
+            if (cropGrowthEnabled && island.isInsideRange(chunk))
+                plugin.getNMSChunks().startTickingChunk(island, chunk, false);
+            island.markChunkDirty(chunk.getWorld(), chunk.getX(), chunk.getZ(), true);
+        }); }).thenCompose(unused -> finishWorldEdit(worldEditSession, postPlaceTasks, island, generation.get(), sessionReleased))
+                .thenCompose(unused -> com.bgsoftware.superiorskyblock.world.chunk.ChunkStorageBridge.saveChunksAsync(island, generation.get(), approvedChunks))
+                .whenCompleteAsync((v, error) -> {
+            if (error != null) {
+                if (sessionReleased.compareAndSet(false, true)) worldEditSession.release();
+                Profiler.end(profiler);
+                if (onFailure != null)
+                    onFailure.accept(error);
                 return;
+            }
 
             Log.debugResult(Debug.PASTE_SCHEMATIC, "Finished Chunks Loading", "");
 
             try {
+                assertCurrentWorldWriter(island, generation.get());
                 Log.debugResult(Debug.PASTE_SCHEMATIC, "Placing Schematic", "");
-                worldEditSession.finish(island);
-
-                if (island.getOwner().isOnline()) {
-                    postPlaceTasks.forEach(schematicBlock -> {
-                        schematicBlock.doPostPlace(island);
-                    });
-                }
-
                 Log.debugResult(Debug.PASTE_SCHEMATIC, "Finished Schematic Placement", "");
 
                 island.handleBlocksPlace(cachedCounts);
@@ -300,15 +284,8 @@ public class SuperiorSchematic extends BaseSchematic implements Schematic {
 
                 Profiler.end(profiler);
 
-                synchronized (this) {
-                    try {
-                        Location min = this.data.offset.applyToLocation(location);
-                        prepareCallback(affectedChunks, min);
-                        callback.run();
-                    } finally {
-                        finishCallback();
-                    }
-                }
+                Location min = this.data.offset.applyToLocation(location);
+                runPasteCallback(island, generation.get(), approvedChunks, min, callback);
             } catch (Throwable error2) {
                 Log.debugResult(Debug.PASTE_SCHEMATIC, "Failed Finishing Placement", error2);
                 Profiler.end(profiler);
@@ -319,6 +296,10 @@ public class SuperiorSchematic extends BaseSchematic implements Schematic {
     }
 
     private void pasteSchematicAsyncInternal(Island island, Location location, long profiler, Runnable callback, Consumer<Throwable> onFailure) {
+        if (BukkitExecutor.isFolia()) {
+            pasteRegionally(island, location, profiler, callback, onFailure);
+            return;
+        }
         List<SchematicBlock> postPlaceTasks = new LinkedList<>();
         List<SchematicBlock> prePlaceTasks = new LinkedList<>();
 
@@ -338,6 +319,113 @@ public class SuperiorSchematic extends BaseSchematic implements Schematic {
         finishPlaceSchematic(worldEditSession, postPlaceTasks, island, location, profiler, callback, onFailure);
     }
 
+    private CompletableFuture<Void> finishWorldEdit(WorldEditSession session, List<SchematicBlock> postPlaceTasks, Island island, long generation,
+                                                    java.util.concurrent.atomic.AtomicBoolean sessionReleased) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        try {
+            BukkitExecutor.global(() -> {
+                boolean released = false;
+                try {
+                    assertCurrentWorldWriter(island, generation);
+                    session.finish(island); released = true; sessionReleased.set(true);
+                    if (island.getOwner().isOnline()) postPlaceTasks.forEach(block -> block.doPostPlace(island));
+                    result.complete(null);
+                } catch (Throwable error) {
+                    if (!released && sessionReleased.compareAndSet(false, true)) session.release();
+                    result.completeExceptionally(error);
+                }
+            });
+        } catch (Throwable error) {
+            if (sessionReleased.compareAndSet(false, true)) session.release();
+            result.completeExceptionally(error);
+        }
+        return result;
+    }
+
+    private void pasteRegionally(Island island, Location location, long profiler, Runnable callback,
+                                 Consumer<Throwable> onFailure) {
+        // Decode only immutable schematic data on the worker. Every NMS session
+        // is created/applied/finalized by exactly one chunk-owning region.
+        Map<ChunkPosition, List<SchematicBlock>> chunks = new java.util.LinkedHashMap<>();
+        Location min = this.data.offset.applyToLocation(location);
+        VarintArray.Itr ids = new VarintArray(this.data.blockIds).iterator();
+        for (int i = this.data.bitSet.nextSetBit(0); i >= 0; i = this.data.bitSet.nextSetBit(i + 1)) {
+            int x = ((i / this.data.zSize) % this.data.xSize) + this.data.minX;
+            int y = (i / (this.data.xSize * this.data.zSize)) + this.data.minY;
+            int z = (i % this.data.zSize) + this.data.minZ;
+            BlockOffset offset = SBlockOffset.fromOffsets(x, y, z);
+            Location blockLocation = offset.applyToLocation(min);
+            SchematicBlock block = new SchematicBlock(blockLocation, (int) ids.next(), data.extra.get(offset));
+            ChunkPosition pos = ChunkPosition.of(blockLocation.getWorld(), blockLocation.getBlockX() >> 4,
+                    blockLocation.getBlockZ() >> 4, false);
+            if (island.isInside(pos.getWorld(), pos.getX(), pos.getZ()))
+                chunks.computeIfAbsent(pos, ignored -> new java.util.ArrayList<>()).add(block);
+        }
+        if (ids.hasNext()) throw new IllegalStateException("Not all blocks were read from schematic");
+        List<ChunkPosition> positions = new java.util.ArrayList<>(chunks.keySet());
+        java.util.concurrent.atomic.AtomicLong generation = new java.util.concurrent.atomic.AtomicLong(-1L);
+        prepareWorldWriteIntent(island, positions).thenCompose(intent -> {
+            generation.set(plugin.getPvcIslandService().getWorldGeneration(island.getUniqueId()));
+            return ChunksProvider.processSequential(positions, ChunkLoadReason.SCHEMATIC_PLACE, chunk -> {
+            assertCurrentWorldWriter(island, generation.get());
+            WorldEditSession session = plugin.getNMSWorld().createEditSession(chunk.getWorld());
+            boolean released = false;
+            try {
+                List<SchematicBlock> blocks = chunks.get(ChunkPosition.of(chunk, false));
+                for (SchematicBlock block : blocks) {
+                    block.doPrePlace(island);
+                    session.setBlock(block.getLocation(), block.getCombinedId(), block.getStatesTag(), block.getTileEntityData());
+                }
+                session.applyBlocks(chunk);
+                session.finish(island);
+                released = true;
+                for (SchematicBlock block : blocks) if (block.shouldPostPlace()) block.doPostPlace(island);
+                if (BuiltinModules.UPGRADES.isUpgradeTypeEnabled(UpgradeTypeCropGrowth.class) && island.isInsideRange(chunk))
+                    plugin.getNMSChunks().startTickingChunk(island, chunk, false);
+                island.markChunkDirty(chunk.getWorld(), chunk.getX(), chunk.getZ(), true);
+            } finally {
+                if (!released) session.release();
+            }
+        }); }).thenCompose(unused -> com.bgsoftware.superiorskyblock.world.chunk.ChunkStorageBridge.saveChunksAsync(island, generation.get(), positions))
+                .whenComplete((unused, error) -> {
+            if (error != null) {
+                Profiler.end(profiler);
+                if (onFailure != null) onFailure.accept(error);
+                return;
+            }
+            try { BukkitExecutor.region(location.getWorld(), location.getBlockX() >> 4,
+                location.getBlockZ() >> 4, () -> {
+            try {
+                assertCurrentWorldWriter(island, generation.get());
+                island.handleBlocksPlace(cachedCounts);
+                PluginEventsFactory.callIslandSchematicPasteEvent(island, null, name, location);
+                runPasteCallback(island, generation.get(), positions, min, callback);
+            } catch (Throwable failure) {
+                if (onFailure != null) onFailure.accept(failure);
+            } finally { Profiler.end(profiler); }
+        }); } catch (Throwable stopping) {
+                Profiler.end(profiler);
+                if (onFailure != null) onFailure.accept(stopping);
+            }
+        });
+    }
+
+    private CompletableFuture<Void> prepareWorldWriteIntent(Island island, List<ChunkPosition> positions) {
+        if (island instanceof SIsland)
+            return ((SIsland) island).prepareWorldWriteIntent(positions);
+        CompletableFuture<Void> intent = new CompletableFuture<>();
+        if (BukkitExecutor.isFolia())
+            intent.completeExceptionally(new IllegalStateException("Custom Folia island factories must provide acknowledged world-write intents"));
+        else
+            intent.complete(null);
+        return intent;
+    }
+
+    private void assertCurrentWorldWriter(Island island, long generation) {
+        if (island instanceof SIsland && !plugin.getPvcIslandService().isCurrentWorldWriter(island, generation))
+            throw new java.util.concurrent.RejectedExecutionException("Schematic world write generation retired");
+    }
+
     @Override
     public Location adjustRotation(Location location) {
         location.setYaw(this.data.yaw);
@@ -347,12 +435,14 @@ public class SuperiorSchematic extends BaseSchematic implements Schematic {
 
     @Override
     public List<ChunkPosition> getAffectedChunks() {
-        return affectedChunks == null ? Collections.emptyList() : Collections.unmodifiableList(affectedChunks);
+        CallbackReceipt receipt = callbackReceipt.get();
+        return receipt == null ? Collections.emptyList() : receipt.positions;
     }
 
     @Override
     public Runnable onTeleportCallback() {
-        return this.onTeleportCallback;
+        CallbackReceipt receipt = callbackReceipt.get();
+        return receipt == null ? null : receipt.onTeleport;
     }
 
     public SuperiorSchematic copy(String newName) {
@@ -364,21 +454,39 @@ public class SuperiorSchematic extends BaseSchematic implements Schematic {
         cachedCounts.put(key, cachedCounts.getRaw(key, 0) + 1);
     }
 
-    private void prepareCallback(List<ChunkPosition> affectedChunks, Location min) {
-        this.affectedChunks = new LinkedList<>(affectedChunks);
+    private void runPasteCallback(Island island, long generation, List<ChunkPosition> affectedChunks, Location min, Runnable callback) {
+        List<ChunkPosition> positions = new ArrayList<>(affectedChunks.size());
+        for (ChunkPosition position : affectedChunks) positions.add(position.copy());
+        Location origin = min.clone();
         // We spawn the entities with a delay, waiting for players to teleport to the island first.
-        this.onTeleportCallback = () -> {
-            BukkitExecutor.sync(() -> {
-                for (SchematicEntity entity : data.entities) {
-                    entity.spawnEntity(min);
-                }
-            }, 20L);
+        Runnable onTeleport = () -> {
+            for (SchematicEntity entity : data.entities) {
+                Location spawn = entity.getSpawnLocation(origin);
+                BukkitExecutor.region(spawn.getWorld(), spawn.getBlockX() >> 4, spawn.getBlockZ() >> 4,
+                        () -> {
+                            if (plugin.getGrid().getIslandByUUID(island.getUniqueId()) == island &&
+                                    plugin.getPvcIslandService().isAvailable(island.getUniqueId()) &&
+                                    plugin.getPvcIslandService().isCurrentWorldWriter(island, generation)) entity.spawnEntity(origin);
+                        }, 20L);
+            }
         };
+        CallbackReceipt previous = callbackReceipt.get();
+        callbackReceipt.set(new CallbackReceipt(Collections.unmodifiableList(positions), onTeleport));
+        try {
+            assertCurrentWorldWriter(island, generation);
+            callback.run();
+        }
+        finally {
+            if (previous == null) callbackReceipt.remove();
+            else callbackReceipt.set(previous);
+        }
     }
 
-    private void finishCallback() {
-        this.affectedChunks = null;
-        this.onTeleportCallback = null;
+    /** Lexical receipt only: callers copy it before returning from this callback. */
+    private static final class CallbackReceipt {
+        final List<ChunkPosition> positions;
+        final Runnable onTeleport;
+        CallbackReceipt(List<ChunkPosition> positions, Runnable onTeleport) { this.positions = positions; this.onTeleport = onTeleport; }
     }
 
     private static class Data {

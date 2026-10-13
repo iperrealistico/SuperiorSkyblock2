@@ -46,8 +46,9 @@ public class PlaceholdersUpgradeCost extends UpgradeCostAbstract {
     public void withdrawCost(SuperiorPlayer superiorPlayer) {
         String cost = super.cost.toPlainString();
         String playerName = superiorPlayer.getName();
-        withdrawCommands.forEach(command -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
-                command.replace("%amount%", cost).replace("%player%", playerName)));
+        com.bgsoftware.superiorskyblock.api.island.Island target = superiorPlayer.getIsland();
+        withdrawCommands.forEach(command -> com.bgsoftware.superiorskyblock.commands.CapturedCommandDispatch.dispatch(
+                plugin, Bukkit.getConsoleSender(), command.replace("%amount%", cost).replace("%player%", playerName), target));
     }
 
     @Override

@@ -26,8 +26,10 @@ import com.bgsoftware.superiorskyblock.core.threads.Synchronized;
 import com.bgsoftware.superiorskyblock.external.blocks.ICustomBlocksProvider;
 import com.bgsoftware.superiorskyblock.island.IslandUtils;
 import com.bgsoftware.superiorskyblock.world.chunk.ChunkLoadReason;
+import com.bgsoftware.superiorskyblock.world.BukkitEntities;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.entity.Entity;
 
 import java.math.BigInteger;
 import java.util.Collection;
@@ -59,12 +61,64 @@ public class DefaultIslandCalculationAlgorithm implements IslandCalculationAlgor
 
     @Override
     public CompletableFuture<IslandCalculationResult> calculateIsland(Island island) {
+        if (BukkitExecutor.isFolia()) return com.bgsoftware.superiorskyblock.core.threads.OwnedStage.submit(
+                BukkitExecutor.ASYNC_EXECUTOR, () -> calculateIslandRegionally(island));
+        if (plugin.getNMSChunks().supportsOwnedBlockCalculation() && !plugin.getProviders().hasSnapshotsSupport())
+            return calculateIslandRegionally(island);
         CompletableFuture<IslandCalculationResult> result = new CompletableFuture<>();
         BukkitExecutor.ensureMain(() -> calculateIslandInternal(island, result));
         return result;
     }
 
+    private CompletableFuture<IslandCalculationResult> calculateIslandRegionally(Island island) {
+        long profiler = Profiler.start(ProfileType.CALCULATE_ISLAND);
+        List<ChunkPosition> positions = new java.util.ArrayList<>();
+        IslandUtils.getChunkCoords(island, IslandChunkFlags.ONLY_PROTECTED | IslandChunkFlags.NO_EMPTY_CHUNKS)
+                .values().forEach(positions::addAll);
+        DefaultIslandBlocksTrackerAlgorithm tracker = island.getBlocksTracker() instanceof DefaultIslandBlocksTrackerAlgorithm ?
+                (DefaultIslandBlocksTrackerAlgorithm) island.getBlocksTracker() : null;
+        long token = tracker == null ? 0L : tracker.getRecalculationToken();
+        if (tracker != null) tracker.configureRecalculation(token, positions, true);
+        BlockCountsTracker counts = new BlockCountsTracker();
+        Set<java.util.UUID> seenMinecarts = new HashSet<>();
+        return com.bgsoftware.superiorskyblock.world.chunk.ChunksProvider.processSequential(positions,
+                ChunkLoadReason.BLOCKS_RECALCULATE, chunk -> {
+                    if (tracker != null) tracker.markChunkSnapshot(token, ChunkPosition.of(chunk, false));
+                    CalculatedChunk.Blocks blocks = plugin.getNMSChunks().calculateChunkBlocksNow(chunk);
+                    blocks.getBlockCounts().removeIf(key -> key instanceof SpawnerKey);
+                    counts.addCounts(blocks.getBlockCounts());
+                    for (Location location : blocks.getSpawners()) {
+                        Pair<Integer, String> spawner = plugin.getProviders().getSpawnersProvider().getSpawner(location);
+                        Key key = spawner.getValue() == null ? Keys.of(location.getBlock()) : Keys.ofSpawner(spawner.getValue(), location);
+                        counts.addCounts(key, Math.max(1, spawner.getKey()));
+                    }
+                    ChunkPosition pos = blocks.getPosition();
+                    if (!loadExternalBlocksForChunk(pos, counts))
+                        throw new IllegalStateException("Custom block provider cannot calculate an owned Folia chunk: " + pos);
+                    plugin.getStackedBlocks().forEach(pos, block -> counts.addCounts(block.getBlockKey(), block.getAmount() - 1));
+                    // Minecart-derived blocks share this chunk photograph; reading a later island-wide
+                    // entity total would count post-snapshot minecart deltas twice when replayed.
+                    for (Entity entity : chunk.getEntities()) {
+                        if (BukkitExecutor.isFolia() && !BukkitExecutor.owns(entity))
+                            throw new IllegalStateException("Minecart calculation requires the entity owner");
+                        if (BukkitEntities.canBypassEntityLimit(entity) || !seenMinecarts.add(entity.getUniqueId())) continue;
+                        Key entityKey = Keys.of(entity);
+                        MINECART_BLOCK_TYPES.forEach(types -> {
+                            if (types.getKey().equals(entityKey)) counts.addCounts(types.getValue(), 1);
+                        });
+                    }
+                }).thenApply(unused -> {
+                    return (IslandCalculationResult) counts;
+                }).whenComplete((result, error) -> Profiler.end(profiler));
+    }
+
     private void calculateIslandInternal(Island island, CompletableFuture<IslandCalculationResult> result) {
+        if (island.getBlocksTracker() instanceof DefaultIslandBlocksTrackerAlgorithm) {
+            DefaultIslandBlocksTrackerAlgorithm tracker = (DefaultIslandBlocksTrackerAlgorithm) island.getBlocksTracker();
+            // Legacy/custom snapshot providers have no owner-local photograph boundary. Keep live changes
+            // and decline a stale replacement if an event overlaps, rather than guess whether to replay it.
+            tracker.configureRecalculation(tracker.getRecalculationToken(), Collections.emptyList(), false);
+        }
         CompletableFutureList<List<CalculatedChunk.Blocks>> chunksToLoad = new CompletableFutureList<>(plugin.getSettings().getRecalcTaskTimeout());
 
         long profiler = Profiler.start(ProfileType.CALCULATE_ISLAND);
@@ -225,7 +279,7 @@ public class DefaultIslandCalculationAlgorithm implements IslandCalculationAlgor
         }
 
         public void addCounts(Key blockKey, int amount) {
-            blockCounts.put(blockKey, blockCounts.getRaw(blockKey, BigInteger.ZERO).add(BigInteger.valueOf(amount)));
+            blockCounts.merge(blockKey, BigInteger.valueOf(amount), BigInteger::add);
         }
 
         public void addCounts(KeyMap<Counter> other) {

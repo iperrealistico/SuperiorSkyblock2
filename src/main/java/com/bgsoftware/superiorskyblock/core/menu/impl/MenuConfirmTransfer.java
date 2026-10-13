@@ -69,6 +69,7 @@ public class MenuConfirmTransfer extends AbstractMenu<MenuConfirmTransfer.View, 
                        Menu<View, Args> menu, Args args) {
             super(inventoryViewer, previousMenuView, menu);
             this.island = args.getIsland();
+            bindActionTarget(this.island);
             this.targetPlayer = args.targetPlayer;
         }
 

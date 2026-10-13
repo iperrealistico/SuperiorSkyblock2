@@ -26,6 +26,8 @@ public abstract class AbstractPagedMenu<V extends AbstractPagedMenuView<V, A, E>
 
     @Override
     public boolean onPreButtonClick(MenuViewButton<V> menuButton, ButtonClickContext<V> context) {
+        if (!super.onPreButtonClick(menuButton, context))
+            return false;
         if (!(menuButton instanceof PagedMenuViewButton))
             return true;
 

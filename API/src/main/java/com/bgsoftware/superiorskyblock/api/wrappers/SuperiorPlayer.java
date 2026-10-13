@@ -326,6 +326,28 @@ public interface SuperiorPlayer extends IMissionsHolder, IPersistentDataHolder, 
     @Nullable
     Island getIsland();
 
+    /** Stable user selection, independent of physical event location and lexical command target. */
+    default Island getSelectedIsland() { return getIsland(); }
+
+    /** All owned and team islands; getIsland() remains the selected legacy view. */
+    default java.util.List<Island> getIslands() {
+        Island island = getIsland();
+        return island == null ? java.util.Collections.emptyList() : java.util.Collections.singletonList(island);
+    }
+
+    default java.util.List<Island> getOwnedIslands() {
+        java.util.List<Island> result = new java.util.ArrayList<>();
+        for (Island island : getIslands())
+            if (getUniqueId().equals(island.getOwner().getUniqueId())) result.add(island);
+        return java.util.Collections.unmodifiableList(result);
+    }
+
+    default PlayerRole getPlayerRole(Island island) { return getPlayerRole(); }
+    default void setPlayerRole(Island island, PlayerRole role) { setPlayerRole(role); }
+    default void addIslandMembership(Island island, PlayerRole role) { setIsland(island); setPlayerRole(role); }
+    default void removeIslandMembership(Island island) { if (getIsland() == island) setIsland(null); }
+    default void selectIsland(Island island) { setIsland(island); }
+
     /**
      * Set the island of the player.
      * !Can cause issues if not used properly!

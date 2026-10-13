@@ -6,6 +6,8 @@ import com.bgsoftware.superiorskyblock.api.events.IslandSetHomeEvent;
 import com.bgsoftware.superiorskyblock.api.island.Island;
 import com.bgsoftware.superiorskyblock.api.island.IslandChunkFlags;
 import com.bgsoftware.superiorskyblock.api.player.algorithm.PlayerTeleportAlgorithm;
+import com.bgsoftware.superiorskyblock.api.service.region.MoveResult;
+import com.bgsoftware.superiorskyblock.api.service.region.RegionManagerService;
 import com.bgsoftware.superiorskyblock.api.world.Dimension;
 import com.bgsoftware.superiorskyblock.api.world.WorldInfo;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
@@ -30,6 +32,8 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
+import com.bgsoftware.superiorskyblock.player.SuperiorNPCPlayer;
 
 import java.time.Duration;
 import java.util.Comparator;
@@ -52,7 +56,8 @@ public class EntityTeleports {
             Message.TELEPORT_WARMUP.send(superiorPlayer, Formatters.TIME_FORMATTER.format(
                     Duration.ofMillis(warmupInMillis), superiorPlayer.getUserLocale()));
 
-            superiorPlayer.setTeleportTask(BukkitExecutor.sync(() -> teleportCallback.accept(true), warmupInMillis / 50));
+            superiorPlayer.runIfOnline(player -> superiorPlayer.setTeleportTask(BukkitExecutor.entity(player,
+                    () -> teleportCallback.accept(true), Math.max(1L, warmupInMillis / 50))));
         } else {
             teleportCallback.accept(false);
         }
@@ -63,24 +68,28 @@ public class EntityTeleports {
     }
 
     public static void teleport(Entity entity, Location location, @Nullable Consumer<PlayerTeleportAlgorithm.TeleportResult> teleportResult) {
-        Island island = plugin.getGrid().getIslandAt(location);
+        // Callers may pass a pooled or otherwise mutable location. The native
+        // asynchronous path must own its detached destination throughout.
+        Location target = location.clone();
+        Island island = plugin.getGrid().getIslandAt(target);
 
         if (island != null) {
-            plugin.getProviders().getWorldsProvider().prepareTeleport(island, location.clone(),
-                    () -> teleportEntity(entity, location, teleportResult));
+            plugin.getProviders().getWorldsProvider().prepareTeleport(island, target.clone(),
+                    () -> teleportEntity(entity, target, teleportResult));
         } else {
-            teleportEntity(entity, location, teleportResult);
+            teleportEntity(entity, target, teleportResult);
         }
     }
 
     public static void teleportUntilSuccess(Entity entity, Location location, long cooldown, @Nullable Runnable onFinish) {
+        teleportUntilSuccess(entity, location, cooldown, onFinish, 0);
+    }
+
+    private static void teleportUntilSuccess(Entity entity, Location location, long cooldown, @Nullable Runnable onFinish, int attempt) {
         teleport(entity, location, result -> {
             if (result != PlayerTeleportAlgorithm.TeleportResult.SUCCESS) {
-                if (cooldown > 0) {
-                    BukkitExecutor.sync(() -> teleportUntilSuccess(entity, location, cooldown, onFinish), cooldown);
-                } else {
-                    teleportUntilSuccess(entity, location, cooldown, onFinish);
-                }
+                if (attempt >= 31) { plugin.getLogger().warning("Teleport retry budget exhausted for entity " + entity.getUniqueId()); return; }
+                BukkitExecutor.entity(entity, () -> teleportUntilSuccess(entity, location, cooldown, onFinish, attempt + 1), Math.max(1L, cooldown));
             } else if (onFinish != null) {
                 onFinish.run();
             }
@@ -97,6 +106,18 @@ public class EntityTeleports {
     }
 
     public static void findIslandSafeLocation(Island island, Dimension dimension, CompletableFuture<Location> result) {
+        Location home = island.getIslandHome(dimension);
+        if (home == null || home.getWorld() == null) {
+            result.completeExceptionally(new IllegalStateException("Missing island home: " + island.getUniqueId()));
+            return;
+        }
+        ChunksProvider.loadChunk(ChunkPosition.of(home), ChunkLoadReason.FIND_SAFE_SPOT,
+                chunk -> findIslandSafeLocationOwned(island, dimension, result)).whenComplete((chunk, error) -> {
+            if (error != null) result.completeExceptionally(error);
+        });
+    }
+
+    private static void findIslandSafeLocationOwned(Island island, Dimension dimension, CompletableFuture<Location> result) {
         Location homeLocation = island.getIslandHome(dimension);
 
         Preconditions.checkNotNull(homeLocation, "Cannot find a suitable home location for island " +
@@ -152,7 +173,7 @@ public class EntityTeleports {
 
                 // The center is not safe; we look for a new spot on the island.
                 findNewSafeSpotOnIsland(island, islandsWorld, homeLocation, rotationYaw, rotationPitch, result);
-            });
+            }).whenComplete((chunk, error) -> { if (error != null) result.completeExceptionally(error); });
         } else {
             findNewSafeSpotOnIsland(island, islandsWorld, homeLocation, rotationYaw, rotationPitch, result);
         }
@@ -184,37 +205,27 @@ public class EntityTeleports {
             return;
         }
 
-        ChunksProvider.loadChunk(chunkPosition, ChunkLoadReason.FIND_SAFE_SPOT, null).whenComplete((chunk, err) -> {
+        ChunksProvider.loadChunk(chunkPosition, ChunkLoadReason.FIND_SAFE_SPOT, chunk -> {
             ChunkSnapshot chunkSnapshot = chunk.getChunkSnapshot();
 
             if (WorldBlocks.isChunkEmpty(island, chunkSnapshot)) {
-                findSafeSpotInChunk(island, islandChunks, islandsWorld, homeLocation, onResult);
+                BukkitExecutor.async(() -> findSafeSpotInChunk(island, islandChunks, islandsWorld, homeLocation, onResult));
                 return;
             }
+
+            // Custom key parsers may inspect live blocks. Classify the 256
+            // candidate columns on their owner, then compare detached heights.
+            int[] safeHeights = captureSafeHeights(chunkSnapshot, islandsWorld);
 
             BukkitExecutor.createTask().runAsync(v -> {
                 Location closestSafeSpot = null;
                 double closestSafeSpotDistance = 0;
 
-                int worldBuildLimit = islandsWorld.getMaxHeight();
-                int worldMinLimit = plugin.getNMSWorld().getMinHeight(islandsWorld);
-
                 for (int x = 0; x < 16; x++) {
                     for (int z = 0; z < 16; z++) {
-                        int y = chunkSnapshot.getHighestBlockYAt(x, z);
-
-                        // ChunkSnapshot#getHighestBlockYAt returns the highest block in 1.18+, and the
-                        // block above it in older versions. Therefore, we check both possible standing spots.
-                        int safeY;
-                        if (y > worldMinLimit && y + 2 < worldBuildLimit &&
-                                WorldBlocks.isSafeStandingSpot(chunkSnapshot, x, y + 1, z)) {
-                            safeY = y + 1;
-                        } else if (y - 1 > worldMinLimit && y + 1 < worldBuildLimit &&
-                                WorldBlocks.isSafeStandingSpot(chunkSnapshot, x, y, z)) {
-                            safeY = y;
-                        } else {
+                        int safeY = safeHeights[(x << 4) | z];
+                        if (safeY == Integer.MIN_VALUE)
                             continue;
-                        }
 
                         int worldX = chunkSnapshot.getX() * 16 + x;
                         int worldZ = chunkSnapshot.getZ() * 16 + z;
@@ -230,26 +241,87 @@ public class EntityTeleports {
                 }
 
                 return closestSafeSpot;
-            }).runSync(location -> {
+            }).runAsync(location -> {
                 if (location != null) {
-                    onResult.accept(location);
+                    BukkitExecutor.region(location.getWorld(), location.getBlockX() >> 4, location.getBlockZ() >> 4, () -> {
+                        if (WorldBlocks.isSafeBlock(location.getBlock())) onResult.accept(location);
+                        else findSafeSpotInChunk(island, islandChunks, islandsWorld, homeLocation, onResult);
+                    });
                 } else {
                     findSafeSpotInChunk(island, islandChunks, islandsWorld, homeLocation, onResult);
                 }
-            });
+            }).future().whenComplete((unused, error) -> { if (error != null) onResult.accept(null); });
 
+        }).whenComplete((chunk, error) -> {
+            if (error != null) onResult.accept(null);
         });
     }
 
-    private static void teleportEntity(Entity entity, Location location, @Nullable Consumer<PlayerTeleportAlgorithm.TeleportResult> teleportResult) {
-        entity.eject();
-        if(teleportResult == null) {
-            plugin.getProviders().getAsyncProvider().teleport(entity, location, null);
-        } else {
-            plugin.getProviders().getAsyncProvider().teleport(entity, location, res -> {
-                teleportResult.accept(res ? PlayerTeleportAlgorithm.TeleportResult.SUCCESS : PlayerTeleportAlgorithm.TeleportResult.GENERAL_FAILURE);
-            });
+    private static int[] captureSafeHeights(ChunkSnapshot snapshot, World world) {
+        int[] heights = new int[256];
+        java.util.Arrays.fill(heights, Integer.MIN_VALUE);
+        int minY = plugin.getNMSWorld().getMinHeight(world);
+        int maxY = world.getMaxHeight();
+        for (int x = 0; x < 16; x++) {
+            for (int z = 0; z < 16; z++) {
+                int y = snapshot.getHighestBlockYAt(x, z);
+                // Support both the highest block and highest standing-position conventions.
+                if (y > minY && y + 2 < maxY && WorldBlocks.isSafeStandingSpot(snapshot, x, y + 1, z))
+                    heights[(x << 4) | z] = y + 1;
+                else if (y - 1 > minY && y + 1 < maxY && WorldBlocks.isSafeStandingSpot(snapshot, x, y, z))
+                    heights[(x << 4) | z] = y;
+            }
         }
+        return heights;
+    }
+
+    private static void teleportEntity(Entity entity, Location location, @Nullable Consumer<PlayerTeleportAlgorithm.TeleportResult> teleportResult) {
+        java.util.concurrent.atomic.AtomicBoolean completed = new java.util.concurrent.atomic.AtomicBoolean();
+        Consumer<PlayerTeleportAlgorithm.TeleportResult> reply = result -> {
+            if (completed.compareAndSet(false, true) && teleportResult != null) teleportResult.accept(result);
+        };
+        BukkitExecutor.entity(entity, () -> {
+            try {
+                Player player = BukkitExecutor.isFolia() && entity instanceof Player && !entity.hasMetadata("NPC") ? (Player) entity : null;
+                Location from = player == null ? null : player.getLocation();
+                Island origin = from == null ? null : plugin.getGrid().getIslandAt(from);
+                FoliaPlayerPresence.Target target = player == null ? null : FoliaPlayerPresence.capture(plugin, location);
+                if (player != null) {
+                    SuperiorPlayer account = plugin.getPlayers().getSuperiorPlayer(player);
+                    if (!(account instanceof SuperiorNPCPlayer) &&
+                            (!FoliaPlayerPresence.isCurrent(plugin, target) || plugin.getServices()
+                                    .getService(RegionManagerService.class).handlePlayerTeleport(account, from, location) != MoveResult.SUCCESS ||
+                                    !FoliaPlayerPresence.isCurrent(plugin, target))) {
+                        FoliaPlayerPresence.reconcile(plugin, player, target.island, FoliaPlayerPresence.capture(plugin, from));
+                        reply.accept(PlayerTeleportAlgorithm.TeleportResult.GENERAL_FAILURE);
+                        return;
+                    }
+                }
+                entity.eject();
+                plugin.getProviders().getAsyncProvider().teleport(entity, location, res -> {
+                    Runnable finish = () -> {
+                        try {
+                            boolean success = Boolean.TRUE.equals(res);
+                            if (player != null) {
+                                if (success) success = FoliaPlayerPresence.reconcile(plugin, player, origin, target);
+                                else if (player.isOnline() && player.isValid())
+                                    FoliaPlayerPresence.reconcile(plugin, player, target.island,
+                                            FoliaPlayerPresence.capture(plugin, player.getLocation()));
+                            }
+                            reply.accept(success ? PlayerTeleportAlgorithm.TeleportResult.SUCCESS : PlayerTeleportAlgorithm.TeleportResult.GENERAL_FAILURE);
+                        } catch (Throwable failure) {
+                            plugin.getLogger().warning("Player teleport arrival reconciliation failed: " + failure);
+                            reply.accept(PlayerTeleportAlgorithm.TeleportResult.GENERAL_FAILURE);
+                        }
+                    };
+                    try { BukkitExecutor.entity(entity, finish, 0L, () -> reply.accept(PlayerTeleportAlgorithm.TeleportResult.GENERAL_FAILURE)); }
+                    catch (java.util.concurrent.RejectedExecutionException stopping) { reply.accept(PlayerTeleportAlgorithm.TeleportResult.GENERAL_FAILURE); }
+                });
+            } catch (Throwable failure) {
+                plugin.getLogger().warning("Player teleport failed before physical arrival: " + failure);
+                reply.accept(PlayerTeleportAlgorithm.TeleportResult.GENERAL_FAILURE);
+            }
+        }, 0L, () -> reply.accept(PlayerTeleportAlgorithm.TeleportResult.GENERAL_FAILURE));
     }
 
     private static Location adjustLocationToHome(Island island, Block block, float yaw, float pitch) {
@@ -264,9 +336,9 @@ public class EntityTeleports {
                     island, (SuperiorPlayer) null, location, IslandSetHomeEvent.Reason.SAFE_HOME);
 
             if (event.isCancelled()) {
-                newHomeLocation = location;
+                newHomeLocation = location.clone();
             } else {
-                newHomeLocation = event.getArgs().islandHome;
+                newHomeLocation = event.getArgs().islandHome.clone();
                 island.setIslandHome(newHomeLocation);
             }
         }

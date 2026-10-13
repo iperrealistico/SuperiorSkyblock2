@@ -86,12 +86,20 @@ public class SSuperiorPlayer implements SuperiorPlayer {
     private final PlayerPermissionsStore permissionsStore;
 
     private final Map<MissionReference, Counter> completedMissions = new ConcurrentHashMap<>();
-    private final List<UUID> pendingInvites = new LinkedList<>();
-    private final List<Island> coopIslands = new LinkedList<>();
+    private final List<UUID> pendingInvites = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final List<Island> coopIslands = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     private final UUID uuid;
 
-    private Island playerIsland = null;
+    // Published from the entity owner; readers on other regions only receive copies.
+    private volatile Location locationSnapshot;
+
+    private volatile Island playerIsland = null;
+    private volatile RuntimeState runtimeState = new RuntimeState(GameMode.SURVIVAL, false, false);
+    private volatile MenuView<?, ?> openedViewSnapshot;
+    private final Map<UUID, Island> memberships = new ConcurrentHashMap<>();
+    private final Map<UUID, Integer> islandRoles = new ConcurrentHashMap<>();
+    private final Object membershipLock = new Object();
     private String name;
     private String textureValue;
     private WeakReference<PlayerRole> playerRole;
@@ -114,7 +122,7 @@ public class SSuperiorPlayer implements SuperiorPlayer {
     private long lastTimeStatus;
 
     private BukkitTask teleportTask = null;
-    private final EnumSet<PlayerStatus> playerStatuses = EnumSet.noneOf(PlayerStatus.class);
+    private final java.util.Set<PlayerStatus> playerStatuses = ConcurrentHashMap.newKeySet();
 
     public SSuperiorPlayer(SuperiorPlayerBuilderImpl builder) {
         this.uuid = builder.uuid;
@@ -283,48 +291,64 @@ public class SSuperiorPlayer implements SuperiorPlayer {
     public void runIfOnline(Consumer<Player> toRun) {
         Player player = asPlayer();
         if (player != null)
-            toRun.accept(player);
+            BukkitExecutor.entity(player, () -> { if (player.isOnline()) toRun.accept(player); });
     }
 
     @Override
     public boolean hasFlyGamemode() {
         Player player = asPlayer();
-        return player != null && (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR);
+        if (player == null) return false;
+        GameMode mode = BukkitExecutor.owns(player) ? player.getGameMode() : runtimeState.gameMode;
+        return mode == GameMode.CREATIVE || mode == GameMode.SPECTATOR;
     }
 
     @Nullable
     @Override
     public MenuView<?, ?> getOpenedView() {
         Player player = asPlayer();
+        if (player == null) return null;
+        if (BukkitExecutor.owns(player)) refreshOpenedView(player);
+        return openedViewSnapshot;
+    }
 
-        if (player != null) {
-            InventoryView openInventory = player.getOpenInventory();
-            if (openInventory != null && openInventory.getTopInventory() != null) {
-                InventoryHolder inventoryHolder = openInventory.getTopInventory().getHolder();
-                if (inventoryHolder instanceof MenuView)
-                    return (MenuView<?, ?>) inventoryHolder;
-            }
-        }
+    /** Called after an inventory event on the player's entity owner. */
+    public void refreshOpenedView(Player player) {
+        Preconditions.checkArgument(uuid.equals(player.getUniqueId()), "Player identity mismatch.");
+        Preconditions.checkState(BukkitExecutor.owns(player), "Inventory snapshots require the entity owner.");
+        InventoryView open = player.getOpenInventory();
+        InventoryHolder holder = open == null || open.getTopInventory() == null ? null : open.getTopInventory().getHolder();
+        openedViewSnapshot = holder instanceof MenuView ? (MenuView<?, ?>) holder : null;
+    }
 
-        return null;
+    /** Provider calls and game mode reads occur only on the player's entity owner. */
+    public void refreshRuntimeState(Player player) {
+        Preconditions.checkArgument(uuid.equals(player.getUniqueId()), "Player identity mismatch.");
+        Preconditions.checkState(BukkitExecutor.owns(player), "Runtime snapshots require the entity owner.");
+        runtimeState = new RuntimeState(player.getGameMode(), plugin.getProviders().isAFK(player),
+                plugin.getProviders().getVanishProvider().isVanished(player));
+    }
+
+    private static final class RuntimeState {
+        final GameMode gameMode; final boolean afk, vanished;
+        RuntimeState(GameMode gameMode, boolean afk, boolean vanished) { this.gameMode = gameMode; this.afk = afk; this.vanished = vanished; }
     }
 
     @Override
     public boolean isAFK() {
         Player player = asPlayer();
-        return player != null && plugin.getProviders().isAFK(player);
+        return player != null && (BukkitExecutor.owns(player) ? plugin.getProviders().isAFK(player) : runtimeState.afk);
     }
 
     @Override
     public boolean isVanished() {
         Player player = asPlayer();
-        return player != null && plugin.getProviders().getVanishProvider().isVanished(player);
+        return player != null && (BukkitExecutor.owns(player) ? plugin.getProviders().getVanishProvider().isVanished(player) : runtimeState.vanished);
     }
 
     @Override
     public boolean isShownAsOnline() {
         Player player = asPlayer();
-        return player != null && player.getGameMode() != GameMode.SPECTATOR && !isVanished();
+        return player != null && (BukkitExecutor.owns(player) ? player.getGameMode() : runtimeState.gameMode) != GameMode.SPECTATOR && !isVanished();
     }
 
     @Override
@@ -434,24 +458,72 @@ public class SSuperiorPlayer implements SuperiorPlayer {
     @Override
     public World getWorld() {
         Player player = asPlayer();
-        return player == null ? null : player.getWorld();
+        if (player == null)
+            return null;
+        if (BukkitExecutor.owns(player))
+            return player.getWorld();
+        Location snapshot = this.locationSnapshot;
+        return snapshot == null ? null : snapshot.getWorld();
     }
 
     @Override
     public Location getLocation() {
         Player player = asPlayer();
-        return player == null ? null : player.getLocation();
+        if (player == null)
+            return null;
+        if (BukkitExecutor.owns(player)) {
+            Location current = player.getLocation();
+            refreshLocationSnapshot(player, current);
+            return current;
+        }
+        Location snapshot = this.locationSnapshot;
+        return snapshot == null ? null : snapshot.clone();
     }
 
     @Override
     public Location getLocation(@Nullable Location location) {
-        if (location != null) {
-            Player player = asPlayer();
-            if (player != null)
-                player.getLocation(location);
+        if (location == null)
+            return null;
+        Player player = asPlayer();
+        if (player == null)
+            return location;
+        if (BukkitExecutor.owns(player)) {
+            player.getLocation(location);
+            refreshLocationSnapshot(player, location);
+            return location;
         }
-
+        Location snapshot = this.locationSnapshot;
+        if (snapshot == null)
+            return null;
+        location.setWorld(snapshot.getWorld());
+        location.setX(snapshot.getX());
+        location.setY(snapshot.getY());
+        location.setZ(snapshot.getZ());
+        location.setYaw(snapshot.getYaw());
+        location.setPitch(snapshot.getPitch());
         return location;
+    }
+
+    /** Must be called on the player's entity owner, including after a teleport. */
+    public void refreshLocationSnapshot(Player player) {
+        refreshLocationSnapshot(player, player.getLocation());
+    }
+
+    /** Publishes a defensive copy of an already captured owner-thread location. */
+    public void refreshLocationSnapshot(Player player, Location location) {
+        Preconditions.checkArgument(uuid.equals(player.getUniqueId()), "Player identity mismatch.");
+        Preconditions.checkState(BukkitExecutor.owns(player), "Location snapshots require the entity owner.");
+        this.locationSnapshot = Preconditions.checkNotNull(location, "location").clone();
+    }
+
+    public void clearLocationSnapshot() {
+        this.locationSnapshot = null;
+    }
+
+    /** Internal arrival observer: reads the last published position without refreshing it. */
+    public Location getLastLocationSnapshot() {
+        Location snapshot = this.locationSnapshot;
+        return snapshot == null ? null : snapshot.clone();
     }
 
     @Override
@@ -473,11 +545,11 @@ public class SSuperiorPlayer implements SuperiorPlayer {
     public void teleportWithResult(Location location, @Nullable Consumer<PlayerTeleportAlgorithm.TeleportResult> teleportResult) {
         Player player = asPlayer();
         if (player != null) {
-            playerTeleportAlgorithm.teleportWithResult(player, location).whenCompleteAsync((result, error) -> {
+            playerTeleportAlgorithm.teleportWithResult(player, location).whenComplete((result, error) -> BukkitExecutor.entity(player, () -> {
                 if (teleportResult != null) {
                     teleportResult.accept(error != null ? PlayerTeleportAlgorithm.TeleportResult.UNEXPECTED_ERROR : result);
                 }
-            }, BukkitExecutor.SYNC_EXECUTOR);
+            }, 0L, () -> { if (teleportResult != null) teleportResult.accept(PlayerTeleportAlgorithm.TeleportResult.OFFLINE_PLAYER); }));
         } else if (teleportResult != null) {
             teleportResult.accept(PlayerTeleportAlgorithm.TeleportResult.OFFLINE_PLAYER);
         }
@@ -524,14 +596,17 @@ public class SSuperiorPlayer implements SuperiorPlayer {
         Player player = asPlayer();
         if (player != null) {
             setPlayerStatus(PlayerStatus.FALL_DAMAGE_IMMUNED);
-            playerTeleportAlgorithm.teleportWithResult(player, island, dimension).whenCompleteAsync((result, error) -> {
+            playerTeleportAlgorithm.teleportWithResult(player, island, dimension).whenComplete((result, error) -> BukkitExecutor.entity(player, () -> {
                 player.setFallDistance(0f);
                 removePlayerStatus(PlayerStatus.FALL_DAMAGE_IMMUNED);
 
                 if (teleportResult != null) {
                     teleportResult.accept(error != null ? PlayerTeleportAlgorithm.TeleportResult.UNEXPECTED_ERROR : result);
                 }
-            }, BukkitExecutor.SYNC_EXECUTOR);
+            }, 0L, () -> {
+                removePlayerStatus(PlayerStatus.FALL_DAMAGE_IMMUNED);
+                if (teleportResult != null) teleportResult.accept(PlayerTeleportAlgorithm.TeleportResult.OFFLINE_PLAYER);
+            }));
         } else if (teleportResult != null) {
             teleportResult.accept(PlayerTeleportAlgorithm.TeleportResult.OFFLINE_PLAYER);
         }
@@ -542,7 +617,8 @@ public class SSuperiorPlayer implements SuperiorPlayer {
         Player player = asPlayer();
         Island island = getIsland();
         try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
-            return player != null && island != null && island.isInside(player.getLocation(wrapper.getHandle()));
+            Location location = getLocation(wrapper.getHandle());
+            return player != null && island != null && location != null && island.isInside(location);
         }
     }
 
@@ -563,24 +639,92 @@ public class SSuperiorPlayer implements SuperiorPlayer {
 
     @Override
     public Island getIsland() {
-        return playerIsland;
+        Island context = com.bgsoftware.superiorskyblock.pvc.island.IslandExecutionContext.current();
+        if (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isActive())
+            return context != null && published(context) && memberships.containsKey(context.getUniqueId()) ? context : null;
+        if (!com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isActive()) {
+            Player online = asPlayer();
+            if (online != null && BukkitExecutor.owns(online)) {
+                Island standing = plugin.getGrid().getIslandAt(online.getLocation());
+                if (standing != null && published(standing) && memberships.containsKey(standing.getUniqueId())) return standing;
+            }
+        }
+        return getSelectedIsland();
+    }
+
+    @Override public Island getSelectedIsland() {
+        synchronized (membershipLock) {
+            Island selected = playerIsland;
+            if (selected != null && published(selected) && memberships.containsKey(selected.getUniqueId())) return selected;
+            Island sole = null;
+            for (Island membership : memberships.values()) if (published(membership)) {
+                if (sole != null) return null;
+                sole = membership;
+            }
+            return sole;
+        }
+    }
+
+    private boolean published(Island island) {
+        return plugin.getPvcIslandService() == null || !plugin.getPvcIslandService().isCreationPending(island.getUniqueId());
     }
 
     @Override
     public void setIsland(Island island) {
         Log.debug(Debug.SET_PLAYER_ISLAND, getName(), island == null ? "null" : island.getOwner().getName());
 
-        this.playerIsland = island;
+        if (island != null && !memberships.containsKey(island.getUniqueId()))
+            throw new IllegalArgumentException("Cannot select an island without membership");
+        selectIsland(island);
+    }
 
-        if (this.playerIsland == null) {
-            setPlayerRoleInternal(null);
+    @Override public List<Island> getIslands() {
+        List<Island> result;
+        synchronized (membershipLock) { result = new java.util.ArrayList<>(memberships.values()); }
+        result.removeIf(island -> !published(island));
+        result.sort(java.util.Comparator.comparingLong(Island::getShortId));
+        return Collections.unmodifiableList(result);
+    }
+
+    @Override public List<Island> getOwnedIslands() { return plugin.getPvcIslandService().getOwnedIslands(uuid); }
+
+    @Override public void addIslandMembership(Island island, PlayerRole role) {
+        synchronized (membershipLock) {
+        Island previous = memberships.put(island.getUniqueId(), island);
+        Integer previousRole = islandRoles.put(island.getUniqueId(), role.getId());
+        if (previous != island || !java.util.Objects.equals(previousRole, role.getId()))
+            plugin.getPvcIslandService().membershipChanged(island.getUniqueId());
+        if (playerIsland == null && memberships.size() == 1) playerIsland = island;
         }
+    }
 
+    @Override public void removeIslandMembership(Island island) {
+        Island selected;
+        boolean changed;
+        synchronized (membershipLock) {
+        Island removed = memberships.remove(island.getUniqueId()); islandRoles.remove(island.getUniqueId());
+        if (removed != null) plugin.getPvcIslandService().membershipChanged(island.getUniqueId());
+        changed = playerIsland == island;
+        if (changed) {
+            playerIsland = memberships.size() == 1 ? memberships.values().iterator().next() : null;
+        }
+        selected = playerIsland;
+        }
+        if (changed) plugin.getPvcIslandService().select(this, selected);
+    }
+
+    @Override public void selectIsland(Island island) {
+        synchronized (membershipLock) {
+        if (island != null && !memberships.containsKey(island.getUniqueId()))
+            throw new IllegalArgumentException("Cannot select an island without membership");
+        playerIsland = island;
+        }
+        plugin.getPvcIslandService().select(this, island);
     }
 
     @Override
     public boolean hasIsland() {
-        return getIsland() != null;
+        return !getIslands().isEmpty();
     }
 
     @Override
@@ -619,6 +763,9 @@ public class SSuperiorPlayer implements SuperiorPlayer {
 
     @Override
     public PlayerRole getPlayerRole() {
+        Island island = getIsland();
+        if (island != null) return getPlayerRole(island);
+        if (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isActive()) return SPlayerRole.guestRole();
         PlayerRole playerRole = this.playerRole.get();
 
         if (playerRole == null) {
@@ -641,11 +788,24 @@ public class SSuperiorPlayer implements SuperiorPlayer {
 
         Log.debug(Debug.SET_PLAYER_ROLE, getName(), playerRole.getName());
 
-        setPlayerRoleInternal(playerRole);
-
         Island island = getIsland();
-        if (island != null && island.getOwner() != this)
-            IslandsDatabaseBridge.saveMemberRole(island, this);
+        if (island == null) setPlayerRoleInternal(playerRole); else setPlayerRole(island, playerRole);
+    }
+
+    @Override public PlayerRole getPlayerRole(Island island) {
+        if (island == null) return SPlayerRole.guestRole();
+        if (island.getOwner() != null && uuid.equals(island.getOwner().getUniqueId())) return SPlayerRole.lastRole();
+        Integer role = islandRoles.get(island.getUniqueId());
+        return role == null ? SPlayerRole.guestRole() : plugin.getRoles().getPlayerRoleFromId(role);
+    }
+
+    @Override public void setPlayerRole(Island island, PlayerRole role) {
+        synchronized (membershipLock) {
+            Preconditions.checkArgument(memberships.containsKey(island.getUniqueId()), "Player is not a member of this island");
+            Integer previous = islandRoles.put(island.getUniqueId(), role.getId());
+            if (!java.util.Objects.equals(previous, role.getId())) plugin.getPvcIslandService().membershipChanged(island.getUniqueId());
+        }
+        if (island.getOwner() != this) IslandsDatabaseBridge.saveMemberRole(island, this);
     }
 
     @Override
@@ -719,7 +879,7 @@ public class SSuperiorPlayer implements SuperiorPlayer {
 
     @Override
     public void updateWorldBorder(@Nullable Island island) {
-        BukkitExecutor.ensureMain(() -> plugin.getNMSWorld().setWorldBorder(this, island));
+        runIfOnline(player -> plugin.getNMSWorld().setWorldBorder(this, island));
     }
 
     @Override
@@ -1038,7 +1198,10 @@ public class SSuperiorPlayer implements SuperiorPlayer {
         Preconditions.checkNotNull(otherPlayer, "otherPlayer parameter cannot be null.");
 
         this.name = otherPlayer.getName();
-        this.playerIsland = otherPlayer.getIsland();
+        Island previousSelection = otherPlayer.getSelectedIsland();
+        for (Island membership : otherPlayer.getIslands())
+            if (membership.isMember(this)) addIslandMembership(membership, otherPlayer.getPlayerRole(membership));
+        if (previousSelection != null && memberships.containsKey(previousSelection.getUniqueId())) selectIsland(previousSelection);
         setPlayerRoleInternal(otherPlayer.getPlayerRole());
         this.userLocale = otherPlayer.getUserLocale();
         this.worldBorderEnabled |= otherPlayer.hasWorldBorderEnabled();

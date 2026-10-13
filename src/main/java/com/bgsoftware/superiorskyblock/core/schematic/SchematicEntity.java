@@ -24,4 +24,8 @@ public class SchematicEntity {
         plugin.getNMSTags().spawnEntity(entityType, offset.applyToLocation(min), entityTag);
     }
 
+    public Location getSpawnLocation(Location min) {
+        return offset.applyToLocation(min);
+    }
+
 }

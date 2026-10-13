@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&lIsland Biomes'
+title: '&6&lIsland Biomes'
 previous-menu: true
 
 pattern:
@@ -35,13 +35,13 @@ items:
   '$':
     type: STAINED_GLASS_PANE
     data: 15
-    name: '&f'
+    name: '&8'
   '%':
     type: PAPER
     name: '{0}Previous Page'
   '*':
     type: DOUBLE_PLANT
-    name: '&aCurrent Page'
+    name: '&6Current Page'
     lore:
       - '&7Page {0}'
   '^':
@@ -53,7 +53,7 @@ biomes:
     dimension: NORMAL
     access:
       type: SAND
-      name: '&eBeach Biome &a(Available)'
+      name: '&6Beach Biome &e(Available)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -62,7 +62,7 @@ biomes:
         pitch: 0.2
     no-access:
       type: SAND
-      name: '&eBeach Biome &c(Unavailable)'
+      name: '&6Beach Biome &6(Unavailable)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -75,7 +75,7 @@ biomes:
     access:
       type: SAPLING
       data: 2
-      name: '&eBirch Forest Biome &a(Available)'
+      name: '&6Birch Forest Biome &e(Available)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -85,7 +85,7 @@ biomes:
     no-access:
       type: SAPLING
       data: 2
-      name: '&eBirch Forest Biome &c(Unavailable)'
+      name: '&6Birch Forest Biome &6(Unavailable)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -97,7 +97,7 @@ biomes:
     dimension: NORMAL
     access:
       type: CACTUS
-      name: '&eDesert Biome &a(Available)'
+      name: '&6Desert Biome &e(Available)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -106,7 +106,7 @@ biomes:
         pitch: 0.2
     no-access:
       type: CACTUS
-      name: '&eDesert Biome &c(Unavailable)'
+      name: '&6Desert Biome &6(Unavailable)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -118,7 +118,7 @@ biomes:
     dimension: NORMAL
     access:
       type: SAPLING
-      name: '&eForest Biome &a(Available)'
+      name: '&6Forest Biome &e(Available)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -127,7 +127,7 @@ biomes:
         pitch: 0.2
     no-access:
       type: SAPLING
-      name: '&eForest Biome &c(Unavailable)'
+      name: '&6Forest Biome &6(Unavailable)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -139,7 +139,7 @@ biomes:
     dimension: NORMAL
     access:
       type: PACKED_ICE
-      name: '&eIce Plains Spikes Biome &a(Available)'
+      name: '&6Ice Plains Spikes Biome &e(Available)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -148,7 +148,7 @@ biomes:
         pitch: 0.2
     no-access:
       type: PACKED_ICE
-      name: '&eIce Plains Spikes Biome &c(Unavailable)'
+      name: '&6Ice Plains Spikes Biome &6(Unavailable)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -161,7 +161,7 @@ biomes:
     access:
       type: SAPLING
       data: 3
-      name: '&eJungle Biome &a(Available)'
+      name: '&6Jungle Biome &e(Available)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -171,7 +171,7 @@ biomes:
     no-access:
       type: SAPLING
       data: 3
-      name: '&eJungle Biome &c(Unavailable)'
+      name: '&6Jungle Biome &6(Unavailable)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -183,7 +183,7 @@ biomes:
     dimension: NORMAL
     access:
       type: DEAD_BUSH
-      name: '&eMesa Biome &a(Available)'
+      name: '&6Mesa Biome &e(Available)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -192,7 +192,7 @@ biomes:
         pitch: 0.2
     no-access:
       type: DEAD_BUSH
-      name: '&eMesa Biome &c(Unavailable)'
+      name: '&6Mesa Biome &6(Unavailable)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -204,7 +204,7 @@ biomes:
     dimension: NORMAL
     access:
       type: MYCEL
-      name: '&eMushroom Island Biome &a(Available)'
+      name: '&6Mushroom Island Biome &e(Available)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -213,7 +213,7 @@ biomes:
         pitch: 0.2
     no-access:
       type: MYCEL
-      name: '&eMushroom Island Biome &c(Unavailable)'
+      name: '&6Mushroom Island Biome &6(Unavailable)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -225,7 +225,7 @@ biomes:
     dimension: NORMAL
     access:
       type: WATER_BUCKET
-      name: '&eOcean Biome &a(Available)'
+      name: '&6Ocean Biome &e(Available)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -234,7 +234,7 @@ biomes:
         pitch: 0.2
     no-access:
       type: WATER_BUCKET
-      name: '&eOcean Biome &c(Unavailable)'
+      name: '&6Ocean Biome &6(Unavailable)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -247,7 +247,7 @@ biomes:
     access:
       type: LONG_GRASS
       data: 1
-      name: '&ePlains Biome &a(Available)'
+      name: '&6Plains Biome &e(Available)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -257,7 +257,7 @@ biomes:
     no-access:
       type: LONG_GRASS
       data: 1
-      name: '&ePlains Biome &c(Unavailable)'
+      name: '&6Plains Biome &6(Unavailable)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -270,7 +270,7 @@ biomes:
     access:
       type: SAPLING
       data: 5
-      name: '&eRoofed Forest Biome &a(Available)'
+      name: '&6Roofed Forest Biome &e(Available)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -280,7 +280,7 @@ biomes:
     no-access:
       type: SAPLING
       data: 5
-      name: '&eRoofed Forest Biome &c(Unavailable)'
+      name: '&6Roofed Forest Biome &6(Unavailable)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -293,7 +293,7 @@ biomes:
     access:
       type: SAPLING
       data: 4
-      name: '&eSavanna Biome &a(Available)'
+      name: '&6Savanna Biome &e(Available)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -303,7 +303,7 @@ biomes:
     no-access:
       type: SAPLING
       data: 4
-      name: '&eSavanna Biome &c(Unavailable)'
+      name: '&6Savanna Biome &6(Unavailable)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -315,7 +315,7 @@ biomes:
     dimension: NORMAL
     access:
       type: WATER_LILY
-      name: '&eSwamp Biome &a(Available)'
+      name: '&6Swamp Biome &e(Available)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -324,7 +324,7 @@ biomes:
         pitch: 0.2
     no-access:
       type: WATER_LILY
-      name: '&eSwamp Biome &c(Unavailable)'
+      name: '&6Swamp Biome &6(Unavailable)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -337,7 +337,7 @@ biomes:
     access:
       type: SAPLING
       data: 1
-      name: '&eTaiga Biome &a(Available)'
+      name: '&6Taiga Biome &e(Available)'
       lore:
         - '&7Change your island biome.'
       sound:
@@ -347,7 +347,7 @@ biomes:
     no-access:
       type: SAPLING
       data: 1
-      name: '&eTaiga Biome &c(Unavailable)'
+      name: '&6Taiga Biome &6(Unavailable)'
       lore:
         - '&7Change your island biome.'
       sound:

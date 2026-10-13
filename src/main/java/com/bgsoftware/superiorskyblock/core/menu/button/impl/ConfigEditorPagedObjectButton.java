@@ -57,10 +57,10 @@ public class ConfigEditorPagedObjectButton extends AbstractPagedMenuButton<MenuC
 
                 currentView.closeView();
 
-                player.sendMessage("" + ChatColor.YELLOW + ChatColor.BOLD + "SuperiorSkyblock" + ChatColor.GRAY + " Please enter a new value (-cancel to cancel):");
+                com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(player, "Please enter a new value &8(&6-cancel &7to cancel&8):");
 
                 if (config.isList(fullPath)) {
-                    player.sendMessage("" + ChatColor.YELLOW + ChatColor.BOLD + "SuperiorSkyblock" + ChatColor.GRAY + " If you enter a value that is already in the list, it will be removed.");
+                    com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(player, "If you enter a value that is already in the list, it will be removed.");
                 }
             }
         } catch (Exception ignored) {
@@ -79,10 +79,12 @@ public class ConfigEditorPagedObjectButton extends AbstractPagedMenuButton<MenuC
 
                 if (list.contains(message.toString())) {
                     list.remove(message.toString());
-                    player.sendMessage("" + ChatColor.YELLOW + ChatColor.BOLD + "SuperiorSkyblock" + ChatColor.GRAY + " Removed the value " + message + " from " + path);
+                    com.bgsoftware.superiorskyblock.pvc.PvcMessages.sendRaw(player,
+                            "Removed the value " + ChatColor.YELLOW + message + ChatColor.GRAY + " from " + ChatColor.YELLOW + path + ChatColor.GRAY + ".");
                 } else {
                     list.add(message.toString());
-                    player.sendMessage("" + ChatColor.YELLOW + ChatColor.BOLD + "SuperiorSkyblock" + ChatColor.GRAY + " Added the value " + message + " to " + path);
+                    com.bgsoftware.superiorskyblock.pvc.PvcMessages.sendRaw(player,
+                            "Added the value " + ChatColor.YELLOW + message + ChatColor.GRAY + " to " + ChatColor.YELLOW + path + ChatColor.GRAY + ".");
                 }
 
                 config.set(path, list);
@@ -92,14 +94,14 @@ public class ConfigEditorPagedObjectButton extends AbstractPagedMenuButton<MenuC
                     try {
                         message = Integer.valueOf(message.toString());
                     } catch (IllegalArgumentException ex) {
-                        player.sendMessage(ChatColor.RED + "Please specify a valid number");
+                        com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(player, "Please specify a valid number.");
                         valid = false;
                     }
                 } else if (config.isDouble(path)) {
                     try {
                         message = Double.valueOf(message.toString());
                     } catch (IllegalArgumentException ex) {
-                        player.sendMessage(ChatColor.RED + "Please specify a valid number");
+                        com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(player, "Please specify a valid number.");
                         valid = false;
                     }
                 }

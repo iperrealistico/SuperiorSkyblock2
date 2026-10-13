@@ -11,10 +11,15 @@ public class DateFormatter implements IFormatter<Date> {
 
     private static final DateFormatter INSTANCE = new DateFormatter();
 
-    private static SimpleDateFormat dateFormatter;
+    private static volatile SimpleDateFormat dateFormatter;
 
     public static void setDateFormatter(SuperiorSkyblockPlugin plugin, String dateFormat) {
-        dateFormatter = new SimpleDateFormat(dateFormat);
+        java.util.Locale locale = java.util.Locale.getDefault();
+        if (com.bgsoftware.superiorskyblock.player.PlayerLocales.isDefaultLanguageForced()) {
+            java.util.Locale configured = com.bgsoftware.superiorskyblock.player.PlayerLocales.getDefaultLocale();
+            locale = configured == null ? java.util.Locale.US : configured;
+        }
+        dateFormatter = new SimpleDateFormat(dateFormat, locale);
         try {
             for (Island island : plugin.getGrid().getIslands()) {
                 island.updateDatesFormatter();
@@ -33,7 +38,8 @@ public class DateFormatter implements IFormatter<Date> {
 
     @Override
     public String format(Date value) {
-        return dateFormatter.format(value);
+        // SimpleDateFormat mutates its calendar while formatting; regions must not share that state.
+        return ((SimpleDateFormat) dateFormatter.clone()).format(value);
     }
 
 }

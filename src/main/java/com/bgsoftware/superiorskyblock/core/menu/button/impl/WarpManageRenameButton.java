@@ -31,7 +31,7 @@ public class WarpManageRenameButton extends AbstractMenuViewButton<MenuWarpManag
 
         menuView.closeView();
 
-        PlayerChat.listen(player, newName -> {
+        PlayerChat.listen(player, com.bgsoftware.superiorskyblock.island.privilege.IslandPrivileges.SET_WARP, newName -> {
             IslandWarp islandWarp = menuView.getIslandWarp();
 
             if (!newName.equalsIgnoreCase("-cancel")) {

@@ -25,13 +25,13 @@ public class LeaveButton extends AbstractMenuViewButton<BaseMenuView> {
     @Override
     public void onButtonClick(ButtonClickContext<BaseMenuView> context) {
         SuperiorPlayer inventoryViewer = menuView.getInventoryViewer();
-        Island island = inventoryViewer.getIsland();
+        Island island = menuView.getActionTarget();
 
-        if (getTemplate().leaveIsland && island != null) {
+        if (getTemplate().leaveIsland && island != null && !inventoryViewer.getPlayerRole(island).isLastRole() && menuView.claimIslandAction(island, null)) {
             IslandUtils.handleLeaveIsland(inventoryViewer, island);
         }
 
-        BukkitExecutor.sync(menuView::closeView, 1L);
+        plugin.executePlayer(menuView.getInventoryViewer(), menuView::closeView, 1L);
     }
 
     public static class Builder extends AbstractMenuTemplateButton.AbstractBuilder<BaseMenuView> {

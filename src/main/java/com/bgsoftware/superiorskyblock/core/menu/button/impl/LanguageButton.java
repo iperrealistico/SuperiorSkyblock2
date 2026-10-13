@@ -28,6 +28,11 @@ public class LanguageButton extends AbstractMenuViewButton<BaseMenuView> {
     @Override
     public void onButtonClick(ButtonClickContext<BaseMenuView> context) {
         SuperiorPlayer inventoryViewer = menuView.getInventoryViewer();
+        if (com.bgsoftware.superiorskyblock.player.PlayerLocales.isDefaultLanguageForced()) {
+            Message.PVC_SERVER_LANGUAGE_FIXED.send(inventoryViewer,
+                    com.bgsoftware.superiorskyblock.player.PlayerLocales.getDefaultLocale().getDisplayName(Locale.ENGLISH));
+            return;
+        }
 
         Locale language = getTemplate().language;
 
@@ -38,7 +43,7 @@ public class LanguageButton extends AbstractMenuViewButton<BaseMenuView> {
 
         Message.CHANGED_LANGUAGE.send(inventoryViewer);
 
-        BukkitExecutor.sync(menuView::closeView, 1L);
+        plugin.executePlayer(menuView.getInventoryViewer(), menuView::closeView, 1L);
     }
 
     public static class Builder extends AbstractMenuTemplateButton.AbstractBuilder<BaseMenuView> {

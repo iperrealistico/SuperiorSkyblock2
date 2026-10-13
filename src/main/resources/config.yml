@@ -149,7 +149,7 @@ stacked-blocks:
     # Should the menu be opened when shift-clicking stacked blocks?
     enabled: true
     # The title of the menu.
-    title: '&lDeposit Blocks'
+    title: '&6&lDeposit Blocks'
 
 # The formula used to calculate a block's level when it has a worth defined but no level specified.
 # Use {} as a placeholder for worth. Make sure you only use digits and mathematical operations!
@@ -308,7 +308,7 @@ sign-warp-line: '[IslandWarp]'
 
 # Set the lines of the island warp.
 sign-warp:
-  - '&a[Island Warp]'
+  - '&8[&6Island Warp&8]'
   - ''
   - ''
   - ''
@@ -321,9 +321,9 @@ visitors-sign:
   # Set the line to create the visitors sign.
   line: '[Welcome]'
   # The line that will be displayed when the sign is active.
-  active: '&a[Welcome]'
+  active: '&8[&eWelcome&8]'
   # The line that will be displayed when the sign is inactive.
-  inactive: '&c[Welcome]'
+  inactive: '&8[&7Welcome&8]'
   # The format in which the island description lines will be saved, players can set the island description
   # by entering it in the next lines of the Visitors Sign. Useful if you want to display a description
   # in the global-warps menu and want to give it a default color. {0} represents the text on that line.
@@ -846,7 +846,7 @@ schematic-name-argument: true
 # Settings related to the island chest.
 island-chests:
   # The chest title.
-  chest-title: '&4Island Chest'
+  chest-title: '&6Island Chest'
   # Default amount of pages.
   # You can set this value to 0 to not have any pages by default.
   default-pages: 0
@@ -928,7 +928,7 @@ recalc-task-timeout: 10
 # Detect the player's language automatically when he first joins the server.
 # The language will only get changed if there is a valid translation available,
 # otherwise the default language will be chosen for the player.
-auto-language-detection: true
+auto-language-detection: false
 
 # Automatically uncoop players when there are no island members left online that can remove uncoop players.
 auto-uncoop-when-alone: false
@@ -983,3 +983,27 @@ help-on-invalid-command: true
 # Should players receive a help instead of a `NO_COMMAND_PERMISSION` message
 # when using a command they don't have permission for?
 help-on-no-permission: false
+# PVC maintenance fork. Existing servers retain their upstream sizing behavior
+# until PERMISSION_AUTOMATIC is explicitly selected. Numeric permission grants
+# are resolved by their highest value; rank and donor values are never added.
+pvc:
+  size-mode: LEGACY
+  # Use the server's default language without changing saved player preferences.
+  force-default-language: true
+  entitlements:
+    cache-capacity: 2048
+    history-capacity: 65536
+    refresh-seconds: 30
+    request-timeout-seconds: 10
+    max-in-flight: 4
+    refresh-batch: 64
+    queue-capacity: 4096
+    max-permission-nodes: 4096
+    radius-candidates: []
+  runtime:
+    chunk-load-concurrency: 8
+    chunk-load-queue-limit: 512
+    chunk-load-timeout-seconds: 30
+    dragon-arena-chunk-budget: 1156
+    dragon-arena-queue-limit: 128
+    dragon-arena-activation-timeout-seconds: 60

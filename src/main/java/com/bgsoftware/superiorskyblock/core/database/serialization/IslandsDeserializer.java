@@ -78,7 +78,8 @@ public class IslandsDeserializer {
             PlayerRole playerRole = members.getInt("role").map(SPlayerRole::fromId)
                     .orElse(SPlayerRole.defaultRole());
 
-            superiorPlayer.setPlayerRole(playerRole);
+            if (builder instanceof IslandBuilderImpl)
+                ((IslandBuilderImpl) builder).memberRoles.put(superiorPlayer.getUniqueId(), playerRole);
             builder.addIslandMember(superiorPlayer);
         });
     }

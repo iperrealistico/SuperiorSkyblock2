@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&8&l{}'
+title: '&6&l{}'
 previous-menu: true
 
 pattern:
@@ -23,22 +23,22 @@ items:
   '$':
     type: STAINED_GLASS_PANE
     data: 15
-    name: '&f'
+    name: '&8'
   '@':
     type: DIAMOND_CHESTPLATE
-    name: '&ePlayer Role'
+    name: '&6Player Role'
     lore:
       - '&7Click to edit player''s role.'
     flags:
       - HIDE_ATTRIBUTES
   '%':
     type: BARRIER
-    name: '&eBan Player'
+    name: '&6Ban Player'
     lore:
       - '&7Click to ban the player from the island.'
   '^':
     type: SKULL_ITEM
-    name: '&eKick Player'
+    name: '&6Kick Player'
     lore:
       - '&7Click to kick the player from the island.'
 

@@ -89,6 +89,7 @@ public class IslandBuilderImpl implements Island.Builder {
     public final KeyMap<BigInteger> entityCounts = KeyMaps.createArrayMap(KeyIndicator.ENTITY_TYPE);
     public final EnumerateMap<Dimension, WorldPosition> islandHomes = new EnumerateMap<>(Dimension.values());
     public final List<SuperiorPlayer> members = new LinkedList<>();
+    public final Map<UUID, PlayerRole> memberRoles = new HashMap<>();
     public final List<SuperiorPlayer> bannedPlayers = new LinkedList<>();
     public final Map<SuperiorPlayer, PlayerPrivilegeNode> playerPermissions = new LinkedHashMap<>();
     public final Map<IslandPrivilege, Integer> rolePermissions = new LinkedHashMap<>();

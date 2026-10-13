@@ -81,6 +81,10 @@ import com.bgsoftware.superiorskyblock.player.chat.ChatStates;
 import com.bgsoftware.superiorskyblock.player.container.DefaultPlayersContainer;
 import com.bgsoftware.superiorskyblock.player.inventory.ClearActions;
 import com.bgsoftware.superiorskyblock.player.respawn.RespawnActions;
+import com.bgsoftware.superiorskyblock.pvc.PvcConfig;
+import com.bgsoftware.superiorskyblock.pvc.entitlement.PvcEntitlementService;
+import com.bgsoftware.superiorskyblock.pvc.island.PvcIslandService;
+import com.bgsoftware.superiorskyblock.pvc.world.PvcBootstrapGenerator;
 import com.bgsoftware.superiorskyblock.service.ServicesHandler;
 import com.bgsoftware.superiorskyblock.world.WorldGenerator;
 import com.bgsoftware.superiorskyblock.world.chunk.ChunksProvider;
@@ -95,10 +99,20 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Locale;
 import java.util.Optional;
+import java.io.File;
+import java.io.IOException;
 
 public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblock {
 
     private static SuperiorSkyblockPlugin plugin;
+
+    private final PvcIslandService pvcIslandService = new PvcIslandService(this);
+    private PvcConfig pvcConfig;
+    private PvcEntitlementService pvcEntitlements;
+    private volatile boolean pvcSettingsReady;
+    private boolean pvcEnableStarted;
+    private final java.util.concurrent.atomic.AtomicBoolean pvcDisableStarted = new java.util.concurrent.atomic.AtomicBoolean();
+    private org.bukkit.scheduler.BukkitTask pvcSnapshotsTask;
 
     /* Managers */
     private final DataManager dataHandler = new DataManager(this);
@@ -122,6 +136,8 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
     /* Global handlers */
     private final Updater updater = new Updater(this, "superiorskyblock2");
     private final BukkitListeners bukkitListeners = new BukkitListeners(this);
+    private final com.bgsoftware.superiorskyblock.listener.PlayerSnapshotsListener playerSnapshotsListener =
+            new com.bgsoftware.superiorskyblock.listener.PlayerSnapshotsListener(this);
     private final PluginEventsDispatcher pluginEventsDispatcher = new PluginEventsDispatcher(this);
     private final GameEventsDispatcher gameEventsDispatcher = new GameEventsDispatcher(this);
     private IScriptEngine scriptEngine = EnginesFactory.createDefaultEngine();
@@ -149,6 +165,16 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
     @Override
     public void onLoad() {
         plugin = this;
+        try {
+            File configFile = new File(getDataFolder(), "config.yml");
+            if (!configFile.isFile()) saveResource("config.yml", false);
+            pvcConfig = PvcConfig.prepareAndLoad(getDataFolder());
+            reloadConfig();
+            BukkitExecutor.init(this);
+        } catch (IOException error) {
+            Log.error(error, "PVC configuration could not be loaded; existing settings were preserved.");
+            return;
+        }
         pluginEventsDispatcher.registerDefaultListeners();
 
         DependenciesManager.inject(this);
@@ -206,7 +232,38 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
 
     @Override
     public void onEnable() {
+        // The plugin is enabled early so Bukkit can obtain its void generator.
+        // World-dependent initialization waits until the server has loaded worlds
+        // and enabled permission/providers, including on region-threaded servers.
+        if (pvcConfig != null && Bukkit.getWorlds().isEmpty()) {
+            org.bukkit.event.Listener bootstrapListener = new org.bukkit.event.Listener() { };
+            try {
+                @SuppressWarnings("unchecked")
+                Class<? extends org.bukkit.event.Event> eventType = (Class<? extends org.bukkit.event.Event>)
+                        Class.forName("org.bukkit.event.server.ServerLoadEvent");
+                Bukkit.getPluginManager().registerEvent(eventType, bootstrapListener, org.bukkit.event.EventPriority.MONITOR,
+                        (listener, event) -> {
+                            org.bukkit.event.HandlerList.unregisterAll(listener);
+                            enableAfterWorldBootstrap();
+                        }, this);
+            } catch (ClassNotFoundException legacyServer) {
+                BukkitExecutor.global(this::enableAfterWorldBootstrap, 1L);
+            }
+            return;
+        }
+        enableAfterWorldBootstrap();
+    }
+
+    private void enableAfterWorldBootstrap() {
+        if (pvcEnableStarted) return;
+        pvcEnableStarted = true;
         try {
+            if (pvcConfig == null) {
+                ManagerLoadException.handle(new ManagerLoadException(
+                        "PVC configuration preflight failed. Correct the logged config error before restarting.",
+                        ManagerLoadException.ErrorLevel.SERVER_SHUTDOWN));
+                return;
+            }
             if (loadingStage != PluginLoadingStage.LOADED) {
                 ManagerLoadException.handle(new ManagerLoadException("Failed to load " + getDescription().getName() + ".\n" +
                         "Failed on " + loadingStage.next() + "\n\n" +
@@ -222,6 +279,8 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
 
             try {
                 settingsHandler.loadData();
+                pvcSettingsReady = true;
+                pvcEntitlements = new PvcEntitlementService(this, pvcConfig);
             } catch (ManagerLoadException ex) {
                 if (!ManagerLoadException.handle(ex)) {
                     return;
@@ -248,6 +307,9 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
             modulesHandler.runModuleLifecycle(ModuleLoadTime.BEFORE_WORLD_CREATION, false);
 
             try {
+                com.bgsoftware.superiorskyblock.api.hooks.WorldsProviderCapabilities.require(
+                        providersHandler.getWorldsProvider(), BukkitExecutor.isFolia(), false,
+                        pvcConfig.getSizeMode() == PvcConfig.SizeMode.PERMISSION_AUTOMATIC);
                 providersHandler.getWorldsProvider().prepareWorlds();
             } catch (RuntimeException ex) {
                 ManagerLoadException handlerError = new ManagerLoadException(ex, ManagerLoadException.ErrorLevel.SERVER_SHUTDOWN);
@@ -269,8 +331,13 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
             }
 
             loadingStage = PluginLoadingStage.MANAGERS_INITIALIZED;
+            // IslandUtils initializes default dimension biomes: load it only after worlds/managers exist.
+            com.bgsoftware.superiorskyblock.island.IslandUtils.openCropRefreshes();
+
+            pvcEntitlements.start();
 
             ChunksProvider.start();
+            pvcSnapshotsTask = BukkitExecutor.globalRepeating(playerSnapshotsListener::poll, 1L, 20L);
 
             loadingStage = PluginLoadingStage.CHUNKS_PROVIDER_INITIALIZED;
 
@@ -292,9 +359,10 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
                 Log.warn("Increase the value to for better experience (Default: 29999984)");
             }
 
-            BukkitExecutor.sync(() -> {
-                try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
-                    for (Player player : Bukkit.getOnlinePlayers()) {
+            BukkitExecutor.global(() -> {
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    BukkitExecutor.entity(player, () -> {
+                        try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
                         SuperiorPlayer superiorPlayer = playersHandler.getSuperiorPlayer(player);
                         superiorPlayer.updateLastTimeStatus();
 
@@ -315,9 +383,10 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
 
                         if (island != null)
                             island.setPlayerInside(superiorPlayer, true);
-                    }
+                        }
+                    });
                 }
-            }, 1L);
+            });
 
             PluginEventsFactory.callPluginInitializedEvent();
 
@@ -332,19 +401,28 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
 
     @Override
     public void onDisable() {
+        if (!pvcDisableStarted.compareAndSet(false, true)) return;
         try {
+            playerSnapshotsListener.close();
+            com.bgsoftware.superiorskyblock.island.IslandUtils.closeCropRefreshes();
+            com.bgsoftware.superiorskyblock.island.bank.SIslandBank.shutdownPending();
+            if (pvcSnapshotsTask != null) pvcSnapshotsTask.cancel();
+            if (loadingStage.isAtLeast(PluginLoadingStage.MANAGERS_INITIALIZED))
+                for (Island island : gridHandler.getIslandsToPurge())
+                    pvcIslandService.deferDeletion(island);
+            if (pvcEntitlements != null) pvcEntitlements.close();
+            pvcIslandService.close();
             if (loadingStage.isAtLeast(PluginLoadingStage.START_ENABLE))
                 BukkitExecutor.prepareShutdown();
 
-            if (loadingStage.isAtLeast(PluginLoadingStage.CHUNKS_PROVIDER_INITIALIZED))
+            if (loadingStage.isAtLeast(PluginLoadingStage.CHUNKS_PROVIDER_INITIALIZED)) {
                 ChunksProvider.stop();
+                com.bgsoftware.superiorskyblock.island.chunk.DirtyChunksContainer.flushPending();
+            }
 
             if (loadingStage.isAtLeast(PluginLoadingStage.MANAGERS_INITIALIZED)) {
                 dataHandler.saveDatabase(false);
                 gridHandler.disablePlugin();
-
-                for (Island island : gridHandler.getIslandsToPurge())
-                    island.disbandIsland();
 
                 playersHandler.savePlayers();
                 gridHandler.saveIslands();
@@ -356,7 +434,7 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
 
             // Shutdown task is running from another thread, causing closing of inventories to cause errors.
             // This check should prevent it.
-            if (Bukkit.isPrimaryThread()) {
+            if (!BukkitExecutor.isFolia() && Bukkit.isPrimaryThread()) {
                 Bukkit.getOnlinePlayers().forEach(player -> {
                     SuperiorPlayer superiorPlayer = playersHandler.getSuperiorPlayer(player);
                     player.closeInventory();
@@ -395,8 +473,17 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
 
     @Override
     public ChunkGenerator getDefaultWorldGenerator(String worldName, String id) {
+        if (!pvcSettingsReady) return new PvcBootstrapGenerator();
         return WorldGenerator.getWorldGenerator(settingsHandler.getWorlds().getDefaultWorldDimension());
     }
+
+    public PvcConfig getPvcConfig() { return pvcConfig; }
+
+    public PvcEntitlementService getPvcEntitlements() { return pvcEntitlements; }
+
+    public PvcIslandService getPvcIslandService() { return pvcIslandService; }
+
+    public boolean isPvcDisableStarted() { return pvcDisableStarted.get(); }
 
     public Updater getUpdater() {
         return updater;
@@ -450,6 +537,21 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
 
     public void reloadPlugin(PluginReloadReason reloadReason) throws ManagerLoadException {
         if (reloadReason == PluginReloadReason.COMMAND) {
+            try {
+                PvcConfig refreshed = PvcConfig.prepareAndLoad(getDataFolder());
+                if (pvcEntitlements != null) pvcEntitlements.validateReload(refreshed);
+                if (pvcConfig.getSizeMode() == PvcConfig.SizeMode.PERMISSION_AUTOMATIC ||
+                        refreshed.getSizeMode() == PvcConfig.SizeMode.PERMISSION_AUTOMATIC)
+                    throw new com.bgsoftware.superiorskyblock.pvc.PvcReloadRejectedException(
+                            "Automatic island sizing requires a normal restart for configuration reload. Running settings remain unchanged.");
+                reloadConfig();
+                pvcConfig = refreshed;
+            } catch (IOException | IllegalArgumentException error) {
+                throw new com.bgsoftware.superiorskyblock.pvc.PvcReloadRejectedException(
+                        "PVC reload rejected before changing running settings: " + error.getMessage());
+            }
+        }
+        if (reloadReason == PluginReloadReason.COMMAND) {
             bukkitListeners.unregisterListeners();
         }
 
@@ -462,6 +564,7 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
             // module lifecycles that are not called regularly. If the reload was due to a startup, then
             // all of that is called already in the onEnable callback of the plugin.
             settingsHandler.loadData();
+            pvcSettingsReady = true;
 
             commandsHandler.loadData();
 
@@ -477,6 +580,8 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
         blockValuesHandler.loadData();
         upgradesHandler.loadData();
         rolesHandler.loadData();
+        if (reloadReason == PluginReloadReason.COMMAND && pvcEntitlements != null)
+            pvcEntitlements.reload(pvcConfig);
 
         Message.reload();
 
@@ -502,14 +607,23 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
 
         modulesHandler.runModuleLifecycle(ModuleLoadTime.AFTER_MODULE_DATA_LOAD, reloadReason == PluginReloadReason.COMMAND);
 
-        BukkitExecutor.sync(() -> {
-            try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
-                for (Player player : Bukkit.getOnlinePlayers()) {
+        BukkitExecutor.global(() -> {
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                BukkitExecutor.entity(player, () -> {
+                    try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
                     SuperiorPlayer superiorPlayer = playersHandler.getSuperiorPlayer(player);
+                    if (superiorPlayer instanceof com.bgsoftware.superiorskyblock.player.SSuperiorPlayer) {
+                        com.bgsoftware.superiorskyblock.player.SSuperiorPlayer concrete =
+                                (com.bgsoftware.superiorskyblock.player.SSuperiorPlayer) superiorPlayer;
+                        concrete.refreshRuntimeState(player);
+                        concrete.refreshLocationSnapshot(player);
+                        concrete.refreshOpenedView(player);
+                    }
                     Island island = gridHandler.getIslandAt(player.getLocation(wrapper.getHandle()));
                     superiorPlayer.updateWorldBorder(island);
                     if (island != null) island.applyEffects(superiorPlayer);
-                }
+                    }
+                });
             }
         });
 
@@ -523,6 +637,8 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
 
         try {
             bukkitListeners.registerListeners();
+            org.bukkit.event.HandlerList.unregisterAll(playerSnapshotsListener);
+            Bukkit.getPluginManager().registerEvents(playerSnapshotsListener, this);
         } catch (RuntimeException ex) {
             throw new ManagerLoadException("Cannot load plugin due to a missing event: " + ex.getMessage() + " - contact @Ome_R!", ManagerLoadException.ErrorLevel.SERVER_SHUTDOWN);
         }
@@ -531,6 +647,41 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
     @Override
     public GridManagerImpl getGrid() {
         return gridHandler;
+    }
+
+    private Runnable captureIslandScope(Runnable action) {
+        if (!com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isActive()) return action;
+        Island target = com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current();
+        boolean explicit = com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isExplicitTarget();
+        return () -> {
+            try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope scope =
+                    com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.open(target, explicit)) {
+                action.run();
+            }
+        };
+    }
+
+    @Override
+    public void executePlayer(SuperiorPlayer player, Runnable action, long delay) {
+        Player online = player.asPlayer();
+        if (online != null) BukkitExecutor.entity(online, captureIslandScope(action), Math.max(0L, delay));
+    }
+
+    @Override
+    public void executeRegion(Location location, Runnable action, long delay) {
+        if (location.getWorld() == null) throw new IllegalArgumentException("Region location requires a world");
+        BukkitExecutor.region(location.getWorld(), location.getBlockX() >> 4, location.getBlockZ() >> 4,
+                captureIslandScope(action), Math.max(0L, delay));
+    }
+
+    @Override
+    public void executeGlobal(Runnable action, long delay) {
+        BukkitExecutor.global(captureIslandScope(action), Math.max(0L, delay));
+    }
+
+    @Override
+    public void executeAsync(Runnable action, long delay) {
+        BukkitExecutor.async(captureIslandScope(action), Math.max(0L, delay));
     }
 
     @Override

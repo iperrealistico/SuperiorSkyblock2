@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&lIsland Block Counts'
+title: '&6&lIsland Block Counts'
 previous-menu: true
 
 pattern:
@@ -26,9 +26,9 @@ items:
     type: STONE
     name: '&e{0}'
     lore:
-      - '&6&l* &e&lQuantity &fx{1}'
-      - '&6&l* &e&lWorth: &f${2}'
-      - '&6&l* &e&lLevel: &f${3}'
+      - '&6&l* &e&lQuantity &7x{1}'
+      - '&6&l* &e&lWorth: &7${2}'
+      - '&6&l* &e&lLevel: &7${3}'
     flags:
       - HIDE_ATTRIBUTES
   '%':
@@ -36,7 +36,7 @@ items:
     name: '{0}Previous Page'
   '*':
     type: DOUBLE_PLANT
-    name: '&aCurrent Page'
+    name: '&6Current Page'
     lore:
       - '&7Page {0}'
   '^':
@@ -45,4 +45,4 @@ items:
   '$':
     type: STAINED_GLASS_PANE
     data: 15
-    name: '&f'
+    name: '&8'

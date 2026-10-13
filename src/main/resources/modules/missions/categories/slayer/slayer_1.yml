@@ -18,9 +18,9 @@ reset-after-finish: true
 rewards:
   commands:
     - 'eco give %player% 1000'
-    - 'is admin msg %player% &e&lSlayer | &7Successfully finished the mission Slayer I!'
-    - 'is admin msg %player% &e&lSlayer | &7Your sword hasn''t seen blood yet... Kill more mobs!'
-    - 'is admin msg %player% &e&lSlayer | &7&oFor more information about the next mission, checkout /is missions'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Successfully finished the mission Slayer I!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Your sword hasn''t seen blood yet... Kill more mobs!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7&oFor more information about the next mission, checkout /is missions'
 
 # List of all required entities must be gathered in order to complete the mission.
 required-entities:
@@ -36,7 +36,7 @@ required-entities:
 icons:
   not-completed:
     type: PAPER
-    name: '&aSlayer I'
+    name: '&6Slayer I'
     lore:
       - '&7Kill 5 hostile mobs.'
       - ''
@@ -48,10 +48,10 @@ icons:
       - ''
       - '&6Hostiles Killed: &7{1}/5'
       - '&6Progress: &7{0}%'
-      - '&c&l ✘ &7Not Completed'
+      - '&6&l ✘ &7Not Completed'
   can-complete:
     type: PAPER
-    name: '&aSlayer I'
+    name: '&6Slayer I'
     lore:
       - '&7Kill 5 hostile mobs.'
       - ''
@@ -63,11 +63,11 @@ icons:
       - ''
       - '&6Hostiles Killed: &75/5'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Click to redeem your reward.'
+      - '&e&l ✔ &7Click to redeem your reward.'
     glow: true
   completed:
     type: MAP
-    name: '&aSlayer I'
+    name: '&6Slayer I'
     lore:
       - '&7Kill 5 hostile mobs.'
       - ''
@@ -76,4 +76,4 @@ icons:
       - ''
       - '&6Hostiles Killed: &75/5'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Already Claimed.'
+      - '&e&l ✔ &7Already Claimed.'

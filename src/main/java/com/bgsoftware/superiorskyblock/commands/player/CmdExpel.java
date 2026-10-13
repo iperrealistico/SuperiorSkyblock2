@@ -9,6 +9,7 @@ import com.bgsoftware.superiorskyblock.commands.IPermissibleCommand;
 import com.bgsoftware.superiorskyblock.commands.arguments.CommandArguments;
 import com.bgsoftware.superiorskyblock.core.ObjectsPools;
 import com.bgsoftware.superiorskyblock.core.messages.Message;
+import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import com.bgsoftware.superiorskyblock.island.privilege.IslandPrivileges;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -80,6 +81,23 @@ public class CmdExpel implements IPermissibleCommand {
             return;
         }
 
+        // Position reads and teleport decisions belong to the target's entity region.
+        long revision = playerIsland == null ? 0L : plugin.getPvcIslandService().getRevision(playerIsland.getUniqueId());
+        long membershipRevision = playerIsland == null ? 0L : plugin.getPvcIslandService().getMembershipRevision(playerIsland.getUniqueId());
+        BukkitExecutor.entity(target, () -> {
+            if (playerIsland != null && (plugin.getGrid().getIslandByUUID(playerIsland.getUniqueId()) != playerIsland ||
+                    !plugin.getPvcIslandService().isAvailable(playerIsland.getUniqueId()) ||
+                    revision != plugin.getPvcIslandService().getRevision(playerIsland.getUniqueId()) ||
+                    membershipRevision != plugin.getPvcIslandService().getMembershipRevision(playerIsland.getUniqueId()) ||
+                    superiorPlayer != null && !playerIsland.hasPermission(superiorPlayer, getPrivilege()))) {
+                Message.PLAYER_NOT_INSIDE_ISLAND.send(sender); return;
+            }
+            expel(plugin, sender, superiorPlayer, playerIsland, targetPlayer, target);
+        });
+    }
+
+    private void expel(SuperiorSkyblockPlugin plugin, CommandSender sender, SuperiorPlayer superiorPlayer,
+                       Island playerIsland, SuperiorPlayer targetPlayer, Player target) {
         Island targetIsland;
         try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
             targetIsland = plugin.getGrid().getIslandAt(target.getLocation(wrapper.getHandle()));
@@ -90,13 +108,14 @@ public class CmdExpel implements IPermissibleCommand {
             return;
         }
 
+        // A console selector is as binding as a player's selected island.
+        if (playerIsland != null && !targetIsland.equals(playerIsland)) {
+            Message.PLAYER_NOT_INSIDE_ISLAND.send(sender);
+            return;
+        }
+
         // Checking requirements for players
         if (superiorPlayer != null) {
-            if (!targetIsland.equals(playerIsland)) {
-                Message.PLAYER_NOT_INSIDE_ISLAND.send(sender);
-                return;
-            }
-
             if (targetIsland.hasPermission(targetPlayer, IslandPrivileges.EXPEL_BYPASS)) {
                 Message.PLAYER_EXPEL_BYPASS.send(sender);
                 return;

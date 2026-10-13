@@ -1,0 +1,25 @@
+enabled: true
+crop-growth: false
+mob-drops: false
+island-effects: false
+spawner-rates: false
+block-limits: false
+entity-limits: false
+upgrades:
+  pvc-native:
+    '1':
+      price: 0
+      price-type: Money
+      commands:
+        - 'is admin setupgrade %player% pvc-native 2'
+        - 'is admin msgall %player% PVC_NATIVE_UPGRADE_TWO'
+    '2':
+      price: 0
+      price-type: Money
+      commands:
+        - 'is admin setupgrade %player% pvc-native 3'
+        - 'is admin msgall %player% PVC_NATIVE_UPGRADE_THREE'
+    '3':
+      price: 0
+      price-type: Money
+      commands: []

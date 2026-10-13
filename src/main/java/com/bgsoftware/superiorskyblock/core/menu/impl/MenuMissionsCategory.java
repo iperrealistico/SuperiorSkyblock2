@@ -38,6 +38,10 @@ public class MenuMissionsCategory extends AbstractPagedMenu<MenuMissionsCategory
         this.removeCompleted = removeCompleted;
     }
 
+    static boolean requiresIslandContext(MissionCategory category) {
+        return category.getMissions().stream().anyMatch(Mission::getIslandMission);
+    }
+
     @Override
     protected View createViewInternal(SuperiorPlayer superiorPlayer, Args args,
                                       @Nullable MenuView<?, ?> previousMenuView) {
@@ -108,6 +112,8 @@ public class MenuMissionsCategory extends AbstractPagedMenu<MenuMissionsCategory
             super(inventoryViewer, previousMenuView, menu);
 
             this.missionCategory = args.missionCategory;
+            if (!requiresIslandContext(this.missionCategory))
+                bindActionTarget(null);
 
             if (inventoryViewer == null) {
                 this.missions = Collections.emptyList();

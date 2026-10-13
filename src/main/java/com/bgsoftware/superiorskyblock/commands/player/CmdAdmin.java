@@ -89,7 +89,7 @@ public class CmdAdmin implements ISuperiorCommand {
                 }
 
                 if (!(sender instanceof Player) && !command.canBeExecutedByConsole()) {
-                    Message.CUSTOM.send(sender, "&cCan be executed only by players!", true);
+                    com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "This command can only be executed by players.");
                     return;
                 }
 

@@ -38,11 +38,45 @@ public abstract class AbstractMenuView<V extends MenuView<V, A>, A extends ViewA
     private boolean nextMove = false;
     private boolean closed = false;
     private boolean refreshing = false;
+    private final long actionCreatedAt = System.currentTimeMillis();
+    private final java.util.concurrent.atomic.AtomicBoolean actionConsumed = new java.util.concurrent.atomic.AtomicBoolean();
+    private IslandActionGuard actionGuard;
 
     protected Object[] cachedTitleArgs = null;
 
     protected AbstractMenuView(SuperiorPlayer inventoryViewer, @Nullable MenuView<?, ?> previousMenuView, Menu<V, A> menu) {
         super(inventoryViewer, menu, previousMenuView);
+        bindActionTarget(inventoryViewer.getIsland());
+    }
+
+    public final void bindActionTarget(com.bgsoftware.superiorskyblock.api.island.Island island) {
+        actionGuard = new IslandActionGuard(island == null ? null : island.getUniqueId(),
+                island == null || island.getOwner() == null ? null : island.getOwner().getUniqueId(),
+                island == null ? 0L : plugin.getPvcIslandService().getRevision(island.getUniqueId()),
+                island == null ? 0L : plugin.getPvcIslandService().getMembershipRevision(island.getUniqueId()), actionCreatedAt);
+    }
+    public final com.bgsoftware.superiorskyblock.api.island.Island getActionTarget() {
+        return actionGuard.island == null ? null : plugin.getGrid().getIslandByUUID(actionGuard.island);
+    }
+    public final boolean isIslandContextCurrent() {
+        com.bgsoftware.superiorskyblock.api.island.Island target = getActionTarget();
+        return actionGuard.island == null || target != null && actionGuard.contextCurrent(target.getUniqueId(),
+                target.getOwner() == null ? null : target.getOwner().getUniqueId(),
+                plugin.getPvcIslandService().getRevision(target.getUniqueId()),
+                plugin.getPvcIslandService().getMembershipRevision(target.getUniqueId()),
+                plugin.getPvcIslandService().isAvailable(target.getUniqueId()));
+    }
+    public final boolean claimIslandAction(com.bgsoftware.superiorskyblock.api.island.Island island,
+                                           com.bgsoftware.superiorskyblock.api.island.IslandPrivilege privilege) {
+        boolean valid = island != null && actionGuard.actionCurrent(island.getUniqueId(),
+                island.getOwner() == null ? null : island.getOwner().getUniqueId(),
+                plugin.getPvcIslandService().getRevision(island.getUniqueId()),
+                plugin.getPvcIslandService().getMembershipRevision(island.getUniqueId()), System.currentTimeMillis(),
+                plugin.getPvcIslandService().isAvailable(island.getUniqueId())) && island.isMember(inventoryViewer) &&
+                (privilege == null || island.hasPermission(inventoryViewer, privilege));
+        if (valid && actionConsumed.compareAndSet(false, true)) return true;
+        com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(inventoryViewer, "This confirmation expired or the island permissions changed. Open it again.");
+        return false;
     }
 
     @Override
@@ -207,7 +241,7 @@ public abstract class AbstractMenuView<V extends MenuView<V, A>, A extends ViewA
         closed = true;
 
         if (!nextMove && !closeButton && plugin.getSettings().isOnlyBackButton()) {
-            BukkitExecutor.sync(this::openView);
+            plugin.executePlayer(inventoryViewer, this::openView, 1L);
         } else if (this.previousMenuView != null && this.menu.isPreviousMoveAllowed()) {
             PluginEvent<PluginEventArgs.PlayerCloseMenu> event = PluginEventsFactory.callPlayerCloseMenuEvent(
                     this.inventoryViewer, this, previousMove ? this.previousMenuView : null);
@@ -216,11 +250,11 @@ public abstract class AbstractMenuView<V extends MenuView<V, A>, A extends ViewA
                 if (!event.isCancelled()) {
                     MenuView<?, ?> newMenu = event.getArgs().newMenuView;
                     if (newMenu != null)
-                        BukkitExecutor.sync(newMenu::refreshView);
+                        plugin.executePlayer(inventoryViewer, newMenu::refreshView, 1L);
 
                 }
             } else if (event.isCancelled()) {
-                BukkitExecutor.sync(this::openView);
+                plugin.executePlayer(inventoryViewer, this::openView, 1L);
             } else {
                 previousMove = true;
             }

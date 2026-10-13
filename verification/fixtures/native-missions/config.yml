@@ -1,0 +1,6 @@
+enabled: true
+auto-reward-outside-islands: false
+categories:
+  pvc_native:
+    name: PVC native verification
+    slot: 20

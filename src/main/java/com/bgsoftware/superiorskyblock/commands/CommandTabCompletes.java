@@ -62,7 +62,7 @@ public class CommandTabCompletes {
     }
 
     public static List<String> getIslandMembersWithLowerRole(Island island, String argument, PlayerRole maxRole) {
-        return getIslandMembers(island, argument, islandMember -> islandMember.getPlayerRole().isLessThan(maxRole));
+        return getIslandMembers(island, argument, islandMember -> islandMember.getPlayerRole(island).isLessThan(maxRole));
     }
 
     public static List<String> getIslandMembers(Island island, String argument, Predicate<SuperiorPlayer> predicate) {
@@ -103,12 +103,14 @@ public class CommandTabCompletes {
         for (Player player : Bukkit.getOnlinePlayers()) {
             SuperiorPlayer onlinePlayer = plugin.getPlayers().getSuperiorPlayer(player);
             if (!hideVanish || onlinePlayer.isShownAsOnline()) {
-                Island onlineIsland = onlinePlayer.getIsland();
-                if (onlineIsland != null && (predicate == null || predicate.test(onlinePlayer, onlineIsland))) {
-                    if (onlinePlayer.getName().toLowerCase(Locale.ENGLISH).contains(lowerArgument))
+                List<Island> memberships = onlinePlayer.getIslands();
+                for (Island onlineIsland : memberships) {
+                    if (predicate != null && !predicate.test(onlinePlayer, onlineIsland)) continue;
+                    if ((!CommandPresentation.identifiersVisible() || onlinePlayer.getOwnedIslands().size() == 1 || memberships.size() == 1) && onlinePlayer.getName().toLowerCase(Locale.ENGLISH).contains(lowerArgument))
                         tabArguments.add(onlinePlayer.getName());
-                    if (onlineIsland.getStrippedName().toLowerCase(Locale.ENGLISH).contains(lowerArgument))
-                        tabArguments.add(onlineIsland.getStrippedName());
+                    if (onlineIsland.getStrippedName().toLowerCase(Locale.ENGLISH).contains(lowerArgument)) tabArguments.add(onlineIsland.getStrippedName());
+                    String id = Long.toString(onlineIsland.getShortId());
+                    if (CommandPresentation.identifiersVisible() && id.startsWith(lowerArgument)) tabArguments.add(id);
                 }
             }
         }

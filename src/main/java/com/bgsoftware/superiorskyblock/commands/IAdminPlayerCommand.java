@@ -19,14 +19,22 @@ public interface IAdminPlayerCommand extends ISuperiorCommand {
         if (!supportMultiplePlayers()) {
             SuperiorPlayer targetPlayer = CommandArguments.getPlayer(plugin, sender, args[2]);
             if (targetPlayer != null) {
-                Island playerIsland = targetPlayer.getIsland();
+                Island playerIsland = (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isExplicitTarget() ||
+                        (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isInheritedTarget() &&
+                         com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current() != null &&
+                         com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current().isMember(targetPlayer))) ?
+                        com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current() :
+                        CommandArguments.resolvePlayerIsland(targetPlayer, true);
 
-                if (requireIsland() && playerIsland == null) {
+                if (requireIsland() && (playerIsland == null || !playerIsland.isMember(targetPlayer) || !plugin.getPvcIslandService().isAvailable(playerIsland.getUniqueId()))) {
                     Message.INVALID_ISLAND_OTHER.send(sender, targetPlayer.getName());
                     return;
                 }
 
-                execute(plugin, sender, targetPlayer, args);
+                try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope scope =
+                             com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.open(playerIsland)) {
+                    execute(plugin, sender, targetPlayer, args);
+                }
             }
         } else {
             List<SuperiorPlayer> players = CommandArguments.getMultiplePlayers(plugin, sender, args[2]);
@@ -49,7 +57,15 @@ public interface IAdminPlayerCommand extends ISuperiorCommand {
             } else {
                 SuperiorPlayer targetPlayer = plugin.getPlayers().getSuperiorPlayer(args[2]);
                 if (targetPlayer != null) {
-                    tabVariables = adminTabComplete(plugin, sender, targetPlayer, args);
+                    Island target = (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isExplicitTarget() ||
+                        (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isInheritedTarget() &&
+                         com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current() != null &&
+                         com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current().isMember(targetPlayer))) ?
+                            com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current() :
+                            CommandArguments.resolvePlayerIsland(targetPlayer, true);
+                    try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope scope = com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.open(target)) {
+                        tabVariables = adminTabComplete(plugin, sender, targetPlayer, args);
+                    }
                 }
             }
         }

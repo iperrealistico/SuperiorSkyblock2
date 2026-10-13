@@ -61,7 +61,7 @@ public final class CraftingMissions extends BuiltinMission<CraftingMissions.Craf
 
     @Override
     protected void clearModuleData(CraftingsTracker data) {
-        data.craftedItems.clear();
+        data.clear();
     }
 
     @Override
@@ -99,10 +99,10 @@ public final class CraftingMissions extends BuiltinMission<CraftingMissions.Craf
 
     @Override
     public void saveProgress(ConfigurationSection section) {
-        for (Map.Entry<SuperiorPlayer, CraftingsTracker> entry : entrySet()) {
-            String uuid = entry.getKey().getUniqueId().toString();
+        for (Map.Entry<UUID, CraftingsTracker> entry : subjectEntrySet()) {
+            String uuid = entry.getKey().toString();
             int index = 0;
-            for (Map.Entry<ItemStack, Integer> craftedEntry : entry.getValue().craftedItems.entrySet()) {
+            for (Map.Entry<ItemStack, Integer> craftedEntry : entry.getValue().snapshot().entrySet()) {
                 section.set(uuid + "." + index + ".item", craftedEntry.getKey());
                 section.set(uuid + "." + index + ".amount", craftedEntry.getValue());
                 index++;
@@ -118,15 +118,13 @@ public final class CraftingMissions extends BuiltinMission<CraftingMissions.Craf
 
             CraftingsTracker craftingsTracker = new CraftingsTracker();
             UUID playerUUID = UUID.fromString(uuid);
-            SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(playerUUID);
-
-            insertData(superiorPlayer, craftingsTracker);
 
             for (String key : section.getConfigurationSection(uuid).getKeys(false)) {
                 ItemStack itemStack = section.getItemStack(uuid + "." + key + ".item");
                 int amount = section.getInt(uuid + "." + key + ".amount");
-                craftingsTracker.craftedItems.put(itemStack, amount);
+                craftingsTracker.load(itemStack, amount);
             }
+            loadSubjectData(playerUUID, craftingsTracker);
         }
     }
 
@@ -183,6 +181,7 @@ public final class CraftingMissions extends BuiltinMission<CraftingMissions.Craf
 
         int requiredSlot = e.getClickedInventory().getType() == InventoryType.FURNACE ? 2 : 0;
 
+        if (e.getCurrentItem() == null || e.getCurrentItem().getType() == Material.AIR) return;
         ItemStack resultItem = e.getCurrentItem().clone();
         resultItem.setAmount(1);
 
@@ -191,7 +190,7 @@ public final class CraftingMissions extends BuiltinMission<CraftingMissions.Craf
         if (e.getRawSlot() == requiredSlot && itemsToCraft.containsKey(resultItem) &&
                 this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this)) {
             int amountOfResult = countItems(e.getWhoClicked(), resultItem);
-            Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+            laterPlayer(superiorPlayer, () -> {
                 int afterTickAmountOfResult = countItems(e.getWhoClicked(), resultItem);
                 resultItem.setAmount(afterTickAmountOfResult - amountOfResult);
                 trackItem(superiorPlayer, resultItem);
@@ -208,7 +207,7 @@ public final class CraftingMissions extends BuiltinMission<CraftingMissions.Craf
 
         blocksTracker.trackItem(itemStack);
 
-        Bukkit.getScheduler().runTaskLaterAsynchronously(this.plugin, () -> superiorPlayer.runIfOnline(player -> {
+        laterPlayer(superiorPlayer, () -> superiorPlayer.runIfOnline(player -> {
             if (canComplete(superiorPlayer))
                 this.plugin.getMissions().rewardMission(this, superiorPlayer, true);
         }), 2L);
@@ -240,14 +239,27 @@ public final class CraftingMissions extends BuiltinMission<CraftingMissions.Craf
         void trackItem(ItemStack itemStack) {
             ItemStack keyItem = itemStack.clone();
             keyItem.setAmount(1);
-            craftedItems.put(keyItem, craftedItems.getOrDefault(keyItem, 0) + itemStack.getAmount());
+            int amount = itemStack.getAmount();
+            if (amount <= 0) return;
+            synchronized (this) { craftedItems.put(keyItem, craftedItems.getOrDefault(keyItem, 0) + amount); }
         }
 
         int getCrafts(ItemStack itemStack) {
             ItemStack keyItem = itemStack.clone();
             keyItem.setAmount(1);
-            return craftedItems.getOrDefault(keyItem, 0);
+            synchronized (this) { return craftedItems.getOrDefault(keyItem, 0); }
         }
+
+        synchronized void clear() { craftedItems.clear(); }
+
+        void load(ItemStack item, int amount) {
+            if (item == null) throw new IllegalArgumentException("Missing persisted crafting item");
+            ItemStack key = item.clone();
+            key.setAmount(1);
+            synchronized (this) { craftedItems.put(key, amount); }
+        }
+
+        synchronized Map<ItemStack, Integer> snapshot() { return new HashMap<>(craftedItems); }
 
     }
 

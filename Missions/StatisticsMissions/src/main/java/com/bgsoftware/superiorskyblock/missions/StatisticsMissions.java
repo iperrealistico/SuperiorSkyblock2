@@ -193,7 +193,7 @@ public final class StatisticsMissions extends BuiltinMission<Void> implements Li
         if (!isMissionStatistic(e.getStatistic()) || !this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
-        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(player -> {
+        laterPlayer(superiorPlayer, () -> superiorPlayer.runIfOnline(player -> {
             if (canComplete(superiorPlayer))
                 this.plugin.getMissions().rewardMission(this, superiorPlayer, true);
         }), 2L);

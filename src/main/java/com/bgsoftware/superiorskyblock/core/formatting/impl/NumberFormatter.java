@@ -16,9 +16,7 @@ public class NumberFormatter implements IFormatter<Number> {
     private static final Pattern NUMBER_PATTERN = Pattern.compile("^[a-z]{2}[_|-][A-Z]{2}$");
     private static final char SPACE_ASCII = 160;
 
-    private static Pattern DECIMAL_PATTERN;
-    private static DecimalFormat numberFormatter;
-    private static char decimalSeparator;
+    private static volatile Settings settings;
 
     public static void setNumberFormatter(String numberFormat) {
         numberFormat = numberFormat.replace("_", "-");
@@ -29,15 +27,14 @@ public class NumberFormatter implements IFormatter<Number> {
         }
 
         String[] numberFormatSections = numberFormat.split("-");
-        numberFormatter = (DecimalFormat) NumberFormat.getInstance(new java.util.Locale(numberFormatSections[0], numberFormatSections[1]));
+        DecimalFormat numberFormatter = (DecimalFormat) NumberFormat.getInstance(new java.util.Locale(numberFormatSections[0], numberFormatSections[1]));
         numberFormatter.setGroupingUsed(true);
         numberFormatter.setMinimumFractionDigits(2);
         numberFormatter.setMaximumFractionDigits(2);
         numberFormatter.setRoundingMode(RoundingMode.FLOOR);
 
-        decimalSeparator = numberFormatter.getDecimalFormatSymbols().getDecimalSeparator();
-
-        DECIMAL_PATTERN = Pattern.compile("(.*)" + Pattern.quote(decimalSeparator + "") + "(\\d)0");
+        char decimalSeparator = numberFormatter.getDecimalFormatSymbols().getDecimalSeparator();
+        settings = new Settings(numberFormatter, decimalSeparator);
     }
 
     public static NumberFormatter getInstance() {
@@ -51,17 +48,27 @@ public class NumberFormatter implements IFormatter<Number> {
     @Override
     public String format(Number value) {
         //Because of some issues with formatting, spaces are converted to ascii 160.
-        String formattedNumber = numberFormatter.format(value).replace(SPACE_ASCII, ' ');
+        Settings current = settings;
+        char decimalSeparator = current.separator;
+        String formattedNumber = ((DecimalFormat) current.prototype.clone()).format(value).replace(SPACE_ASCII, ' ');
 
         Matcher matcher;
 
         if (formattedNumber.endsWith(decimalSeparator + "00")) {
             return formattedNumber.replace(decimalSeparator + "00", "");
-        } else if ((matcher = DECIMAL_PATTERN.matcher(formattedNumber)).matches()) {
+        } else if ((matcher = current.decimalPattern.matcher(formattedNumber)).matches()) {
             return formattedNumber.replaceAll(Pattern.quote(decimalSeparator + "") + "(\\d)0", decimalSeparator + matcher.group(2));
         }
 
         return formattedNumber;
+    }
+
+    private static final class Settings {
+        final DecimalFormat prototype; final char separator; final Pattern decimalPattern;
+        Settings(DecimalFormat prototype, char separator) {
+            this.prototype = prototype; this.separator = separator;
+            this.decimalPattern = Pattern.compile("(.*)" + Pattern.quote(separator + "") + "(\\d)0");
+        }
     }
 
 }

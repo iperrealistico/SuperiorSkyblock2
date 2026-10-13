@@ -37,7 +37,9 @@ public class ChatFormatter implements IFormatter<ChatFormatter.ChatFormatArgs> {
                 .replace("{island-worth-format}", String.valueOf(args.island == null ? 0 :
                         Formatters.FANCY_NUMBER_FORMATTER.format(args.island.getWorth(), args.superiorPlayer.getUserLocale())))
                 .replace("{island-name}", islandNameFormat == null ? "" : islandNameFormat)
-                .replace("{island-role}", args.superiorPlayer.getPlayerRole().getDisplayName())
+                .replace("{island-role}", args.island == null ? "" : args.superiorPlayer.getPlayerRole(args.island).getDisplayName())
+                .replace("{island-id}", args.island == null ? "" : String.valueOf(args.island.getShortId()))
+                .replace("{island-uuid}", args.island == null ? "" : args.island.getUniqueId().toString())
                 .replace("{island-position-worth}", args.island == null ? "" : (plugin.getGrid().getIslandPosition(args.island, SortingTypes.BY_WORTH) + 1) + "")
                 .replace("{island-position-level}", args.island == null ? "" : (plugin.getGrid().getIslandPosition(args.island, SortingTypes.BY_LEVEL) + 1) + "")
                 .replace("{island-position-rating}", args.island == null ? "" : (plugin.getGrid().getIslandPosition(args.island, SortingTypes.BY_RATING) + 1) + "")

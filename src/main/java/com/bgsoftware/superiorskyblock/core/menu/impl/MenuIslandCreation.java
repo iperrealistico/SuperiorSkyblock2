@@ -35,6 +35,9 @@ public class MenuIslandCreation extends AbstractMenu<MenuIslandCreation.View, Me
     }
 
     @Override
+    protected boolean capturesViewerIsland() { return false; }
+
+    @Override
     protected View createViewInternal(SuperiorPlayer superiorPlayer, Args args,
                                       @Nullable MenuView<?, ?> previousMenuView) {
         return new View(superiorPlayer, previousMenuView, this, args);

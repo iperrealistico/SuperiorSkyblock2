@@ -151,6 +151,7 @@ public class PlayersManagerImpl extends Manager implements PlayersManager {
 
     public void replacePlayers(SuperiorPlayer originPlayer, @Nullable SuperiorPlayer newPlayer) {
         Log.debug(Debug.REPLACE_PLAYER, originPlayer, newPlayer);
+        Island selected = originPlayer.getSelectedIsland();
 
         // We first want to replace the player for his own island
         Island playerIsland = originPlayer.getIsland();
@@ -169,6 +170,7 @@ public class PlayersManagerImpl extends Manager implements PlayersManager {
             PlayersDatabaseBridge.deletePlayer(originPlayer);
         } else {
             newPlayer.merge(originPlayer);
+            if (selected != null && selected.isMember(newPlayer)) newPlayer.selectIsland(selected);
             PluginEventsFactory.callPlayerReplaceEvent(originPlayer, newPlayer);
         }
     }

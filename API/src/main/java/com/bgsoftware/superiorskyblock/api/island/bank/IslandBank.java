@@ -57,6 +57,20 @@ public interface IslandBank {
     BankTransaction withdrawMoney(SuperiorPlayer superiorPlayer, BigDecimal amount, @Nullable List<String> commandsToExecute);
 
     /**
+     * Start on the caller's required thread, completing after configured command dispatch and settlement.
+     * Callers must return to the player's scheduler before sending feedback. Legacy providers retain
+     * their synchronous contract; no economy provider is moved to an arbitrary async worker.
+     */
+    default java.util.concurrent.CompletableFuture<BankTransaction> withdrawMoneyAsync(
+            SuperiorPlayer superiorPlayer, BigDecimal amount, @Nullable List<String> commandsToExecute) {
+        try { return java.util.concurrent.CompletableFuture.completedFuture(withdrawMoney(superiorPlayer, amount, commandsToExecute)); }
+        catch (Throwable failure) {
+            java.util.concurrent.CompletableFuture<BankTransaction> result = new java.util.concurrent.CompletableFuture<>();
+            result.completeExceptionally(failure); return result;
+        }
+    }
+
+    /**
      * Withdraw money from the bank, without giving it to any player.
      *
      * @param commandSender The player that withdrawn the money.
@@ -64,6 +78,16 @@ public interface IslandBank {
      * @return The transaction details.
      */
     BankTransaction withdrawAdminMoney(CommandSender commandSender, BigDecimal amount);
+
+    /** Close new admission and asynchronously drain accepted payouts and durable writes before deletion. */
+    default java.util.concurrent.CompletableFuture<Void> quiesceTransactions() {
+        java.util.concurrent.CompletableFuture<Void> result = new java.util.concurrent.CompletableFuture<>();
+        result.completeExceptionally(new UnsupportedOperationException("This bank provider has no acknowledged transaction drain contract"));
+        return result;
+    }
+
+    /** Reopen a healthy bank after a rejected lifecycle operation; uncertain outcomes must remain fenced. */
+    default void resumeTransactions() { }
 
     /**
      * Get all the transactions of the bank, sorted by the time they were created.

@@ -21,24 +21,25 @@ import java.util.TreeMap;
 
 public abstract class CommandsMap {
 
-    private static Set<String> DISABLED_COMMANDS_CACHE;
+    private static volatile Set<String> DISABLED_COMMANDS_CACHE = Collections.emptySet();
 
     private static void onSettingsUpdate() {
-        DISABLED_COMMANDS_CACHE = new HashSet<>();
+        Set<String> disabled = new HashSet<>();
         SuperiorSkyblockPlugin plugin = SuperiorSkyblockPlugin.getPlugin();
         plugin.getSettings().getDisabledCommands().forEach(commandLabel -> {
             SuperiorCommand superiorCommand = plugin.getCommands().getCommand(commandLabel);
             if (superiorCommand != null && !(superiorCommand instanceof IAdminIslandCommand))
-                DISABLED_COMMANDS_CACHE.add(superiorCommand.getAliases().get(0).toLowerCase(Locale.ENGLISH));
+                disabled.add(superiorCommand.getAliases().get(0).toLowerCase(Locale.ENGLISH));
         });
+        DISABLED_COMMANDS_CACHE = Collections.unmodifiableSet(disabled);
     }
 
     public static void registerListeners(PluginEventsDispatcher dispatcher) {
         dispatcher.registerCallback(PluginEventType.SETTINGS_UPDATE_EVENT, CommandsMap::onSettingsUpdate);
     }
 
-    private final Map<String, SuperiorCommand> subCommands = new TreeMap<>();
-    private final Map<String, List<SuperiorCommand>> aliasesToCommand = new HashMap<>();
+    private final Map<String, SuperiorCommand> subCommands = new java.util.concurrent.ConcurrentSkipListMap<>();
+    private final Map<String, List<SuperiorCommand>> aliasesToCommand = new java.util.concurrent.ConcurrentHashMap<>();
 
     protected final SuperiorSkyblockPlugin plugin;
 
@@ -57,7 +58,7 @@ public abstract class CommandsMap {
         subCommands.put(label, superiorCommand);
 
         for (String alias : aliases) {
-            aliasesToCommand.computeIfAbsent(alias.toLowerCase(Locale.ENGLISH), a -> new LinkedList<>()).add(superiorCommand);
+            aliasesToCommand.computeIfAbsent(alias.toLowerCase(Locale.ENGLISH), a -> new java.util.concurrent.CopyOnWriteArrayList<>()).add(superiorCommand);
         }
 
         PluginEventsFactory.callCommandsUpdateEvent();

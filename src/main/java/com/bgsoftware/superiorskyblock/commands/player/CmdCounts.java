@@ -55,7 +55,7 @@ public class CmdCounts implements ISuperiorCommand {
 
     @Override
     public void execute(SuperiorSkyblockPlugin plugin, CommandSender sender, String[] args) {
-        Island island = (args.length == 1 ? CommandArguments.getSenderIsland(plugin, sender) :
+        Island island = (args.length == 1 ? CommandArguments.getReportingIsland(plugin, sender) :
                 CommandArguments.getIsland(plugin, sender, args[1])).getIsland();
 
         if (island == null)

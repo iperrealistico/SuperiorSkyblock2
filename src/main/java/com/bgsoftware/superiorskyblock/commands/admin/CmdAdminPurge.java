@@ -2,6 +2,7 @@ package com.bgsoftware.superiorskyblock.commands.admin;
 
 import com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin;
 import com.bgsoftware.superiorskyblock.api.island.Island;
+import com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope;
 import com.bgsoftware.superiorskyblock.commands.CommandTabCompletes;
 import com.bgsoftware.superiorskyblock.commands.ISuperiorCommand;
 import com.bgsoftware.superiorskyblock.core.SequentialListBuilder;
@@ -9,7 +10,6 @@ import com.bgsoftware.superiorskyblock.core.messages.Message;
 import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import org.bukkit.command.CommandSender;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -53,7 +53,7 @@ public class CmdAdminPurge implements ISuperiorCommand {
     @Override
     public void execute(SuperiorSkyblockPlugin plugin, CommandSender sender, String[] args) {
         if (args[2].equalsIgnoreCase("cancel")) {
-            plugin.getGrid().getIslandsToPurge().forEach(island -> plugin.getGrid().removeIslandFromPurge(island));
+            purgeCandidates(plugin.getGrid().getIslandsToPurge()).forEach(island -> plugin.getGrid().removeIslandFromPurge(island));
             Message.PURGE_CLEAR.send(sender);
         } else {
             long timeToPurge = parseLongSafe(args[2]);
@@ -62,7 +62,7 @@ public class CmdAdminPurge implements ISuperiorCommand {
             List<Island> islands = new SequentialListBuilder<Island>().filter(island -> {
                 long lastTimeUpdate = island.getLastTimeUpdate();
                 return lastTimeUpdate != -1 && currentTime - lastTimeUpdate >= timeToPurge;
-            }).build(plugin.getGrid().getIslands());
+            }).build(purgeCandidates(plugin.getGrid().getIslands()));
 
             if (islands.isEmpty()) {
                 Message.NO_ISLANDS_TO_PURGE.send(sender);
@@ -84,6 +84,11 @@ public class CmdAdminPurge implements ISuperiorCommand {
         } catch (Exception error) {
             return 0;
         }
+    }
+
+    static List<Island> purgeCandidates(List<Island> allIslands) {
+        return IslandExecutionScope.isExplicitTarget() && IslandExecutionScope.current() != null ?
+                Collections.singletonList(IslandExecutionScope.current()) : allIslands;
     }
 
 }

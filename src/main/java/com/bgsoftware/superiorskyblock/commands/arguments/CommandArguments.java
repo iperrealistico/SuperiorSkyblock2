@@ -46,8 +46,17 @@ public class CommandArguments {
 
     public static IslandArgument getIsland(SuperiorSkyblockPlugin plugin, CommandSender sender, String argument) {
         SuperiorPlayer targetPlayer = plugin.getPlayers().getSuperiorPlayer(argument);
-        Island island = targetPlayer == null ? plugin.getGrid().getIsland(argument) : targetPlayer.getIsland();
+        Island island = findIsland(plugin, sender, argument);
+        if (island == null && targetPlayer != null &&
+                (targetPlayer.getOwnedIslands().size() > 1 || targetPlayer.getIslands().size() > 1)) {
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "Specify the destination island by name or ID.");
+            return new IslandArgument(null, targetPlayer);
+        }
 
+        if (island != null && !plugin.getPvcIslandService().isAvailable(island.getUniqueId())) {
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "This island has an operation in progress. Please wait.");
+            return new IslandArgument(null, targetPlayer);
+        }
         if (island == null) {
             if (argument.equalsIgnoreCase(sender.getName()))
                 Message.INVALID_ISLAND.send(sender);
@@ -60,11 +69,38 @@ public class CommandArguments {
         return new IslandArgument(island, targetPlayer);
     }
 
+    /** Silent resolver shared by execution and completion. */
+    public static Island findIsland(SuperiorSkyblockPlugin plugin, CommandSender sender, String argument) {
+        Island context = com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current();
+        if (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isExplicitTarget() && context != null) return context;
+        SuperiorPlayer subject = plugin.getPlayers().getSuperiorPlayer(argument);
+        if (subject == null) return plugin.getPvcIslandService().resolve(argument);
+        if (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isInheritedTarget() &&
+                context != null && context.isMember(subject)) return context;
+        boolean precise = !(sender instanceof Player) || sender.hasPermission("superior.admin") ||
+                com.bgsoftware.superiorskyblock.commands.MultiIslandCommands.unlocked(plugin, sender);
+        return resolvePlayerIsland(subject, precise);
+    }
+
+    public static Island resolvePlayerIsland(SuperiorPlayer subject, boolean precise) {
+        List<Island> owned = subject.getOwnedIslands();
+        if (owned.size() == 1) return owned.get(0);
+        List<Island> candidates = owned.isEmpty() ? subject.getIslands() : owned;
+        if (candidates.size() == 1) return candidates.get(0);
+        if (precise || candidates.isEmpty()) return null;
+        Island selected = subject.getSelectedIsland();
+        return candidates.contains(selected) ? selected : candidates.get(0);
+    }
+
     public static IslandsListArgument getMultipleIslands(SuperiorSkyblockPlugin plugin, CommandSender sender, String argument) {
         List<Island> islands = new LinkedList<>();
         SuperiorPlayer targetPlayer;
 
-        if (argument.equals("*")) {
+        Island explicitTarget = com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isExplicitTarget() ?
+                com.bgsoftware.superiorskyblock.pvc.island.IslandExecutionContext.current() : null;
+        if (explicitTarget != null) {
+            targetPlayer = explicitTarget.getOwner(); islands.add(explicitTarget);
+        } else if (argument.equals("*")) {
             targetPlayer = null;
             islands = plugin.getGrid().getIslands();
         } else {
@@ -78,13 +114,39 @@ public class CommandArguments {
     }
 
     public static IslandArgument getSenderIsland(SuperiorSkyblockPlugin plugin, CommandSender sender) {
-        SuperiorPlayer superiorPlayer = plugin.getPlayers().getSuperiorPlayer(sender);
-        Island island = superiorPlayer.getIsland();
+        SuperiorPlayer superiorPlayer = sender instanceof Player ? plugin.getPlayers().getSuperiorPlayer(sender) : null;
+        Island island = superiorPlayer == null ?
+                com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current() : superiorPlayer.getIsland();
+
+        if (island != null && !plugin.getPvcIslandService().isAvailable(island.getUniqueId())) {
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "This island is being recovered or removed. Please wait.");
+            island = null;
+        }
 
         if (island == null)
-            Message.INVALID_ISLAND.send(superiorPlayer);
+            Message.INVALID_ISLAND.send(sender);
 
         return new IslandArgument(island, superiorPlayer);
+    }
+
+    /** Public reporters can inspect a precise foreign subject without changing membership-based wrappers. */
+    public static IslandArgument getReportingIsland(SuperiorSkyblockPlugin plugin, CommandSender sender) {
+        return reportingIsland(com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isExplicitTarget() ||
+                        com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isInheritedTarget(),
+                com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current(),
+                () -> getSenderIsland(plugin, sender), island -> {
+                    if (plugin.getGrid().getIslandByUUID(island.getUniqueId()) != island ||
+                            !plugin.getPvcIslandService().isAvailable(island.getUniqueId())) {
+                        Message.INVALID_ISLAND.send(sender); return IslandArgument.EMPTY;
+                    }
+                    return getIsland(plugin, sender, "uuid:" + island.getUniqueId());
+                });
+    }
+
+    static IslandArgument reportingIsland(boolean precise, Island captured,
+                                           java.util.function.Supplier<IslandArgument> ordinary,
+                                           java.util.function.Function<Island, IslandArgument> report) {
+        return precise && captured != null ? report.apply(captured) : ordinary.get();
     }
 
     public static SuperiorPlayer getPlayer(SuperiorSkyblockPlugin plugin, SuperiorPlayer superiorPlayer, String argument) {
@@ -115,8 +177,11 @@ public class CommandArguments {
     }
 
     public static IslandArgument getIslandWhereStandingOrSenderIsland(SuperiorSkyblockPlugin plugin, CommandSender sender) {
+        Island target = com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isExplicitTarget() ?
+                com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current() : null;
+        if (target != null) return new IslandArgument(target, target.getOwner());
         if (!(sender instanceof Player)) {
-            Message.CUSTOM.send(sender, "&cYou must specify a player's name.", true);
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "You must specify a player's name.");
             return IslandArgument.EMPTY;
         }
 
@@ -141,8 +206,11 @@ public class CommandArguments {
     }
 
     public static IslandArgument getIslandWhereStanding(SuperiorSkyblockPlugin plugin, CommandSender sender) {
+        Island target = com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isExplicitTarget() ?
+                com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current() : null;
+        if (target != null) return new IslandArgument(target, plugin.getPlayers().getSuperiorPlayer(sender));
         if (!(sender instanceof Player)) {
-            Message.CUSTOM.send(sender, "&cYou must specify a player's name.", true);
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "You must specify a player's name.");
             return IslandArgument.EMPTY;
         }
 
@@ -151,7 +219,7 @@ public class CommandArguments {
         Island island;
         try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
             Island locationIsland = plugin.getGrid().getIslandAt(((Player) sender).getLocation(wrapper.getHandle()));
-            island = locationIsland.isSpawn() ? null : locationIsland;
+            island = locationIsland == null || locationIsland.isSpawn() ? null : locationIsland;
         }
 
         if (island == null)

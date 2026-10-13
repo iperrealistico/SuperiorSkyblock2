@@ -87,20 +87,22 @@ public class CmdAdminSetLeader implements IAdminPlayerCommand {
             return;
         }
 
-        if (island.transferIsland(newLeader)) {
-            Message.TRANSFER_ADMIN.send(sender, leader.getName(), newLeader.getName());
-            IslandUtils.sendMessage(island, Message.TRANSFER_BROADCAST, Collections.emptyList(), newLeader.getName());
-        }
+        island.transferIslandAsync(newLeader).whenComplete((changed, error) -> {
+            if (error != null) { com.bgsoftware.superiorskyblock.core.logging.Log.error(error, "Cannot complete administrative ownership transfer"); return; }
+            if (Boolean.TRUE.equals(changed)) {
+                Message.TRANSFER_ADMIN.send(sender, leader.getName(), newLeader.getName());
+                IslandUtils.sendMessage(island, Message.TRANSFER_BROADCAST, Collections.emptyList(), newLeader.getName());
+            }
+        });
     }
 
     @Override
     public List<String> adminTabComplete(SuperiorSkyblockPlugin plugin, CommandSender sender, SuperiorPlayer targetPlayer, String[] args) {
         Island playerIsland = targetPlayer.getIsland();
-        return args.length != 4 ? Collections.emptyList() : CommandTabCompletes.getOnlinePlayers(plugin, args[2], false, onlinePlayer -> {
-            Island onlineIsland = onlinePlayer.getIsland();
-            return !onlinePlayer.equals(targetPlayer) && onlineIsland != null && !onlineIsland.equals(playerIsland) &&
-                    onlineIsland.getOwner().equals(onlinePlayer);
-        });
+        return args.length != 4 || playerIsland == null ||
+                !plugin.getPvcIslandService().isAvailable(playerIsland.getUniqueId()) ? Collections.emptyList() :
+                CommandTabCompletes.getOnlinePlayers(plugin, args[3], false, onlinePlayer ->
+                        AdminMemberTargets.transferMember(playerIsland, targetPlayer, onlinePlayer));
     }
 
 }

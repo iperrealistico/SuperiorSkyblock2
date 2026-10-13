@@ -24,8 +24,29 @@ public interface NMSChunks {
 
     void deleteChunks(Island island, List<ChunkPosition> chunkPositions, @Nullable Runnable onFinish);
 
+    default CompletableFuture<Void> deleteChunksAsync(Island island, List<ChunkPosition> chunkPositions) {
+        if (com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.isFolia()) {
+            CompletableFuture<Void> unsupported = new CompletableFuture<>();
+            unsupported.completeExceptionally(new UnsupportedOperationException("Folia requires a native owned chunk deletion adapter"));
+            return unsupported;
+        }
+        return com.bgsoftware.superiorskyblock.core.threads.OwnedStage.submit(
+                com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor::ensureMain, () -> {
+                    CompletableFuture<Void> result = new CompletableFuture<>();
+                    if (chunkPositions.isEmpty()) result.complete(null);
+                    else deleteChunks(island, chunkPositions, () -> result.complete(null));
+                    return result;
+                });
+    }
+
     CompletableFuture<List<CalculatedChunk.Blocks>> calculateChunks(List<ChunkPosition> chunkPositions,
                                                              Synchronized<Chunk2ObjectMap<CalculatedChunk.Blocks>> unloadedChunksCache);
+
+    default CalculatedChunk.Blocks calculateChunkBlocksNow(Chunk chunk) {
+        throw new UnsupportedOperationException("Regional block calculation requires a qualified modern NMS adapter");
+    }
+
+    default boolean supportsOwnedBlockCalculation() { return false; }
 
     CompletableFuture<List<CalculatedChunk.Entities>> calculateChunkEntities(Collection<ChunkPosition> chunkPositions);
 

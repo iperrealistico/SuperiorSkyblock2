@@ -1,7 +1,6 @@
 package com.bgsoftware.superiorskyblock.missions.farming;
 
 import com.bgsoftware.superiorskyblock.api.wrappers.BlockPosition;
-import com.bgsoftware.superiorskyblock.core.mutable.MutableBoolean;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -22,7 +21,10 @@ public class PlantsTracker {
     private final Map<String, PlantsTrackingComponent> plantsTracker = new HashMap<>();
     private Map<String, TrackedPlantsData> rawData = null;
     private Map<String, Map<UUID, List<BlockPosition>>> legacyRawData = null;
-    private boolean saved = false;
+    private final java.util.Set<String> blockedWorlds = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    public boolean isWorldAvailable(String world) { return !blockedWorlds.contains(world); }
+    public boolean canPersistProgress() { return blockedWorlds.isEmpty(); }
 
     private PlantsTracker() {
 
@@ -33,9 +35,11 @@ public class PlantsTracker {
     }
 
     public void track(World world, int x, int y, int z, UUID placer) {
-        loadRawData(world);
-        plantsTracker.computeIfAbsent(world.getName(), s -> new PlantsTrackingComponent(world))
-                .track(x, y, z, placer);
+        String name = world.getName();
+        int minimumHeight = PlantsTrackingComponent.getMinimumHeight(world);
+        PlantsTrackingComponent component;
+        synchronized (this) { component = component(name, minimumHeight); }
+        component.track(x, y, z, placer);
     }
 
     public void untrack(Block block) {
@@ -43,10 +47,11 @@ public class PlantsTracker {
     }
 
     public void untrack(World world, int x, int y, int z) {
-        loadRawData(world);
-        PlantsTrackingComponent trackingComponent = this.plantsTracker.get(world.getName());
-        if (trackingComponent != null)
-            trackingComponent.untrack(x, y, z);
+        String name = world.getName();
+        int minimumHeight = PlantsTrackingComponent.getMinimumHeight(world);
+        PlantsTrackingComponent component;
+        synchronized (this) { component = component(name, minimumHeight); }
+        component.untrack(x, y, z);
     }
 
     @Nullable
@@ -57,104 +62,104 @@ public class PlantsTracker {
 
     @Nullable
     public UUID getPlacer(World world, int x, int y, int z) {
-        loadRawData(world);
-        PlantsTrackingComponent trackingComponent = this.plantsTracker.get(world.getName());
-        return trackingComponent == null ? null : trackingComponent.getPlacer(x, y, z);
+        String name = world.getName();
+        int minimumHeight = PlantsTrackingComponent.getMinimumHeight(world);
+        PlantsTrackingComponent component;
+        synchronized (this) { component = component(name, minimumHeight); }
+        return component.getPlacer(x, y, z);
     }
 
     public void load(String worldName, long chunkKey, List<Integer> blocks, UUID placer) {
+        load(worldName, chunkKey, blocks, placer, 1);
+    }
+
+    public void load(String worldName, long chunkKey, List<Integer> blocks, UUID placer, int version) {
+        if (version > com.bgsoftware.superiorskyblock.missions.common.tracker.ChunkKeyCodec.VERSION ||
+                com.bgsoftware.superiorskyblock.missions.common.tracker.ChunkKeyCodec.isAmbiguousLegacy(chunkKey, version)) {
+            if (blockedWorlds.add(worldName)) java.util.logging.Logger.getLogger("SuperiorSkyblock2").severe(
+                    "Farming mission legacy chunk coordinates are ambiguous in world " + worldName +
+                    "; only this tracker is quarantined. Original progress and migration backup are retained; resolve the file before restarting.");
+            return;
+        }
+        synchronized (this) {
         if (this.rawData == null)
             this.rawData = new HashMap<>();
         TrackedPlantsData trackedPlantsData = this.rawData.computeIfAbsent(worldName, w -> new TrackedPlantsData());
         blocks.forEach(block -> trackedPlantsData.track(chunkKey, block, placer));
+        }
     }
 
-    public void loadLegacy(String worldName, BlockPosition plant, UUID placer) {
+    public synchronized void loadLegacy(String worldName, BlockPosition plant, UUID placer) {
         if (this.legacyRawData == null)
             this.legacyRawData = new HashMap<>();
-        this.legacyRawData.computeIfAbsent(worldName, w -> new LinkedHashMap<>())
-                .computeIfAbsent(placer, i -> new LinkedList<>()).add(plant);
+        Map<UUID, List<BlockPosition>> world = this.legacyRawData.computeIfAbsent(worldName, w -> new LinkedHashMap<>());
+        synchronized (world) { world.computeIfAbsent(placer, i -> new LinkedList<>()).add(plant); }
     }
 
+    /** Capture metadata only; YAML construction and file writes happen outside tracker locks. */
     public void save(ConfigurationSection section) {
-        if (!this.saved) {
-            saveInternal(section);
-            this.saved = true;
+        if (!canPersistProgress()) throw new IllegalStateException("Ambiguous legacy tracker progress is quarantined and must not be overwritten");
+        Map<String, Map<Long, Map<Integer, UUID>>> worlds = new LinkedHashMap<>();
+        Map<String, java.util.function.Supplier<Map<Long, Map<Integer, UUID>>>> sources = new LinkedHashMap<>();
+        Map<String, Map<UUID, List<BlockPosition>>> legacy = new LinkedHashMap<>();
+        Map<String, Map<UUID, List<BlockPosition>>> legacySources = new LinkedHashMap<>();
+        synchronized (this) {
+            this.plantsTracker.forEach((name, component) -> sources.put(name, component::getPlants));
+            if (this.rawData != null) this.rawData.forEach((name, data) -> sources.put(name, data::getPlants));
+            if (this.legacyRawData != null) legacySources.putAll(this.legacyRawData);
         }
-    }
-
-    private void saveInternal(ConfigurationSection section) {
-        MutableBoolean savedData = new MutableBoolean(false);
-
-        this.plantsTracker.forEach((worldName, component) -> {
-            component.getPlants().forEach((chunkKey, blocks) -> {
-                blocks.forEach((block, placer) -> {
-                    String path = "placed-plants." + placer + "." + worldName + "." + chunkKey;
-                    List<Integer> blocksList = section.getIntegerList(path);
-                    blocksList.add(block);
-                    section.set(path, blocksList);
-                    savedData.set(true);
-                });
-            });
+        legacySources.forEach((name, data) -> {
+            synchronized (data) {
+                Map<UUID, List<BlockPosition>> copy = new LinkedHashMap<>();
+                data.forEach((placer, positions) -> copy.put(placer, new LinkedList<>(positions)));
+                legacy.put(name, copy);
+            }
         });
-
-        if (this.rawData != null) {
-            this.rawData.forEach((worldName, worldData) -> {
-                worldData.getPlants().forEach((chunkKey, blocks) -> {
-                    blocks.forEach((block, placer) -> {
-                        String path = "placed-plants." + placer + "." + worldName + "." + chunkKey;
-                        List<Integer> blocksList = section.getIntegerList(path);
-                        blocksList.add(block);
-                        section.set(path, blocksList);
-                        savedData.set(true);
-                    });
-                });
-            });
+        sources.forEach((name, source) -> worlds.put(name, source.get()));
+        // The tracker can be shared by several missions. Replace its namespaces on each snapshot,
+        // rather than append duplicates or omit all autosaves after the first one.
+        section.set("placed-plants", null);
+        section.set("placed-plants-legacy", null);
+        boolean hasData = false;
+        for (Map.Entry<String, Map<Long, Map<Integer, UUID>>> world : worlds.entrySet()) {
+            for (Map.Entry<Long, Map<Integer, UUID>> chunk : world.getValue().entrySet()) {
+                Map<UUID, List<Integer>> byPlacer = new LinkedHashMap<>();
+                chunk.getValue().forEach((block, placer) -> byPlacer.computeIfAbsent(placer, key -> new LinkedList<>()).add(block));
+                for (Map.Entry<UUID, List<Integer>> placer : byPlacer.entrySet()) {
+                    section.set("placed-plants." + placer.getKey() + "." + world.getKey() + "." + chunk.getKey(), placer.getValue());
+                    hasData = true;
+                }
+            }
         }
-
-        if (this.legacyRawData != null) {
-            this.legacyRawData.forEach((worldName, worldData) -> {
-                worldData.forEach((placer, plants) -> {
-                    plants.forEach(plant -> {
-                        String plantKey = worldName + ";" + plant.getX() + ";" + plant.getY() + ";" + plant.getZ();
-                        section.set("placed-plants-legacy." + plantKey, placer.toString());
-                        savedData.set(true);
-                    });
-                });
-            });
+        for (Map.Entry<String, Map<UUID, List<BlockPosition>>> world : legacy.entrySet()) {
+            for (Map.Entry<UUID, List<BlockPosition>> placer : world.getValue().entrySet()) {
+                for (BlockPosition plant : placer.getValue()) {
+                    String key = world.getKey() + ";" + plant.getX() + ";" + plant.getY() + ";" + plant.getZ();
+                    section.set("placed-plants-legacy." + key, placer.getKey().toString());
+                    hasData = true;
+                }
+            }
         }
-
-        if (savedData.get()) {
-            section.set("data-version", 1);
-        }
+        section.set("data-version", com.bgsoftware.superiorskyblock.missions.common.tracker.ChunkKeyCodec.VERSION);
     }
 
-    private void loadRawData(World world) {
-        String worldName = world.getName();
-
-        if (this.rawData != null) {
-            TrackedPlantsData rawDataForWorld = this.rawData.remove(worldName);
-            if (rawDataForWorld != null) {
-                plantsTracker.put(worldName, new PlantsTrackingComponent(world, rawDataForWorld));
-
-                if (this.rawData.isEmpty())
-                    this.rawData = null;
+    /** Called under the metadata monitor; no Bukkit/world calls occur here. */
+    private PlantsTrackingComponent component(String name, int minimumHeight) {
+        PlantsTrackingComponent component = plantsTracker.get(name);
+        if (component == null) {
+            TrackedPlantsData data = rawData == null ? null : rawData.remove(name);
+            component = new PlantsTrackingComponent(minimumHeight, data == null ? new TrackedPlantsData() : data);
+            plantsTracker.put(name, component);
+        }
+        Map<UUID, List<BlockPosition>> legacy = legacyRawData == null ? null : legacyRawData.remove(name);
+        if (legacy != null) {
+            synchronized (legacy) {
+            for (Map.Entry<UUID, List<BlockPosition>> entry : legacy.entrySet())
+                for (BlockPosition plant : entry.getValue())
+                    component.track(plant.getX(), plant.getY(), plant.getZ(), entry.getKey());
             }
         }
-
-        if (this.legacyRawData != null) {
-            Map<UUID, List<BlockPosition>> legacyRawDataForWorld = this.legacyRawData.remove(worldName);
-            if (legacyRawDataForWorld != null) {
-                PlantsTrackingComponent plantsTrackingComponent = new PlantsTrackingComponent(world);
-                legacyRawDataForWorld.forEach((placer, plants) -> {
-                    plants.forEach(plant -> plantsTrackingComponent.track(plant.getX(), plant.getY(), plant.getZ(), placer));
-                });
-                this.plantsTracker.put(worldName, plantsTrackingComponent);
-
-                if (this.legacyRawData.isEmpty())
-                    this.legacyRawData = null;
-            }
-        }
+        return component;
     }
 
 }

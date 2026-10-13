@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&lMissions'
+title: '&6&lMissions'
 previous-menu: true
 
 pattern:
@@ -18,32 +18,32 @@ pattern:
 items:
   '$':
     type: BLACK_STAINED_GLASS_PANE
-    name: '&f'
+    name: '&8'
   '#':
     type: DIAMOND_PICKAXE
-    name: '&eMiner Missions'
+    name: '&6Miner Missions'
     lore:
       - '&7Click to start your adventure as a Miner.'
     flags:
       - HIDE_ATTRIBUTES
   '@':
     type: ZOMBIE_HEAD
-    name: '&eSlayer Missions'
+    name: '&6Slayer Missions'
     lore:
       - '&7Click to start your adventure as a Slayer.'
   '%':
     type: WHEAT
-    name: '&eFarmer Missions'
+    name: '&6Farmer Missions'
     lore:
       - '&7Click to start your adventure as a Farmer.'
   '^':
     type: FISHING_ROD
-    name: '&eFisherman Missions'
+    name: '&6Fisherman Missions'
     lore:
       - '&7Click to start your adventure as a Fisherman.'
   '&':
     type: MAP
-    name: '&eExplorer Missions'
+    name: '&6Explorer Missions'
     lore:
       - '&7Click to start your adventure as an Explorer.'
 

@@ -1,0 +1,20 @@
+mission-file: FarmingMissions
+island: true
+auto-reward: false
+reset-after-finish: false
+required-plants:
+  wheat:
+    types: [WHEAT]
+    amount: 1
+rewards:
+  commands: []
+icons:
+  not-completed:
+    type: PAPER
+    name: PVC native farming
+  can-complete:
+    type: PAPER
+    name: PVC native farming ready
+  completed:
+    type: MAP
+    name: PVC native farming complete

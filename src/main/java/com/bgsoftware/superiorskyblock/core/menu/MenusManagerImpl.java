@@ -363,6 +363,11 @@ public class MenusManagerImpl extends Manager implements MenusManager {
 
     @Override
     public void openPlayerLanguage(SuperiorPlayer targetPlayer, @Nullable ISuperiorMenu previousMenu) {
+        if (com.bgsoftware.superiorskyblock.player.PlayerLocales.isDefaultLanguageForced()) {
+            com.bgsoftware.superiorskyblock.core.messages.Message.PVC_SERVER_LANGUAGE_FIXED.send(targetPlayer,
+                    com.bgsoftware.superiorskyblock.player.PlayerLocales.getDefaultLocale().getDisplayName(java.util.Locale.ENGLISH));
+            return;
+        }
         plugin.getProviders().getMenusProvider().openPlayerLanguage(targetPlayer, previousMenu);
     }
 

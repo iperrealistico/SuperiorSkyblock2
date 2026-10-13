@@ -238,7 +238,7 @@ public class CmdAdminShow implements IAdminIslandCommand {
 
             if (!Message.ISLAND_INFO_PLAYER_LINE.isEmpty(locale)) {
                 members.forEach(islandMember -> {
-                    Text.appendWithLine(rolesStrings.computeIfAbsent(islandMember.getPlayerRole(), role -> new StringBuilder()),
+                    Text.appendWithLine(rolesStrings.computeIfAbsent(islandMember.getPlayerRole(island), role -> new StringBuilder()),
                             Message.ISLAND_INFO_PLAYER_LINE.getMessage(locale, islandMember.getName()));
                 });
             }

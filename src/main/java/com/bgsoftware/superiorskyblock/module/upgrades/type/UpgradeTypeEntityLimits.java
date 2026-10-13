@@ -16,6 +16,7 @@ import com.bgsoftware.superiorskyblock.core.formatting.Formatters;
 import com.bgsoftware.superiorskyblock.core.key.Keys;
 import com.bgsoftware.superiorskyblock.core.messages.Message;
 import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
+import com.bgsoftware.superiorskyblock.island.algorithm.DefaultIslandEntitiesTrackerAlgorithm;
 import com.bgsoftware.superiorskyblock.module.upgrades.commands.CmdAdminAddEntityLimit;
 import com.bgsoftware.superiorskyblock.module.upgrades.commands.CmdAdminRemoveEntityLimit;
 import com.bgsoftware.superiorskyblock.module.upgrades.commands.CmdAdminSetEntityLimit;
@@ -53,9 +54,12 @@ public class UpgradeTypeEntityLimits implements IUpgradeType {
     @Nullable
     private static final Material GOLDEN_DANDELION_TYPE = EnumHelper.getEnum(Material.class, "GOLDEN_DANDELION");
 
-    private final Map<EntityType, SpawningPlayerData> entityBreederPlayers = AutoRemovalMap.newHashMap(2, TimeUnit.SECONDS);
-    private final Map<Location, SpawningPlayerData> vehiclesOwners = AutoRemovalMap.newMap(2, TimeUnit.SECONDS, Location2ObjectMap::new);
-    private final Map<EntityType, SpawningPlayerData> spawnEggPlayers = AutoRemovalMap.newHashMap(2, TimeUnit.SECONDS);
+    private final com.google.common.cache.Cache<java.util.UUID, SpawningPlayerData> entityBreederPlayers =
+            com.google.common.cache.CacheBuilder.newBuilder().maximumSize(4096).expireAfterWrite(2, TimeUnit.SECONDS).build();
+    private final com.google.common.cache.Cache<com.bgsoftware.superiorskyblock.core.WorldBlockKey, SpawningPlayerData> vehiclesOwners =
+            com.google.common.cache.CacheBuilder.newBuilder().maximumSize(4096).expireAfterWrite(2, TimeUnit.SECONDS).build();
+    private final com.google.common.cache.Cache<SpawnPosition, SpawningPlayerData> spawnEggPlayers =
+            com.google.common.cache.CacheBuilder.newBuilder().maximumSize(4096).expireAfterWrite(2, TimeUnit.SECONDS).build();
 
     private final SuperiorSkyblockPlugin plugin;
 
@@ -98,6 +102,15 @@ public class UpgradeTypeEntityLimits implements IUpgradeType {
         }
     }
 
+    /** Default trackers reserve the event UUID atomically; external algorithms retain their existing contract. */
+    private boolean hasReachedEntityLimit(Island island, Entity entity) {
+        com.bgsoftware.superiorskyblock.api.key.Key key = Keys.of(entity);
+        if (island.getEntitiesTracker() instanceof DefaultIslandEntitiesTrackerAlgorithm)
+            return !((DefaultIslandEntitiesTrackerAlgorithm) island.getEntitiesTracker()).reserveEntitySlot(
+                    entity.getUniqueId(), key, island.getEntityLimit(key));
+        return island.hasReachedEntityLimit(key).join();
+    }
+
     private class EntityLimitsListener implements Listener {
 
 
@@ -117,21 +130,15 @@ public class UpgradeTypeEntityLimits implements IUpgradeType {
             SpawningPlayerData spawningPlayerData = getSpawningPlayerFromSpawnEvent(e);
             Player spawningPlayer = spawningPlayerData == null ? null : spawningPlayerData.player.get();
 
-            boolean hasReachedLimit = island.hasReachedEntityLimit(Keys.of(entity)).join();
+            boolean hasReachedLimit = hasReachedEntityLimit(island, entity);
 
             if (hasReachedLimit) {
                 e.setCancelled(true);
-                if (spawningPlayer != null && spawningPlayer.isOnline()) {
+                if (spawningPlayer != null) BukkitExecutor.entity(spawningPlayer, () -> {
+                    if (!spawningPlayer.isOnline()) return;
                     Message.REACHED_ENTITY_LIMIT.send(spawningPlayer, Formatters.CAPITALIZED_FORMATTER.format(entityType.toString()));
-                    List<ItemStack> itemsToGiveBack = spawningPlayerData.itemStacks;
-                    try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
-                        Location location = spawningPlayer.getLocation(wrapper.getHandle());
-                        PlayerInventory inventory = spawningPlayer.getInventory();
-                        for (ItemStack itemStack : itemsToGiveBack) {
-                            BukkitItems.addItem(itemStack, inventory, location);
-                        }
-                    }
-                }
+                });
+                if (spawningPlayerData != null) spawningPlayerData.refundItems();
             }
         }
 
@@ -151,7 +158,7 @@ public class UpgradeTypeEntityLimits implements IUpgradeType {
             if (island == null)
                 return;
 
-            boolean hasReachedLimit = island.hasReachedEntityLimit(Keys.of(entity)).join();
+            boolean hasReachedLimit = hasReachedEntityLimit(island, entity);
 
             if (hasReachedLimit) {
                 e.setCancelled(true);
@@ -190,7 +197,7 @@ public class UpgradeTypeEntityLimits implements IUpgradeType {
                 Location futureEntitySpawnLocation = isMinecart ? blockLocation :
                         blockLocation.add(0, 1, 0);
 
-                vehiclesOwners.put(futureEntitySpawnLocation, new SpawningPlayerData(e.getPlayer()));
+                vehiclesOwners.put(com.bgsoftware.superiorskyblock.core.WorldBlockKey.of(futureEntitySpawnLocation), new SpawningPlayerData(e.getPlayer()));
             }
         }
 
@@ -212,18 +219,19 @@ public class UpgradeTypeEntityLimits implements IUpgradeType {
                 if (island == null)
                     return;
 
-                vehicleOwnerData = vehiclesOwners.remove(entityLocation);
+                vehicleOwnerData = vehiclesOwners.asMap().remove(com.bgsoftware.superiorskyblock.core.WorldBlockKey.of(entityLocation));
             }
 
             Player vehicleOwner = vehicleOwnerData == null ? null : vehicleOwnerData.player.get();
 
-            boolean hasReachedLimit = island.hasReachedEntityLimit(Keys.of(entity)).join();
+            boolean hasReachedLimit = hasReachedEntityLimit(island, entity);
 
             if (hasReachedLimit) {
                 entity.remove();
-                if (vehicleOwner != null && vehicleOwner.isOnline()) {
-                    Message.REACHED_ENTITY_LIMIT.send(vehicleOwner, Formatters.CAPITALIZED_FORMATTER.format(entityType.toString()));
-                }
+                if (vehicleOwner != null) BukkitExecutor.entity(vehicleOwner, () -> {
+                    if (vehicleOwner.isOnline()) Message.REACHED_ENTITY_LIMIT.send(vehicleOwner,
+                            Formatters.CAPITALIZED_FORMATTER.format(entityType.toString()));
+                });
             }
         }
 
@@ -248,25 +256,29 @@ public class UpgradeTypeEntityLimits implements IUpgradeType {
             if (island == null)
                 return;
 
-            spawnEggPlayers.put(spawnEggEntityType, new SpawningPlayerData(e.getPlayer()));
+            SpawningPlayerData pending = new SpawningPlayerData(e.getPlayer());
+            spawnEggPlayers.put(new SpawnPosition(spawnEggEntityType, e.getClickedBlock().getRelative(e.getBlockFace()).getLocation()), pending);
+            spawnEggPlayers.put(new SpawnPosition(spawnEggEntityType, e.getClickedBlock().getLocation()), pending);
         }
 
         @Nullable
         private SpawningPlayerData getSpawningPlayerFromSpawnEvent(CreatureSpawnEvent event) {
             EntityType entityType = event.getEntityType();
-
-            if (entityType == EntityType.ARMOR_STAND) {
-                return spawnEggPlayers.remove(entityType);
-            }
+            if (entityType == EntityType.ARMOR_STAND) return claimEggActor(entityType, event.getLocation());
 
             switch (event.getSpawnReason()) {
                 case SPAWNER_EGG:
-                    return spawnEggPlayers.remove(entityType);
+                    return claimEggActor(entityType, event.getLocation());
                 case BREEDING:
-                    return entityBreederPlayers.remove(entityType);
+                    return entityBreederPlayers.asMap().remove(event.getEntity().getUniqueId());
             }
 
             return null;
+        }
+
+        private SpawningPlayerData claimEggActor(EntityType type, Location location) {
+            SpawningPlayerData data = spawnEggPlayers.asMap().remove(new SpawnPosition(type, location));
+            return data != null && data.claimed.compareAndSet(false, true) ? data : null;
         }
 
     }
@@ -276,7 +288,7 @@ public class UpgradeTypeEntityLimits implements IUpgradeType {
         @Nullable
         private final EntityType CUSHION_TYPE = EnumHelper.getEnum(EntityType.class, "CUSHION");
 
-        @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+        @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
         public void onEntityPlace(org.bukkit.event.entity.EntityPlaceEvent e) {
             Entity entity = e.getEntity();
             EntityType entityType = entity.getType();
@@ -295,7 +307,7 @@ public class UpgradeTypeEntityLimits implements IUpgradeType {
                 return;
             }
 
-            boolean hasReachedLimit = island.hasReachedEntityLimit(Keys.of(entity)).join();
+            boolean hasReachedLimit = hasReachedEntityLimit(island, entity);
 
             if (hasReachedLimit) {
                 entity.remove();
@@ -303,11 +315,19 @@ public class UpgradeTypeEntityLimits implements IUpgradeType {
             }
         }
 
+        @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
+        public void onEntityPlaceCompletion(org.bukkit.event.entity.EntityPlaceEvent event) {
+            if (event.isCancelled() || event.getEntity().isDead())
+                DefaultIslandEntitiesTrackerAlgorithm.releaseEntityReservation(event.getEntity().getUniqueId());
+        }
+
     }
 
     private class EntityLimitsBreedListener implements Listener {
 
-        private final Int2ObjectMapView<ItemStack> trackedBreedItems = CollectionsFactory.createInt2ObjectArrayMap();
+        private final com.google.common.cache.Cache<java.util.UUID, SpawningPlayerData> trackedBreedItems =
+                com.google.common.cache.CacheBuilder.newBuilder().maximumSize(4096)
+                        .expireAfterWrite(2, TimeUnit.MINUTES).build();
 
         @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
         public void onEntityBreed(EntityBreedEvent e) {
@@ -325,11 +345,13 @@ public class UpgradeTypeEntityLimits implements IUpgradeType {
             if (island == null)
                 return;
 
-            ItemStack fatherBreedItem = trackedBreedItems.remove(e.getFather().getEntityId());
-            ItemStack motherBreedItem = e.getFather().equals(e.getMother()) ? null :
-                    trackedBreedItems.remove(e.getMother().getEntityId());
-
-            entityBreederPlayers.put(childEntityType, new SpawningPlayerData((Player) e.getBreeder(), fatherBreedItem, motherBreedItem));
+            SpawningPlayerData father = trackedBreedItems.asMap().remove(e.getFather().getUniqueId());
+            SpawningPlayerData mother = e.getFather().equals(e.getMother()) ? null :
+                    trackedBreedItems.asMap().remove(e.getMother().getUniqueId());
+            SpawningPlayerData breeding = new SpawningPlayerData((Player) e.getBreeder());
+            if (father != null) breeding.refunds.addAll(father.refunds);
+            if (mother != null) breeding.refunds.addAll(mother.refunds);
+            entityBreederPlayers.put(child.getUniqueId(), breeding);
         }
 
         @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -350,15 +372,16 @@ public class UpgradeTypeEntityLimits implements IUpgradeType {
             int mainHandSlot = e.getPlayer().getInventory().getHeldItemSlot();
             int originalAmount = usedItem.getAmount();
             ItemStack breedItem = usedItem.clone();
+            java.util.UUID fedEntity = e.getRightClicked().getUniqueId();
 
-            BukkitExecutor.sync(() -> {
+            BukkitExecutor.entity(e.getPlayer(), () -> {
                 ItemStack inventoryItem = usedHand == PlayerHand.MAIN_HAND ?
                         e.getPlayer().getInventory().getItem(mainHandSlot) :
                         BukkitItems.getHandItem(e.getPlayer(), PlayerHand.OFF_HAND);
 
                 boolean isInventoryItemEmpty = inventoryItem == null || inventoryItem.getType() == Material.AIR;
 
-                if (!isInventoryItemEmpty && !inventoryItem.isSimilar(usedItem))
+                if (!isInventoryItemEmpty && !inventoryItem.isSimilar(breedItem))
                     return;
 
                 int currAmount = isInventoryItemEmpty ? 0 : inventoryItem.getAmount();
@@ -368,16 +391,29 @@ public class UpgradeTypeEntityLimits implements IUpgradeType {
                     return;
 
                 breedItem.setAmount(consumedAmount);
-                trackedBreedItems.put(e.getRightClicked().getEntityId(), breedItem);
+                trackedBreedItems.put(fedEntity, new SpawningPlayerData(e.getPlayer(), breedItem));
             }, 5L);
         }
 
     }
 
+    private static final class SpawnPosition {
+        private final EntityType type;
+        private final com.bgsoftware.superiorskyblock.core.WorldBlockKey position;
+        SpawnPosition(EntityType type, Location location) { this.type = type; this.position = com.bgsoftware.superiorskyblock.core.WorldBlockKey.of(location); }
+        @Override public boolean equals(Object value) {
+            if (!(value instanceof SpawnPosition)) return false;
+            SpawnPosition other = (SpawnPosition) value;
+            return type == other.type && position.equals(other.position);
+        }
+        @Override public int hashCode() { return 31 * type.hashCode() + position.hashCode(); }
+    }
+
     private static class SpawningPlayerData {
 
         private final WeakReference<Player> player;
-        private final List<ItemStack> itemStacks = new LinkedList<>();
+        private final List<ItemRefund> refunds = new LinkedList<>();
+        private final java.util.concurrent.atomic.AtomicBoolean claimed = new java.util.concurrent.atomic.AtomicBoolean();
 
         SpawningPlayerData(Player player) {
             this(player, (ItemStack) null);
@@ -396,9 +432,28 @@ public class UpgradeTypeEntityLimits implements IUpgradeType {
 
         private void addItem(@Nullable ItemStack itemStack) {
             if (itemStack != null && itemStack.getType() != Material.AIR && itemStack.getAmount() > 0)
-                this.itemStacks.add(itemStack);
+                this.refunds.add(new ItemRefund(this.player, itemStack.clone()));
         }
 
+        private void refundItems() {
+            for (ItemRefund refund : refunds) {
+                Player actor = refund.player.get();
+                if (actor == null) continue;
+                BukkitExecutor.entity(actor, () -> {
+                    if (!actor.isOnline()) return;
+                    try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
+                        BukkitItems.addItem(refund.item.clone(), actor.getInventory(), actor.getLocation(wrapper.getHandle()));
+                    }
+                });
+            }
+        }
+
+    }
+
+    private static final class ItemRefund {
+        final WeakReference<Player> player;
+        final ItemStack item;
+        ItemRefund(WeakReference<Player> player, ItemStack item) { this.player = player; this.item = item; }
     }
 
 }

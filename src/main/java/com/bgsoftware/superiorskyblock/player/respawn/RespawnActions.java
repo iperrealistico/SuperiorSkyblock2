@@ -90,10 +90,10 @@ public class RespawnActions {
 
     private static void onTeleportCallback(SuperiorPlayer superiorPlayer, PlayerTeleportAlgorithm.TeleportResult result) {
         if (result == PlayerTeleportAlgorithm.TeleportResult.SUCCESS) {
-            BukkitExecutor.sync(() -> {
+            superiorPlayer.runIfOnline(player -> BukkitExecutor.entity(player, () -> {
                 if (superiorPlayer.isOnline())
                     superiorPlayer.updateWorldBorder(superiorPlayer.getIsland());
-            }, 2L);
+            }, 2L));
         }
     }
 

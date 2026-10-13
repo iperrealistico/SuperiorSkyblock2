@@ -95,7 +95,7 @@ public class CmdRate implements ISuperiorCommand {
 
     private static RateResult canRateIsland(SuperiorSkyblockPlugin plugin, SuperiorPlayer superiorPlayer,
                                             Island playerIsland, Island island) {
-        if (!plugin.getSettings().isRateOwnIsland() && island.equals(playerIsland)) {
+        if (!plugin.getSettings().isRateOwnIsland() && island.isMember(superiorPlayer)) {
             return RateResult.RATE_OWN_ISLAND;
         }
 

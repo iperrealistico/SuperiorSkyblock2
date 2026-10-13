@@ -18,8 +18,11 @@ public class BlocksTracker {
 
     private final EnumMap<TrackingType, Map<String, BlocksTrackingComponent>> trackingComponentMap = new EnumMap<>(TrackingType.class);
     private EnumMap<TrackingType, Map<String, TrackedBlocksData>> rawData = null;
+    private final java.util.Set<String> blockedWorlds = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
-    private boolean saved = false;
+    public boolean isWorldAvailable(String world) { return !blockedWorlds.contains(world); }
+    public boolean canPersistProgress() { return blockedWorlds.isEmpty(); }
+
 
     private BlocksTracker() {
 
@@ -44,111 +47,87 @@ public class BlocksTracker {
                 component.contains(blockLocation.getBlockX(), blockLocation.getBlockY(), blockLocation.getBlockZ()));
     }
 
-    public void loadTrackedBlocks(TrackingType trackingType, String worldName, ConfigurationSection section) {
-        if (this.rawData == null)
-            this.rawData = new EnumMap<>(TrackingType.class);
+    public void loadTrackedBlocks(TrackingType type, String name, ConfigurationSection section) {
+        loadTrackedBlocks(type, name, section, 1);
+    }
 
-        this.rawData.computeIfAbsent(trackingType, t -> new HashMap<>()).put(worldName, new TrackedBlocksData(section));
+    public void loadTrackedBlocks(TrackingType type, String name, ConfigurationSection section, int version) {
+        boolean ambiguous = version > com.bgsoftware.superiorskyblock.missions.common.tracker.ChunkKeyCodec.VERSION;
+        for (String key : section.getKeys(false)) {
+            try { ambiguous |= com.bgsoftware.superiorskyblock.missions.common.tracker.ChunkKeyCodec.isAmbiguousLegacy(Long.parseLong(key), version); }
+            catch (NumberFormatException invalid) { ambiguous = true; }
+        }
+        if (ambiguous) {
+            if (blockedWorlds.add(name)) java.util.logging.Logger.getLogger("SuperiorSkyblock2").severe(
+                    "Blocks mission legacy chunk coordinates are ambiguous in world " + name +
+                    "; only this tracker is quarantined. Original progress and migration backup are retained; resolve the file before restarting.");
+            return;
+        }
+        TrackedBlocksData data = new TrackedBlocksData(section);
+        synchronized (this) {
+            if (rawData == null) rawData = new EnumMap<>(TrackingType.class);
+            rawData.computeIfAbsent(type, ignored -> new HashMap<>()).put(name, data);
+        }
     }
 
     public void save(ConfigurationSection section) {
-        if (!this.saved) {
-            saveInternal(section, TrackingType.PLACED_BLOCKS);
-            saveInternal(section, TrackingType.BROKEN_BLOCKS);
-            this.saved = true;
+        if (!canPersistProgress()) throw new IllegalStateException("Ambiguous legacy tracker progress is quarantined and must not be overwritten");
+        EnumMap<TrackingType, Map<String, Map<Long, ChunkBitSet>>> snapshot = new EnumMap<>(TrackingType.class);
+        EnumMap<TrackingType, Map<String, java.util.function.Supplier<Map<Long, ChunkBitSet>>>> sources = new EnumMap<>(TrackingType.class);
+        synchronized (this) {
+            trackingComponentMap.forEach((type, worlds) -> worlds.forEach((name, component) ->
+                    sources.computeIfAbsent(type, ignored -> new HashMap<>()).put(name, component::getBlocks)));
+            if (rawData != null) rawData.forEach((type, worlds) -> worlds.forEach((name, data) ->
+                    sources.computeIfAbsent(type, ignored -> new HashMap<>()).put(name, data::getBlocks)));
         }
-    }
-
-    private void saveInternal(ConfigurationSection section, TrackingType trackingType) {
-        Map<String, BlocksTrackingComponent> trackingComponentMap = this.trackingComponentMap.get(trackingType);
-
-        if (trackingComponentMap == null)
-            return;
-
-        trackingComponentMap.forEach((worldName, component) -> {
-            component.getBlocks().forEach((chunkKey, blocksBitSet) -> {
+        sources.forEach((type, worlds) -> worlds.forEach((name, source) ->
+                snapshot.computeIfAbsent(type, ignored -> new HashMap<>()).put(name, source.get())));
+        // Build YAML from detached state; never hold tracker locks across serialization.
+        for (TrackingType type : TrackingType.values()) {
+            section.set("tracked." + type.path, null);
+            Map<String, Map<Long, ChunkBitSet>> worlds = snapshot.get(type);
+            if (worlds == null) continue;
+            worlds.forEach((name, chunks) -> chunks.forEach((key, bitSet) -> {
                 List<Integer> blocks = new LinkedList<>();
-                blocksBitSet.forEach(blocks::add);
-                if (!blocks.isEmpty())
-                    section.set("tracked." + trackingType.path + "." + worldName + "." + chunkKey, blocks);
-            });
-        });
-
-        if (this.rawData != null) {
-            Map<String, TrackedBlocksData> rawData = this.rawData.get(trackingType);
-            if (rawData != null) {
-                rawData.forEach((worldName, trackedBlocksData) -> {
-                    trackedBlocksData.getBlocks().forEach((chunkKey, blocksBitSet) -> {
-                        List<Integer> blocks = new LinkedList<>();
-                        blocksBitSet.forEach(blocks::add);
-                        if (!blocks.isEmpty())
-                            section.set("tracked." + trackingType.path + "." + worldName + "." + chunkKey, blocks);
-                    });
-                });
-            }
+                bitSet.forEach(blocks::add);
+                if (!blocks.isEmpty()) section.set("tracked." + type.path + "." + name + "." + key, blocks);
+            }));
         }
+        section.set("tracker-data-version", com.bgsoftware.superiorskyblock.missions.common.tracker.ChunkKeyCodec.VERSION);
     }
 
-    private BlocksTrackingComponent getComponent(TrackingType trackingType, World world) {
-        BlocksTrackingComponent trackingComponent = loadRawData(trackingType, world);
-        return trackingComponent != null ? trackingComponent :
-                trackingComponentMap.computeIfAbsent(trackingType, t -> new HashMap<>())
-                        .computeIfAbsent(world.getName(), uuid -> new BlocksTrackingComponent(world));
+    private BlocksTrackingComponent getComponent(TrackingType type, World world) {
+        String name = world.getName();
+        int minimumHeight = BlocksTrackingComponent.getMinimumHeight(world);
+        synchronized (this) { return component(type, name, minimumHeight, true); }
     }
 
-    private <R> R ifComponentExists(TrackingType trackingType, World world, R def, Function<BlocksTrackingComponent, R> function) {
-        String worldName = world.getName();
-
-        BlocksTrackingComponent trackingComponent = loadRawData(trackingType, world);
-        if (trackingComponent != null)
-            return function.apply(trackingComponent);
-
-        Map<String, BlocksTrackingComponent> trackingTypeComponents = trackingComponentMap.get(trackingType);
-        if (trackingTypeComponents != null) {
-            trackingComponent = trackingTypeComponents.get(worldName);
-            if (trackingComponent != null)
-                return function.apply(trackingComponent);
-        }
-
-        return def;
+    private <R> R ifComponentExists(TrackingType type, World world, R def, Function<BlocksTrackingComponent, R> function) {
+        String name = world.getName();
+        int minimumHeight = BlocksTrackingComponent.getMinimumHeight(world);
+        BlocksTrackingComponent component;
+        synchronized (this) { component = component(type, name, minimumHeight, false); }
+        return component == null ? def : function.apply(component);
     }
 
-    private BlocksTrackingComponent loadRawData(TrackingType trackingType, World world) {
-        String worldName = world.getName();
-
-        if (this.rawData != null) {
-            Map<String, TrackedBlocksData> rawData = this.rawData.get(trackingType);
-            if (rawData != null) {
-                TrackedBlocksData trackedBlocksData = rawData.remove(worldName);
-                if (trackedBlocksData != null) {
-                    BlocksTrackingComponent trackingComponent = new BlocksTrackingComponent(world);
-                    trackingComponent.loadBlocks(trackedBlocksData);
-                    this.trackingComponentMap.computeIfAbsent(trackingType, i -> new HashMap<>())
-                            .put(worldName, trackingComponent);
-                    if (rawData.isEmpty()) {
-                        this.rawData.remove(trackingType);
-                        if(this.rawData.isEmpty())
-                            this.rawData = null;
-                    }
-                    return trackingComponent;
-                }
-            }
-        }
-
-        return null;
+    /** Metadata only: world height and configuration reads were captured before acquiring the monitor. */
+    private BlocksTrackingComponent component(TrackingType type, String name, int minimumHeight, boolean create) {
+        Map<String, BlocksTrackingComponent> worlds = trackingComponentMap.get(type);
+        BlocksTrackingComponent component = worlds == null ? null : worlds.get(name);
+        if (component != null) return component;
+        Map<String, TrackedBlocksData> pending = rawData == null ? null : rawData.get(type);
+        TrackedBlocksData data = pending == null ? null : pending.remove(name);
+        if (data == null && !create) return null;
+        component = new BlocksTrackingComponent(minimumHeight);
+        if (data != null) component.loadBlocks(data);
+        trackingComponentMap.computeIfAbsent(type, ignored -> new HashMap<>()).put(name, component);
+        return component;
     }
 
     public enum TrackingType {
-
-        PLACED_BLOCKS("placed"),
-        BROKEN_BLOCKS("broken");
-
+        PLACED_BLOCKS("placed"), BROKEN_BLOCKS("broken");
         private final String path;
-
-        TrackingType(String path) {
-            this.path = path;
-        }
-
+        TrackingType(String path) { this.path = path; }
     }
 
 }

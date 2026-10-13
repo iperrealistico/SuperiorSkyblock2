@@ -45,6 +45,8 @@ public interface IslandCreationAlgorithm {
         private final Island island;
         private final Location islandLocation;
         private final boolean shouldTeleportPlayer;
+        private final java.util.List<AffectedChunk> affectedChunks;
+        private final Runnable onTeleportCallback;
 
         /**
          * Constructor of the result.
@@ -69,10 +71,35 @@ public interface IslandCreationAlgorithm {
          * @param shouldTeleportPlayer Whether to teleport the player to his island or not.
          */
         public IslandCreationResult(Status status, Island island, Location islandLocation, boolean shouldTeleportPlayer) {
+            this(status, island, islandLocation, shouldTeleportPlayer, null, null);
+        }
+
+        /** Immutable paste receipt captured inside the schematic callback, before transient paste state is cleared. */
+        public IslandCreationResult(Status status, Island island, Location islandLocation, boolean shouldTeleportPlayer,
+                                    java.util.List<AffectedChunk> affectedChunks, Runnable onTeleportCallback) {
             this.status = status;
             this.island = island;
             this.islandLocation = islandLocation;
             this.shouldTeleportPlayer = shouldTeleportPlayer;
+            this.affectedChunks = affectedChunks == null ? null : java.util.Collections.unmodifiableList(new java.util.ArrayList<>(affectedChunks));
+            this.onTeleportCallback = onTeleportCallback;
+        }
+
+        public java.util.List<AffectedChunk> getAffectedChunkSnapshot() { return affectedChunks; }
+        public Runnable getOnTeleportCallback() { return onTeleportCallback; }
+
+        public static final class AffectedChunk {
+            private final String worldName;
+            private final com.bgsoftware.superiorskyblock.api.world.Dimension dimension;
+            private final int x, z;
+            public AffectedChunk(String worldName, com.bgsoftware.superiorskyblock.api.world.Dimension dimension, int x, int z) {
+                this.worldName = java.util.Objects.requireNonNull(worldName);
+                this.dimension = java.util.Objects.requireNonNull(dimension); this.x = x; this.z = z;
+            }
+            public String getWorldName() { return worldName; }
+            public com.bgsoftware.superiorskyblock.api.world.Dimension getDimension() { return dimension; }
+            public int getX() { return x; }
+            public int getZ() { return z; }
         }
 
         /**

@@ -24,8 +24,16 @@ public class PlantsTrackingComponent {
     }
 
     public PlantsTrackingComponent(World world, TrackedPlantsData trackedPlantsData) {
-        this.worldMinHeight = WORLD_GET_MIN_HEIGHT.isValid() ? WORLD_GET_MIN_HEIGHT.invoke(world) : 0;
+        this(getMinimumHeight(world), trackedPlantsData);
+    }
+
+    public PlantsTrackingComponent(int minimumHeight, TrackedPlantsData trackedPlantsData) {
+        this.worldMinHeight = minimumHeight;
         this.trackedPlantsData = trackedPlantsData;
+    }
+
+    public static int getMinimumHeight(World world) {
+        return WORLD_GET_MIN_HEIGHT.isValid() ? WORLD_GET_MIN_HEIGHT.invoke(world) : 0;
     }
 
     public void track(int x, int y, int z, UUID placer) {
@@ -63,7 +71,7 @@ public class PlantsTrackingComponent {
     private static long getChunkKey(int blockX, int blockZ) {
         int chunkX = blockX >> 4;
         int chunkZ = blockZ >> 4;
-        return (long) chunkX << 32 | chunkZ;
+        return com.bgsoftware.superiorskyblock.missions.common.tracker.ChunkKeyCodec.encode(chunkX, chunkZ);
     }
 
 }

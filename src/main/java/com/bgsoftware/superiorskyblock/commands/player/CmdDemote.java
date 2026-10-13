@@ -75,12 +75,12 @@ public class CmdDemote implements IPermissibleCommand {
             return;
         }
 
-        if (!targetPlayer.getPlayerRole().isLessThan(superiorPlayer.getPlayerRole())) {
+        if (!targetPlayer.getPlayerRole(island).isLessThan(superiorPlayer.getPlayerRole(island))) {
             Message.DEMOTE_PLAYERS_WITH_LOWER_ROLE.send(superiorPlayer);
             return;
         }
 
-        PlayerRole previousRole = targetPlayer.getPlayerRole();
+        PlayerRole previousRole = targetPlayer.getPlayerRole(island);
         int roleLimit;
 
         do {
@@ -96,10 +96,10 @@ public class CmdDemote implements IPermissibleCommand {
         if (!PluginEventsFactory.callPlayerChangeRoleEvent(targetPlayer, previousRole))
             return;
 
-        targetPlayer.setPlayerRole(previousRole);
+        targetPlayer.setPlayerRole(island, previousRole);
 
-        Message.DEMOTED_MEMBER.send(superiorPlayer, targetPlayer.getName(), targetPlayer.getPlayerRole());
-        Message.GOT_DEMOTED.send(targetPlayer, targetPlayer.getPlayerRole());
+        Message.DEMOTED_MEMBER.send(superiorPlayer, targetPlayer.getName(), targetPlayer.getPlayerRole(island));
+        Message.GOT_DEMOTED.send(targetPlayer, targetPlayer.getPlayerRole(island));
     }
 
     @Override

@@ -16,7 +16,7 @@ import java.util.Set;
 
 public class IslandChat {
 
-    private static final Set<SuperiorPlayer> spies = new LinkedHashSet<>();
+    private static final Set<SuperiorPlayer> spies = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private IslandChat() {
 

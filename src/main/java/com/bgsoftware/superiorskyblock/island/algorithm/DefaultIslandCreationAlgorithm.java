@@ -75,6 +75,12 @@ public class DefaultIslandCreationAlgorithm implements IslandCreationAlgorithm {
         Preconditions.checkArgument(builder.owner != null, "Cannot create an island from builder with no valid owner.");
         Preconditions.checkArgument(schematic != null, "Cannot create an island from builder with invalid schematic name.");
 
+        com.bgsoftware.superiorskyblock.api.hooks.WorldsProvider worldsProvider = plugin.getProviders().getWorldsProvider();
+        com.bgsoftware.superiorskyblock.api.hooks.WorldsProviderCapabilities.require(worldsProvider,
+                com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.isFolia(),
+                plugin.getPvcEntitlements().getVerifiedOwnershipLimit(builder.owner.getUniqueId()) > 1,
+                plugin.getPvcConfig().getSizeMode() != com.bgsoftware.superiorskyblock.pvc.PvcConfig.SizeMode.LEGACY);
+
         Log.debug(Debug.CREATE_ISLAND, builder.owner.getName(), schematic.getName(), lastIsland);
 
         // Making sure an island with the same name does not exist.
@@ -85,17 +91,22 @@ public class DefaultIslandCreationAlgorithm implements IslandCreationAlgorithm {
 
         long profiler = Profiler.start(ProfileType.CREATE_ISLAND, schematic.getName());
 
-        Location islandLocation = plugin.getProviders().getWorldsProvider().getNextLocation(
-                lastIsland,
+        Location islandLocation;
+        synchronized (plugin.getPvcIslandService().getPositionLock()) {
+        islandLocation = worldsProvider.getNextLocation(
+                plugin.getGrid().getLastIslandPosition(),
                 plugin.getSettings().getIslandHeight(),
                 plugin.getSettings().getMaxIslandSize(),
                 builder.owner.getUniqueId(),
                 builder.uuid
         );
+        plugin.getGrid().setLastIslandPosition(com.bgsoftware.superiorskyblock.core.SBlockPosition.of(islandLocation));
+        }
 
         Log.debugResult(Debug.CREATE_ISLAND, "Next Island Position", islandLocation);
 
         Island island = builder.setCenter(islandLocation.add(0.5, 0, 0.5)).build();
+        plugin.getPvcIslandService().trackCandidate(island);
 
         island.getDatabaseBridge().setDatabaseBridgeMode(DatabaseBridgeMode.IDLE);
 
@@ -103,30 +114,54 @@ public class DefaultIslandCreationAlgorithm implements IslandCreationAlgorithm {
 
         if (event.isCancelled()) {
             Log.debugResult(Debug.CREATE_ISLAND, "Creation Failed", "Event was cancelled for creating the island '" + builder.islandName + "'.");
+            builder.owner.removeIslandMembership(island);
             return CompletableFuture.completedFuture(new IslandCreationResult(IslandCreationResult.Status.EVENT_CANCELLED, null, null, false));
         }
 
         CompletableFuture<IslandCreationResult> completableFuture = new CompletableFuture<>();
 
         // Clone location as pasteSchematic uses the same location in later scheduled tasks
-        Location location = islandLocation.getBlock().getRelative(BlockFace.DOWN).getLocation();
+        Location location = islandLocation.clone().add(-0.5, -1.0, -0.5);
 
-        schematic.pasteSchematic(island, location, () -> {
-            plugin.getProviders().getWorldsProvider().finishIslandCreation(islandLocation,
-                    builder.owner.getUniqueId(), builder.uuid);
-            completableFuture.complete(new IslandCreationResult(IslandCreationResult.Status.SUCCESS, island, islandLocation, event.getArgs().canTeleport));
+        java.util.concurrent.atomic.AtomicBoolean finished = new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.function.Consumer<Throwable> failure = error -> {
+            if (!finished.compareAndSet(false, true)) return;
             island.getDatabaseBridge().setDatabaseBridgeMode(DatabaseBridgeMode.SAVE_DATA);
-            Profiler.end(profiler);
-        }, error -> {
-            island.getDatabaseBridge().setDatabaseBridgeMode(DatabaseBridgeMode.SAVE_DATA);
-            plugin.getProviders().getWorldsProvider().finishIslandCreation(islandLocation,
-                    builder.owner.getUniqueId(), builder.uuid);
+            try { worldsProvider.finishIslandCreation(islandLocation, builder.owner.getUniqueId(), builder.uuid); }
+            catch (Throwable cleanupError) { error.addSuppressed(cleanupError); }
             completableFuture.completeExceptionally(error);
-            Profiler.end(profiler);
+            endProfile(profiler);
+        };
+        plugin.getPvcIslandService().recordCandidate(island).whenComplete((unused, recordError) -> {
+            if (recordError != null) { failure.accept(recordError); return; }
+            try {
+                schematic.pasteSchematic(island, location, () -> {
+                    try {
+                        worldsProvider.finishIslandCreation(islandLocation, builder.owner.getUniqueId(), builder.uuid);
+                        island.getDatabaseBridge().setDatabaseBridgeMode(DatabaseBridgeMode.SAVE_DATA);
+                        java.util.List<IslandCreationResult.AffectedChunk> affected = null;
+                        Runnable onTeleport = null;
+                        if (schematic instanceof com.bgsoftware.superiorskyblock.world.schematic.BaseSchematic) {
+                            com.bgsoftware.superiorskyblock.world.schematic.BaseSchematic base = (com.bgsoftware.superiorskyblock.world.schematic.BaseSchematic) schematic;
+                            affected = new java.util.ArrayList<>();
+                            for (com.bgsoftware.superiorskyblock.core.ChunkPosition position : base.getAffectedChunks())
+                                affected.add(new IslandCreationResult.AffectedChunk(position.getWorldName(), position.getWorldsInfo().getDimension(), position.getX(), position.getZ()));
+                            onTeleport = base.onTeleportCallback();
+                        }
+                        if (finished.compareAndSet(false, true)) completableFuture.complete(new IslandCreationResult(
+                                IslandCreationResult.Status.SUCCESS, island, islandLocation, event.getArgs().canTeleport, affected, onTeleport));
+                        endProfile(profiler);
+                    } catch (Throwable error) { failure.accept(error); }
+                }, failure);
+            } catch (Throwable error) { failure.accept(error); }
         });
 
         return completableFuture;
     }
 
+    private static void endProfile(long id) {
+        try { Profiler.end(id); }
+        catch (Throwable error) { Log.error(error, "Creation profiling failed; domain outcome is retained"); }
+    }
 
 }

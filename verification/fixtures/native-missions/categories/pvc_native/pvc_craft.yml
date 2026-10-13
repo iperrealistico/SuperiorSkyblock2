@@ -1,0 +1,20 @@
+mission-file: CraftingMissions
+island: true
+auto-reward: false
+reset-after-finish: false
+craftings:
+  planks:
+    type: OAK_PLANKS
+    amount: 4
+rewards:
+  commands: []
+icons:
+  not-completed:
+    type: PAPER
+    name: PVC native crafting
+  can-complete:
+    type: PAPER
+    name: PVC native crafting ready
+  completed:
+    type: MAP
+    name: PVC native crafting complete

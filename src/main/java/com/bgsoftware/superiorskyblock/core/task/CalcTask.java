@@ -4,16 +4,16 @@ import com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin;
 import com.bgsoftware.superiorskyblock.core.messages.Message;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
+import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import org.bukkit.scheduler.BukkitTask;
 
-public class CalcTask extends BukkitRunnable {
+public class CalcTask implements Runnable {
 
     private static final SuperiorSkyblockPlugin plugin = SuperiorSkyblockPlugin.getPlugin();
     private static BukkitTask calcTask;
 
     private CalcTask() {
-        calcTask = runTaskTimerAsynchronously(plugin, plugin.getSettings().getCalcInterval(), plugin.getSettings().getCalcInterval());
+        calcTask = BukkitExecutor.asyncRepeating(this, plugin.getSettings().getCalcInterval(), plugin.getSettings().getCalcInterval());
     }
 
     public static void startTask() {
@@ -33,29 +33,30 @@ public class CalcTask extends BukkitRunnable {
     public void run() {
         if (Bukkit.getOnlinePlayers().size() > 0) {
             announceToPlayers(false);
-            announceToOps("&7&o[SuperiorSkyblock] Calculating islands...");
+            announceToOps("Calculating islands...");
             plugin.getGrid().calcAllIslands(() -> {
                 announceToPlayers(true);
-                announceToOps("&7&o[SuperiorSkyblock] Calculating islands done!");
+                announceToOps("Island calculations completed.");
             });
         }
     }
 
     private void announceToOps(String message) {
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (player.isOp())
-                Message.CUSTOM.send(player, message, true);
+            BukkitExecutor.entity(player, () -> { if (player.isOp()) com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(player, message); });
         }
-        Message.CUSTOM.send(Bukkit.getConsoleSender(), message, true);
+        com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(Bukkit.getConsoleSender(), message);
     }
 
     private void announceToPlayers(boolean done) {
         for (Player player : Bukkit.getOnlinePlayers()) {
+            BukkitExecutor.entity(player, () -> {
             if (done) {
                 Message.RECALC_ALL_ISLANDS_DONE.send(player);
             } else {
                 Message.RECALC_ALL_ISLANDS.send(player);
             }
+            });
         }
     }
 

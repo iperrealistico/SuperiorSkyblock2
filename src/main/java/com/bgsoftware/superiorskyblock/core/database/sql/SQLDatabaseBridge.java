@@ -21,8 +21,33 @@ import java.util.function.Consumer;
 
 public class SQLDatabaseBridge implements DatabaseBridge {
 
-    private DatabaseBridgeMode databaseBridgeMode = DatabaseBridgeMode.IDLE;
-    private List<IDatabaseTransaction> batchTransactions = null;
+    private volatile DatabaseBridgeMode databaseBridgeMode = DatabaseBridgeMode.IDLE;
+    private final ThreadLocal<List<IDatabaseTransaction>> batchTransactions = new ThreadLocal<>();
+    private final ThreadLocal<List<IDatabaseTransaction>> acknowledgedWrites = new ThreadLocal<>();
+    private final ThreadLocal<Boolean> forcedAdmission = new ThreadLocal<>();
+
+    /** Owned write-ahead metadata for an already-persisted island; never changes shared bridge mode. */
+    public java.util.concurrent.CompletableFuture<Void> executeAcknowledgedForced(Runnable operation) {
+        if (forcedAdmission.get() != null) throw new IllegalStateException("Nested forced SQL admission");
+        forcedAdmission.set(Boolean.TRUE);
+        try { return executeAcknowledged(operation); }
+        finally { forcedAdmission.remove(); }
+    }
+
+    public boolean isWriteAdmissionForced() { return Boolean.TRUE.equals(forcedAdmission.get()); }
+
+    /** Capture this operation's row writes without exposing a mutable batch to other region threads. */
+    public java.util.concurrent.CompletableFuture<Void> executeAcknowledged(Runnable operation) {
+        if (acknowledgedWrites.get() != null) throw new IllegalStateException("Nested acknowledged SQL batch");
+        List<IDatabaseTransaction> transactions = new java.util.ArrayList<>();
+        acknowledgedWrites.set(transactions);
+        try { operation.run(); }
+        catch (Throwable error) {
+            java.util.concurrent.CompletableFuture<Void> result = new java.util.concurrent.CompletableFuture<>();
+            result.completeExceptionally(error); return result;
+        } finally { acknowledgedWrites.remove(); }
+        return transactions.isEmpty() ? java.util.concurrent.CompletableFuture.completedFuture(null) : DBSession.execute(transactions);
+    }
 
     public SQLDatabaseBridge() {
 
@@ -42,19 +67,29 @@ public class SQLDatabaseBridge implements DatabaseBridge {
         }).onFail(QueryResult.PRINT_ERROR));
     }
 
+    public void loadAllObjectsStrict(String table, Consumer<Map<String, Object>> consumer) {
+        java.util.concurrent.atomic.AtomicReference<Throwable> failure = new java.util.concurrent.atomic.AtomicReference<>();
+        DBSession.select(table, "", new QueryResult<ResultSet>().onSuccess(result -> {
+            try { while (result.next()) consumer.accept(new ResultSetMapBridge(result)); }
+            catch (Throwable error) { failure.set(error); }
+        }).onFail(failure::set));
+        if (failure.get() != null) throw new IllegalStateException("Cannot validate PVC metadata table " + table, failure.get());
+    }
+
     @Override
     public void batchOperations(boolean batchOperations) {
         if (batchOperations) {
-            batchTransactions = new LinkedList<>();
-        } else if (batchTransactions != null) {
-            DBSession.execute(batchTransactions);
-            batchTransactions = null;
+            if (batchTransactions.get() != null) throw new IllegalStateException("Nested legacy SQL batch");
+            batchTransactions.set(new LinkedList<>());
+        } else if (batchTransactions.get() != null) {
+            List<IDatabaseTransaction> transactions = batchTransactions.get(); batchTransactions.remove();
+            DBSession.execute(transactions).exceptionally(error -> { Log.error(error, "Cannot commit SQL batch"); return null; });
         }
     }
 
     @Override
     public void updateObject(String table, @Nullable DatabaseFilter filter, Pair<String, Object>[] columns) {
-        if (databaseBridgeMode != DatabaseBridgeMode.SAVE_DATA)
+        if (databaseBridgeMode != DatabaseBridgeMode.SAVE_DATA && !isWriteAdmissionForced())
             return;
 
         List<String> filteredColumns = filter == null ? null : new LinkedList<>();
@@ -80,7 +115,7 @@ public class SQLDatabaseBridge implements DatabaseBridge {
 
     @Override
     public void insertObject(String table, Pair<String, Object>... columns) {
-        if (databaseBridgeMode != DatabaseBridgeMode.SAVE_DATA)
+        if (databaseBridgeMode != DatabaseBridgeMode.SAVE_DATA && !isWriteAdmissionForced())
             return;
 
         List<String> columnNames = new LinkedList<>();
@@ -98,7 +133,7 @@ public class SQLDatabaseBridge implements DatabaseBridge {
 
     @Override
     public void deleteObject(String table, @Nullable DatabaseFilter filter) {
-        if (databaseBridgeMode != DatabaseBridgeMode.SAVE_DATA)
+        if (databaseBridgeMode != DatabaseBridgeMode.SAVE_DATA && !isWriteAdmissionForced())
             return;
 
         List<String> filteredColumns = filter == null ? null : new LinkedList<>();
@@ -149,8 +184,10 @@ public class SQLDatabaseBridge implements DatabaseBridge {
     }
 
     private void submitTransaction(IDatabaseTransaction transaction) {
-        if (batchTransactions != null) {
-            batchTransactions.add(transaction);
+        List<IDatabaseTransaction> acknowledged = acknowledgedWrites.get();
+        if (acknowledged != null) { acknowledged.add(transaction); return; }
+        if (batchTransactions.get() != null) {
+            batchTransactions.get().add(transaction);
         } else {
             DBSession.execute(transaction);
         }

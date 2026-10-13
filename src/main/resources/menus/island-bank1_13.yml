@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&lIsland Bank'
+title: '&6&lIsland Bank'
 previous-menu: true
 
 pattern:
@@ -21,42 +21,42 @@ logs: '~'
 items:
   '!':
     type: LIME_STAINED_GLASS_PANE
-    name: '&aDeposit Half Money'
+    name: '&eDeposit Half Money'
     lore:
       - '&7Deposit half of your money into the bank.'
     bank-action:
       deposit: 50.0
   '#':
     type: LIME_STAINED_GLASS_PANE
-    name: '&aDeposit Money'
+    name: '&eDeposit Money'
     lore:
       - '&7Deposit money into the bank.'
     bank-action:
       deposit: 0.0
   '$':
     type: LIME_STAINED_GLASS_PANE
-    name: '&aDeposit All Money'
+    name: '&eDeposit All Money'
     lore:
       - '&7Deposit all of your money into the bank.'
     bank-action:
       deposit: 100.0
   '%':
     type: RED_STAINED_GLASS_PANE
-    name: '&aWithdraw Half Money'
+    name: '&eWithdraw Half Money'
     lore:
       - '&7Withdraw half of the money from the bank.'
     bank-action:
       withdraw: 50.0
   '^':
     type: RED_STAINED_GLASS_PANE
-    name: '&aWithdraw Money'
+    name: '&eWithdraw Money'
     lore:
       - '&7Withdraw money from the bank.'
     bank-action:
       withdraw: 0.0
   '&':
     type: RED_STAINED_GLASS_PANE
-    name: '&aWithdraw All Money'
+    name: '&eWithdraw All Money'
     lore:
       - '&7Withdraw all of the money from the bank.'
     bank-action:
@@ -69,10 +69,10 @@ items:
       - '&7Next interest on {7}'
   '=':
     type: EMERALD_BLOCK
-    name: '&f '
+    name: '&8 '
   '-':
     type: EMERALD
-    name: '&f '
+    name: '&8 '
   '~':
     type: EXPERIENCE_BOTTLE
     name: '&6Transaction Logs'

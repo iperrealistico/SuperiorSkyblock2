@@ -1,5 +1,7 @@
 package com.bgsoftware.superiorskyblock.island;
 
+import org.bukkit.entity.Player;
+
 import com.bgsoftware.common.annotations.Nullable;
 import com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin;
 import com.bgsoftware.superiorskyblock.api.data.DatabaseBridge;
@@ -81,8 +83,8 @@ public class GridManagerImpl extends Manager implements GridManager {
 
     private static final Function<Island, UUID> ISLAND_OWNERS_MAPPER = island -> island.getOwner().getUniqueId();
 
-    private final Set<UUID> pendingCreationTasks = Sets.newHashSet();
-    private final Set<UUID> customWorlds = Sets.newHashSet();
+    private final Set<UUID> pendingCreationTasks = java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<UUID, Boolean>());
+    private final Set<UUID> customWorlds = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private final LazyReference<DragonBattleService> dragonBattleService = new LazyReference<DragonBattleService>() {
         @Override
@@ -98,27 +100,19 @@ public class GridManagerImpl extends Manager implements GridManager {
     private IslandCreationAlgorithm islandCreationAlgorithm;
 
     private Island spawnIsland;
-    private BlockPosition lastIsland;
+    private volatile BlockPosition lastIsland;
     @Nullable
     private UUID serverUUID;
 
-    private BigDecimal totalWorth = BigDecimal.ZERO;
-    private long lastTimeWorthUpdate = 0;
-    private BigDecimal totalLevel = BigDecimal.ZERO;
-    private long lastTimeLevelUpdate = 0;
+    private final java.util.concurrent.atomic.AtomicReference<TotalSnapshot> worthSnapshot = new java.util.concurrent.atomic.AtomicReference<>(new TotalSnapshot(BigDecimal.ZERO, 0L));
+    private final java.util.concurrent.atomic.AtomicReference<TotalSnapshot> levelSnapshot = new java.util.concurrent.atomic.AtomicReference<>(new TotalSnapshot(BigDecimal.ZERO, 0L));
 
     private boolean pluginDisable = false;
 
-    private boolean forceSort = false;
+    private final ThreadLocal<Boolean> forceSort = new ThreadLocal<>();
 
     private final List<SortingType> pendingSortingTypes = new LinkedList<>();
     private final AtomicInteger activeCalcTasks = new AtomicInteger(0);
-    private final LazyReference<Synchronized<EnumerateSet<SortingType>>> activeSortingTasks = new LazyReference<Synchronized<EnumerateSet<SortingType>>>() {
-        @Override
-        protected Synchronized<EnumerateSet<SortingType>> create() {
-            return Synchronized.of(new EnumerateSet<>(SortingType.values()));
-        }
-    };
 
     public GridManagerImpl(SuperiorSkyblockPlugin plugin, IslandsPurger islandsPurger, IslandPreviews islandPreviews) {
         super(plugin);
@@ -236,15 +230,11 @@ public class GridManagerImpl extends Manager implements GridManager {
         Preconditions.checkArgument(schematic != null, "Cannot create an island with an invalid schematic.");
 
         try {
-            if (!Bukkit.isPrimaryThread()) {
-                BukkitExecutor.sync(() -> createIslandInternalAsync(builder, biome, offset, schematic, spawnOffset));
-            } else {
-                createIslandInternalAsync(builder, biome, offset, schematic, spawnOffset);
-            }
+            executeCreationCallback(builder.owner, () -> createIslandInternalAsync(builder, biome, offset, schematic, spawnOffset));
         } catch (Throwable error) {
             Log.entering("ENTER", builder.owner.getName(), builder.islandType, biome, offset);
             Log.error(error, "An unexpected error occurred while creating an island:");
-            builder.owner.setIsland(null);
+            if (builder.uuid != null) plugin.getPvcIslandService().cancelCreation(builder.uuid);
             Message.CREATE_ISLAND_FAILURE.send(builder.owner);
         }
     }
@@ -268,9 +258,53 @@ public class GridManagerImpl extends Manager implements GridManager {
 
         pendingCreationTasks.add(builder.owner.getUniqueId());
 
-        this.islandCreationAlgorithm.createIsland(builder, this.lastIsland).whenCompleteAsync((islandCreationResult, error) -> {
+        plugin.getPvcIslandService().reserveCreation(builder.owner, builder.uuid, builder.islandName)
+                .thenCompose(reservation -> this.islandCreationAlgorithm.createIsland(builder, this.lastIsland))
+                .thenCompose(result -> {
+                    if (result.getStatus() != IslandCreationAlgorithm.IslandCreationResult.Status.SUCCESS)
+                        return java.util.concurrent.CompletableFuture.completedFuture(result);
+                    return plugin.getPvcIslandService().commitCreation(result.getIsland()).thenApply(allowed -> {
+                        if (!allowed) {
+                            result.getIsland().disbandIsland();
+                            throw new com.bgsoftware.superiorskyblock.pvc.island.PvcCreationDeniedException(
+                                    com.bgsoftware.superiorskyblock.pvc.island.PvcCreationDeniedException.Reason.QUOTA_REACHED,
+                                    plugin.getPvcEntitlements().getOwnershipLimit(builder.owner.getUniqueId()));
+                        }
+                        return result;
+                    });
+                }).whenComplete((result, error) -> executeCreationCallback(builder.owner, () ->
+                        onCreationCompleted(builder, biome, offset, spawnOffset, schematic, updateGameMode, startTime, result, error)));
+    }
+
+    private void executeCreationCallback(SuperiorPlayer owner, Runnable callback) {
+        Player player = owner.asPlayer();
+        if (player == null) BukkitExecutor.global(callback);
+        else BukkitExecutor.entity(player, callback, 0L, () -> BukkitExecutor.global(callback));
+    }
+
+    private void onCreationCompleted(IslandBuilderImpl builder, Biome biome, boolean offset, @Nullable BlockOffset spawnOffset,
+                                     Schematic schematic, boolean updateGameMode, long startTime,
+                                     IslandCreationAlgorithm.IslandCreationResult islandCreationResult, Throwable error) {
+
 
             pendingCreationTasks.remove(builder.owner.getUniqueId());
+            com.bgsoftware.superiorskyblock.pvc.island.PvcCreationDeniedException denial =
+                    com.bgsoftware.superiorskyblock.pvc.island.PvcCreationDeniedException.find(error);
+            if (denial != null) {
+                plugin.getPvcIslandService().cancelCreation(builder.uuid);
+                switch (denial.getReason()) {
+                    case QUOTA_REACHED:
+                        if (denial.getLimit() <= 1) Message.ISLAND_ALREADY_EXIST.send(builder.owner);
+                        else Message.PVC_OWNERSHIP_LIMIT_REACHED.send(builder.owner, denial.getLimit());
+                        break;
+                    case QUEUE_FULL: Message.PVC_ISLAND_CREATION_QUEUE_FULL.send(builder.owner); break;
+                    case NAME_OCCUPIED: Message.ISLAND_ALREADY_EXIST.send(builder.owner); break;
+                    case POLICY_UNAVAILABLE:
+                        if (denial.getCause() != null) Log.warn("Island permissions unavailable for ", builder.owner.getName(), ": ", denial.getCause().toString());
+                        Message.PVC_OWNERSHIP_POLICY_UNAVAILABLE.send(builder.owner); break;
+                }
+                return;
+            }
 
             if (error == null && islandCreationResult != null) {
                 Log.debugResult(Debug.CREATE_ISLAND, "Creation Callback", "Successfully created island");
@@ -292,10 +326,9 @@ public class GridManagerImpl extends Manager implements GridManager {
             if (error != null)
                 Log.error(error, "An unexpected error occurred while creating an island:");
 
-            builder.owner.setIsland(null);
+            plugin.getPvcIslandService().cancelCreation(builder.uuid);
 
             Message.CREATE_ISLAND_FAILURE.send(builder.owner);
-        }, BukkitExecutor.SYNC_EXECUTOR);
     }
 
     private void createIslandInternalOnSuccessCallback(IslandBuilderImpl builder, Biome biome, boolean offset,
@@ -304,12 +337,12 @@ public class GridManagerImpl extends Manager implements GridManager {
                                                        IslandCreationAlgorithm.IslandCreationResult islandCreationResult) {
         switch (islandCreationResult.getStatus()) {
             case NAME_OCCUPIED:
-                builder.owner.setIsland(null);
+                plugin.getPvcIslandService().cancelCreation(builder.uuid);
                 Message.ISLAND_ALREADY_EXIST.send(builder.owner);
                 Log.debugResult(Debug.CREATE_ISLAND, "Creation Callback", "Island already exists");
                 return;
             case EVENT_CANCELLED:
-                builder.owner.setIsland(null);
+                plugin.getPvcIslandService().cancelCreation(builder.uuid);
                 Log.debugResult(Debug.CREATE_ISLAND, "Creation Callback", "Island creation event was cancelled");
                 return;
             case SUCCESS:
@@ -322,15 +355,19 @@ public class GridManagerImpl extends Manager implements GridManager {
         Location islandLocation = islandCreationResult.getIslandLocation();
         boolean teleportPlayer = islandCreationResult.shouldTeleportPlayer();
 
-        List<ChunkPosition> affectedChunks = schematic instanceof BaseSchematic ?
-                ((BaseSchematic) schematic).getAffectedChunks() : null;
-        Runnable onTeleportCallback = schematic instanceof BaseSchematic ?
-                ((BaseSchematic) schematic).onTeleportCallback() : null;
+        List<ChunkPosition> affectedChunks = null;
+        if (islandCreationResult.getAffectedChunkSnapshot() != null) {
+            affectedChunks = new ArrayList<>();
+            for (IslandCreationAlgorithm.IslandCreationResult.AffectedChunk position : islandCreationResult.getAffectedChunkSnapshot())
+                affectedChunks.add(ChunkPosition.of(WorldInfo.of(position.getWorldName(), position.getDimension()), position.getX(), position.getZ(), false));
+        }
+        final List<ChunkPosition> capturedAffectedChunks = affectedChunks;
+        Runnable onTeleportCallback = islandCreationResult.getOnTeleportCallback();
 
         Log.debugResult(Debug.CREATE_ISLAND, "Creation Callback", "Registering new island");
 
-        this.islandsContainer.addIsland(island);
-        setLastIslandPosition(SBlockPosition.of(islandLocation));
+        if (!(this.islandCreationAlgorithm instanceof DefaultIslandCreationAlgorithm))
+            setLastIslandPosition(SBlockPosition.of(islandLocation));
 
         Dimension defaultDimension = plugin.getSettings().getWorlds().getDefaultWorldDimension();
 
@@ -349,14 +386,25 @@ public class GridManagerImpl extends Manager implements GridManager {
             island.getDatabaseBridge().setDatabaseBridgeMode(DatabaseBridgeMode.SAVE_DATA);
         }
 
-        IslandsDatabaseBridge.insertIsland(island, affectedChunks);
-
         Location homeLocation = schematic.adjustRotation(islandLocation);
         if (spawnOffset != null)
             homeLocation = spawnOffset.applyToLocation(homeLocation);
 
-        island.setIslandHome(defaultDimension, SWorldPosition.of(homeLocation));
+        SWorldPosition finalHome = SWorldPosition.of(homeLocation);
 
+        java.util.concurrent.CompletableFuture<Void> initialCleanup = affectedChunks == null ?
+                java.util.concurrent.CompletableFuture.completedFuture(null) : IslandUtils.resetChunksExcludedFromListAsync(island, capturedAffectedChunks);
+        initialCleanup.thenCompose(ignored -> plugin.getPvcIslandService().acknowledge(island, () -> {
+            IslandsDatabaseBridge.insertIsland(island, capturedAffectedChunks);
+            island.setIslandHome(defaultDimension, finalHome);
+        })).thenCompose(unused -> plugin.getPvcIslandService().finishCreation(island.getUniqueId())).whenComplete((unused, activationError) -> {
+        if (activationError != null) {
+            Log.error(activationError, "Island activation could not be committed; recovering the reserved cell");
+            plugin.getPvcIslandService().cancelCreation(island.getUniqueId()); return;
+        }
+        this.islandsContainer.addIsland(island);
+        if (island instanceof SIsland) ((SIsland) island).refreshEffectiveSize();
+        builder.owner.selectIsland(island);
         BukkitExecutor.sync(() -> builder.owner.runIfOnline(player -> {
             if (updateGameMode)
                 player.setGameMode(GameMode.SURVIVAL);
@@ -377,14 +425,6 @@ public class GridManagerImpl extends Manager implements GridManager {
                             islandLocation), System.currentTimeMillis() - startTime);
 
                     if (result == PlayerTeleportAlgorithm.TeleportResult.SUCCESS) {
-                        if (affectedChunks != null) {
-                            BukkitExecutor.sync(() -> {
-                                IslandUtils.resetChunksExcludedFromList(island, affectedChunks);
-                                island.setBiome(defaultDimension, biome,
-                                        IslandBiomeFlags.UPDATE_BLOCKS | IslandBiomeFlags.UPDATE_ALL_DIMENSIONS);
-                            }, 10L);
-                        }
-
                         if (defaultDimension.getEnvironment() == World.Environment.THE_END) {
                             plugin.getNMSDragonFight().awardTheEndAchievement(player);
                             this.dragonBattleService.get().resetEnderDragonBattle(island, defaultDimension);
@@ -398,6 +438,7 @@ public class GridManagerImpl extends Manager implements GridManager {
                 });
             }
         }), 1L);
+        });
     }
 
     @Override
@@ -492,6 +533,11 @@ public class GridManagerImpl extends Manager implements GridManager {
     @Override
     public void deleteIsland(Island island) {
         Preconditions.checkNotNull(island, "island parameter cannot be null.");
+        island.disbandIsland();
+    }
+
+    /** Invoked only inside the acknowledged domain deletion transaction after physical cleanup. */
+    void finishDeleteIsland(Island island) {
 
         Log.debug(Debug.DELETE_ISLAND, island.getOwner().getName());
 
@@ -522,6 +568,12 @@ public class GridManagerImpl extends Manager implements GridManager {
         Preconditions.checkNotNull(superiorPlayer, "superiorPlayer parameter cannot be null.");
         return superiorPlayer.getIsland();
     }
+
+    @Override public List<Island> getOwnedIslands(UUID owner) {
+        return plugin.getPvcIslandService().getOwnedIslands(owner);
+    }
+
+    @Override public boolean isKnownIslandUUID(UUID uuid) { return plugin.getPvcIslandService().getShortId(uuid) > 0L; }
 
     @Override
     public Island getIsland(int index, SortingType sortingType) {
@@ -673,29 +725,19 @@ public class GridManagerImpl extends Manager implements GridManager {
 
         Log.debug(Debug.SORT_ISLANDS, sortingType.getName());
 
-        boolean isSortedAlready = activeSortingTasks.get().readAndGet(
-                activeSortingTasks -> activeSortingTasks.contains(sortingType));
-        if (isSortedAlready) {
-            if (onFinish != null)
-                onFinish.run();
-            forceSort = false;
-            return;
-        }
-
-        activeSortingTasks.get().write(activeSortingTasks -> activeSortingTasks.add(sortingType));
-
-        this.islandsContainer.sortIslands(sortingType, forceSort, () -> {
+        boolean requestedForce = Boolean.TRUE.equals(forceSort.get());
+        forceSort.remove();
+        // The container owns the atomic per-type admission and attaches completion callbacks
+        // to the admitted sort; duplicate callers must not report completion prematurely.
+        this.islandsContainer.sortIslands(sortingType, requestedForce, () -> {
             plugin.getMenus().refreshTopIslands(sortingType);
-            activeSortingTasks.get().write(activeSortingTasks -> activeSortingTasks.remove(sortingType));
             if (onFinish != null)
                 onFinish.run();
         });
-
-        forceSort = false;
     }
 
     public void setForceSort(boolean forceSort) {
-        this.forceSort = forceSort;
+        if (forceSort) this.forceSort.set(Boolean.TRUE); else this.forceSort.remove();
     }
 
     @Override
@@ -927,30 +969,29 @@ public class GridManagerImpl extends Manager implements GridManager {
 
     @Override
     public BigDecimal getTotalWorth() {
-        long currentTime = System.currentTimeMillis();
-
-        if (currentTime - lastTimeWorthUpdate > 60000) {
-            lastTimeWorthUpdate = currentTime;
-            totalWorth = BigDecimal.ZERO;
-            for (Island island : getIslands())
-                totalWorth = totalWorth.add(island.getWorth());
-        }
-
-        return totalWorth;
+        return totalValue(worthSnapshot, Island::getWorth);
     }
 
     @Override
     public BigDecimal getTotalLevel() {
-        long currentTime = System.currentTimeMillis();
+        return totalValue(levelSnapshot, Island::getIslandLevel);
+    }
 
-        if (currentTime - lastTimeLevelUpdate > 60000) {
-            lastTimeLevelUpdate = currentTime;
-            totalLevel = BigDecimal.ZERO;
-            for (Island island : getIslands())
-                totalLevel = totalLevel.add(island.getIslandLevel());
-        }
+    private BigDecimal totalValue(java.util.concurrent.atomic.AtomicReference<TotalSnapshot> cache,
+                                  java.util.function.Function<Island, BigDecimal> value) {
+        TotalSnapshot previous = cache.get();
+        long now = System.currentTimeMillis();
+        if (now - previous.created <= 60000L) return previous.total;
+        BigDecimal total = BigDecimal.ZERO;
+        for (Island island : getIslands()) total = total.add(value.apply(island));
+        TotalSnapshot updated = new TotalSnapshot(total, now);
+        cache.compareAndSet(previous, updated);
+        return cache.get().total;
+    }
 
-        return totalLevel;
+    private static final class TotalSnapshot {
+        final BigDecimal total; final long created;
+        TotalSnapshot(BigDecimal total, long created) { this.total = total; this.created = created; }
     }
 
     @Override
@@ -1047,9 +1088,8 @@ public class GridManagerImpl extends Manager implements GridManager {
     }
 
     public void saveIslands() {
-        List<Island> onlineIslands = new SequentialListBuilder<Island>()
-                .filter(Objects::nonNull)
-                .build(Bukkit.getOnlinePlayers(), player -> plugin.getPlayers().getSuperiorPlayer(player).getIsland());
+        Set<Island> onlineIslands = new LinkedHashSet<>();
+        for (Player player : Bukkit.getOnlinePlayers()) onlineIslands.addAll(plugin.getPlayers().getSuperiorPlayer(player).getIslands());
 
         List<Island> modifiedIslands = new SequentialListBuilder<Island>()
                 .filter(IslandsDatabaseBridge::isModified)

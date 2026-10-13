@@ -17,11 +17,7 @@ public class IslandNotifications {
     public static void notifyPlayerQuit(SuperiorPlayer superiorPlayer) {
         superiorPlayer.updateLastTimeStatus();
 
-        Island island = superiorPlayer.getIsland();
-
-        if (island == null)
-            return;
-
+        for (Island island : superiorPlayer.getIslands()) {
         IslandUtils.sendMessage(island, Message.PLAYER_QUIT_ANNOUNCEMENT, Collections.singletonList(superiorPlayer.getUniqueId()), superiorPlayer.getName());
 
         boolean anyOnline = island.getIslandMembers(true).stream().anyMatch(islandMember ->
@@ -31,15 +27,13 @@ public class IslandNotifications {
             island.setLastTimeUpdate(System.currentTimeMillis() / 1000);
             island.setCurrentlyActive(false);
         }
+        }
     }
 
     public static void notifyPlayerJoin(SuperiorPlayer superiorPlayer) {
         superiorPlayer.updateLastTimeStatus();
 
-        Island island = superiorPlayer.getIsland();
-        if (island == null)
-            return;
-
+        for (Island island : superiorPlayer.getIslands()) {
         IslandUtils.sendMessage(island, Message.PLAYER_JOIN_ANNOUNCEMENT, Collections.singletonList(superiorPlayer.getUniqueId()), superiorPlayer.getName());
         island.updateLastTime();
         island.setCurrentlyActive(true);
@@ -52,6 +46,7 @@ public class IslandNotifications {
             if (ticksToNextInterest <= 0) {
                 island.giveInterest(false);
             }
+        }
         }
     }
 

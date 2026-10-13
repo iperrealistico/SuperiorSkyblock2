@@ -36,9 +36,13 @@ public class BankWithdrawButton extends AbstractMenuViewButton<IslandMenuView> {
         BigDecimal amount = island.getIslandBank().getBalance()
                 .multiply(getTemplate().withdrawValue);
 
-        BankTransaction bankTransaction = island.getIslandBank().withdrawMoney(clickedPlayer, amount, getTemplate().withdrawCommands);
-        MenuActions.handleWithdraw(clickedPlayer, island, bankTransaction,
-                getTemplate().successSound, getTemplate().failSound, amount);
+        island.getIslandBank().withdrawMoneyAsync(clickedPlayer, amount, getTemplate().withdrawCommands)
+                .whenComplete((transaction, failure) -> clickedPlayer.runIfOnline(player -> {
+                    if (failure != null) com.bgsoftware.superiorskyblock.core.messages.Message.WITHDRAW_ERROR.send(
+                            clickedPlayer, "Bank settlement failed; do not retry until an administrator checks it");
+                    else MenuActions.handleWithdraw(clickedPlayer, island, transaction,
+                            getTemplate().successSound, getTemplate().failSound, amount);
+                }));
     }
 
     public static class Builder extends AbstractMenuTemplateButton.AbstractBuilder<IslandMenuView> {

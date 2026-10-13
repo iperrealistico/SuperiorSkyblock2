@@ -1,0 +1,20 @@
+mission-file: ItemsMissions
+island: true
+auto-reward: false
+reset-after-finish: false
+required-items:
+  stone:
+    types: [STONE]
+    amount: 2
+rewards:
+  commands: []
+icons:
+  not-completed:
+    type: PAPER
+    name: PVC native item delivery
+  can-complete:
+    type: PAPER
+    name: PVC native item delivery ready
+  completed:
+    type: MAP
+    name: PVC native item delivery complete

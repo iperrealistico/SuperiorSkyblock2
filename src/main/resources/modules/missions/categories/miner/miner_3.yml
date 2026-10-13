@@ -21,9 +21,9 @@ only-natural-blocks: true
 rewards:
   commands:
     - 'eco give %player% 25000'
-    - 'is admin msg %player% &e&lMiner | &7Successfully finished the mission Miner III!'
-    - 'is admin msg %player% &e&lMiner | &7Let''s turn you into a professional miner!'
-    - 'is admin msg %player% &e&lMiner | &7&oFor more information about the next mission, checkout /is missions'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Successfully finished the mission Miner III!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Let''s turn you into a professional miner!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7&oFor more information about the next mission, checkout /is missions'
 
 # List of required missions that must be completed before completing this one.
 required-missions:
@@ -45,7 +45,7 @@ required-blocks:
 icons:
   locked:
     type: PAPER
-    name: '&aMiner III'
+    name: '&6Miner III'
     lore:
       - '&7I am willing to buy iron and coal from you.'
       - '&7Mine x64 coal ore and x64 iron ore.'
@@ -59,11 +59,11 @@ icons:
       - ''
       - '&6Coal Ore Mined: &7{value_coal_ore}/64'
       - '&6Iron Ore Mined: &7{value_iron_ore}/64'
-      - '&c&l ✘ &7Locked'
+      - '&6&l ✘ &7Locked'
     amount: 3
   not-completed:
     type: PAPER
-    name: '&aMiner III'
+    name: '&6Miner III'
     lore:
       - '&7I am willing to buy iron and coal from you.'
       - '&7Mine x64 coal ore and x64 iron ore.'
@@ -78,11 +78,11 @@ icons:
       - '&6Coal Ore Mined: &7{value_coal_ore}/64'
       - '&6Iron Ore Mined: &7{value_iron_ore}/64'
       - '&6Progress: &7{0}%'
-      - '&c&l ✘ &7Not Completed'
+      - '&6&l ✘ &7Not Completed'
     amount: 3
   can-complete:
     type: PAPER
-    name: '&aMiner III'
+    name: '&6Miner III'
     lore:
       - '&7I am willing to buy iron and coal from you.'
       - '&7Mine x64 coal ore and x64 iron ore.'
@@ -97,12 +97,12 @@ icons:
       - '&6Coal Ore Mined: &764/64'
       - '&6Iron Ore Mined: &764/64'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Click to redeem your reward.'
+      - '&e&l ✔ &7Click to redeem your reward.'
     amount: 3
     glow: true
   completed:
     type: MAP
-    name: '&aMiner III'
+    name: '&6Miner III'
     lore:
       - '&7I am willing to buy iron and coal from you.'
       - '&7Mine x64 coal ore and x64 iron ore.'
@@ -113,5 +113,5 @@ icons:
       - '&6Coal Ore Mined: &764/64'
       - '&6Iron Ore Mined: &764/64'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Already Claimed.'
+      - '&e&l ✔ &7Already Claimed.'
     amount: 3

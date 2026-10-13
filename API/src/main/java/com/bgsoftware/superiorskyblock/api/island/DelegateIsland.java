@@ -60,6 +60,9 @@ public class DelegateIsland implements Island {
         return this.handle.getUniqueId();
     }
 
+    @Override public long getShortId() { return handle.getShortId(); }
+    @Override public java.util.concurrent.CompletableFuture<Boolean> transferIslandAsync(SuperiorPlayer player) { return handle.transferIslandAsync(player); }
+
     @Override
     public long getCreationTime() {
         return this.handle.getCreationTime();
@@ -786,6 +789,8 @@ public class DelegateIsland implements Island {
     public void disbandIsland() {
         this.handle.disbandIsland();
     }
+
+    @Override public java.util.concurrent.CompletableFuture<Void> disbandIslandAsync() { return this.handle.disbandIslandAsync(); }
 
     @Override
     public boolean transferIsland(SuperiorPlayer superiorPlayer) {

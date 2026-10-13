@@ -38,11 +38,19 @@ public class AbstractEntityHologram extends ArmorStand implements Hologram {
 
     @Override
     public void setHologramName(String name) {
+        if (!com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.owns(getHandle())) {
+            com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.entity(getHandle(), () -> setHologramName(name));
+            return;
+        }
         super.setCustomName(CraftChatMessage.fromStringOrNull(name));
     }
 
     @Override
     public void removeHologram() {
+        if (!com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.owns(getHandle())) {
+            com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.entity(getHandle(), this::removeHologram);
+            return;
+        }
         super.remove(RemovalReason.DISCARDED);
     }
 

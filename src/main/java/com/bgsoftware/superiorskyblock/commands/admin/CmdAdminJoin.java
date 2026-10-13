@@ -63,7 +63,7 @@ public class CmdAdminJoin implements IAdminIslandCommand {
     public void execute(SuperiorSkyblockPlugin plugin, CommandSender sender, @Nullable SuperiorPlayer targetPlayer, Island island, String[] args) {
         SuperiorPlayer superiorPlayer = plugin.getPlayers().getSuperiorPlayer(sender);
 
-        if (superiorPlayer.getIsland() != null) {
+        if (island.isMember(superiorPlayer)) {
             Message.ALREADY_IN_ISLAND.send(superiorPlayer);
             return;
         }
@@ -74,6 +74,7 @@ public class CmdAdminJoin implements IAdminIslandCommand {
         IslandUtils.sendMessage(island, Message.JOIN_ADMIN_ANNOUNCEMENT, Collections.emptyList(), superiorPlayer.getName());
 
         island.addMember(superiorPlayer, SPlayerRole.defaultRole());
+        superiorPlayer.selectIsland(island);
 
         if (targetPlayer == null)
             Message.JOINED_ISLAND_NAME.send(superiorPlayer, island.getName());

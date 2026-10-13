@@ -179,7 +179,8 @@ public class SpawnIsland implements Island {
 
         this.dirtyChunksContainer = new DirtyChunksContainer(this);
 
-        BukkitExecutor.sync(() -> biome = getCenter(null /* unused */).getBlock().getBiome());
+        BukkitExecutor.region(this.spawnWorld, centerLocation.getBlockX() >> 4, centerLocation.getBlockZ() >> 4,
+                () -> biome = getCenter(null /* unused */).getBlock().getBiome());
     }
 
     @Override

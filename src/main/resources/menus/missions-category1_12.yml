@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&l{0} Missions'
+title: '&6&l{0} Missions'
 previous-menu: true
 
 pattern:
@@ -29,7 +29,7 @@ items:
   '#':
     type: STAINED_GLASS_PANE
     data: 15
-    name: '&f'
+    name: '&8'
 
 sounds:
   '@':

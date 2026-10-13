@@ -64,6 +64,8 @@ public class AdminCommandsMap extends CommandsMap {
         registerCommand(new CmdAdminSetRoleLimit());
         registerCommand(new CmdAdminSetSettings());
         registerCommand(new CmdAdminSetSize());
+        registerCommand(new CmdAdminClearSizeOverride());
+        registerCommand(new CmdAdminSizePolicy());
         registerCommand(new CmdAdminSetSpawn());
         registerCommand(new CmdAdminSetTeamLimit());
         registerCommand(new CmdAdminSettings());

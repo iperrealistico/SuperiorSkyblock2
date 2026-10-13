@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&lTop Islands'
+title: '&6&lTop Islands'
 previous-menu: true
 
 pattern:
@@ -25,7 +25,7 @@ player-island: '$'
 sort-islands: '%'
 
 messages:
-  selected-sorting-type: '&8 - &a{0}'
+  selected-sorting-type: '&8 - &e{0}'
   unselected-sorting-type: '&8 - &7{0}'
 
 items:
@@ -33,7 +33,7 @@ items:
     island:
       type: SKULL_ITEM
       data: 3
-      name: '&e&l[!] Island: &6&n{0}&7 (#{1})'
+      name: '&6&l[!] Island: &6&n{0}&7 (#{1})'
       lore:
         - '&7'
         - '&6&l* &e&lPlace &7#{1}'
@@ -45,14 +45,14 @@ items:
         - '&6&l* &e&lBank &7${11}'
         - '&7'
         - '&6&l* &e&lMembers:'
-        - '{4}:&f  - &7{}'
+        - '{4}:&7  - &7{}'
         - '&7'
-        - '&7&o(( &f&oLeft-Click &7&oto view their items. ))'
-        - '&7&o(( &f&oRight-Click &7&oto teleport to island warp. ))'
+        - '&7&o(( &7&oLeft-Click &7&oto view their items. ))'
+        - '&7&o(( &7&oRight-Click &7&oto teleport to island warp. ))'
     no-island:
       type: SKULL_ITEM
       data: 3
-      name: '&cInvalid Island'
+      name: '&6Invalid Island'
   '%':
     WORTH:
       display-name: 'Worth'
@@ -105,7 +105,7 @@ items:
     name: '{0}Previous Page'
   '-':
     type: DOUBLE_PLANT
-    name: '&aCurrent Page'
+    name: '&6Current Page'
     lore:
       - '&7Page {0}'
   '+':
@@ -114,7 +114,7 @@ items:
   '~':
     type: STAINED_GLASS_PANE
     data: 15
-    name: '&f'
+    name: '&8'
 
 sounds:
   '@':

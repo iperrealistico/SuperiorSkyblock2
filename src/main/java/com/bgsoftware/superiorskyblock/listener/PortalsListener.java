@@ -94,7 +94,7 @@ public class PortalsListener extends AbstractGameEventListener {
             if (teleportedPlayer != null)
                 teleportedPlayer.setPlayerStatus(PlayerStatus.LEAVING_ISLAND);
 
-            BukkitExecutor.sync(() -> {
+            BukkitExecutor.entity(entity, () -> {
                 Dimension dimension = plugin.getSettings().getWorlds().getDefaultWorldDimension();
                 IslandWorlds.accessIslandWorldAsync(island, dimension, true, islandWorldResult -> {
                     islandWorldResult.ifRight(error -> {

@@ -63,16 +63,21 @@ public class ProfilerSession {
         dump.add("Profiler #" + this.id);
         dump.add("  Type: " + this.profileType.getPrettyName());
         dump.add("  Time elapsed: " + TimeUnit.NANOSECONDS.toMillis(this.endData.time - this.startData.time) + "ms");
-        dump.add("  TPS: " + this.startData.tps + " -> " + this.endData.tps);
+        dump.add("  TPS: " + tpsLabel(this.startData.tps) + " -> " + tpsLabel(this.endData.tps));
 
         return dump.toArray(new String[0]);
     }
+
+    private static String tpsLabel(double value) { return Double.isNaN(value) ? "unavailable (regional server)" : Double.toString(value); }
 
     public static class Data {
 
 
         public final long time = System.nanoTime();
-        public final double tps = plugin.getNMSAlgorithms().getCurrentTps();
+        // A Folia server has no aggregate TPS value. Profiling may start on an
+        // I/O worker; Bukkit#getTPS requires a currently owned region there.
+        public final double tps = com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.isFolia() ?
+                Double.NaN : plugin.getNMSAlgorithms().getCurrentTps();
 
     }
 

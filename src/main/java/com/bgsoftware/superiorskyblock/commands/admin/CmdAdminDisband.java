@@ -65,20 +65,10 @@ public class CmdAdminDisband implements IAdminIslandCommand {
         if (!PluginEventsFactory.callIslandDisbandEvent(island, targetPlayer))
             return;
 
-        IslandUtils.sendMessage(island, Message.DISBAND_ANNOUNCEMENT, Collections.emptyList(), sender.getName());
-
-        if (targetPlayer == null)
-            Message.DISBANDED_ISLAND_OTHER_NAME.send(sender, island.getName());
-        else
-            Message.DISBANDED_ISLAND_OTHER.send(sender, targetPlayer.getName());
-
-        if (BuiltinModules.BANK.getConfiguration().hasDisbandRefund()) {
-            BigDecimal disbandRefund = BuiltinModules.BANK.getConfiguration().getDisbandRefund();
-            Message.DISBAND_ISLAND_BALANCE_REFUND.send(island.getOwner(),
-                    Formatters.NUMBER_FORMATTER.format(island.getIslandBank().getBalance().multiply(disbandRefund)));
-        }
-
-        island.disbandIsland();
+        IslandUtils.disbandWithFeedback(island, sender, sender.getName(), () -> {
+            if (targetPlayer == null) Message.DISBANDED_ISLAND_OTHER_NAME.send(sender, island.getName());
+            else Message.DISBANDED_ISLAND_OTHER.send(sender, targetPlayer.getName());
+        });
     }
 
 }

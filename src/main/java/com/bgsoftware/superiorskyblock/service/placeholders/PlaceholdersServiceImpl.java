@@ -97,6 +97,8 @@ public class PlaceholdersServiceImpl implements PlaceholdersService, IService {
 
     private static final Map<String, PlayerPlaceholderParser> PLAYER_PARSES =
             new ImmutableMap.Builder<String, PlayerPlaceholderParser>()
+                    .put("owned_islands", superiorPlayer -> String.valueOf(superiorPlayer.getOwnedIslands().size()))
+                    .put("island_memberships", superiorPlayer -> String.valueOf(superiorPlayer.getIslands().size()))
                     .put("blocks_stacker", superiorPlayer ->
                             Formatters.BOOLEAN_FORMATTER.format(superiorPlayer.hasBlocksStackerEnabled(), superiorPlayer.getUserLocale()))
                     .put("border_color", superiorPlayer ->
@@ -136,6 +138,7 @@ public class PlaceholdersServiceImpl implements PlaceholdersService, IService {
     private static final Map<String, IslandPlaceholderParser> ISLAND_PARSES =
             new ImmutableMap.Builder<String, IslandPlaceholderParser>()
                     // Island Placeholders
+                    .put("id", (island, superiorPlayer) -> String.valueOf(island.getShortId()))
                     .put("bank", (island, superiorPlayer) ->
                             Formatters.NUMBER_FORMATTER.format(island.getIslandBank().getBalance()))
                     .put("bank_format", (island, superiorPlayer) ->
@@ -448,7 +451,7 @@ public class PlaceholdersServiceImpl implements PlaceholdersService, IService {
                             island = plugin.getGrid().getIslandAt(superiorPlayer.getLocation(wrapper.getHandle()));
                         }
                     } else {
-                        island = superiorPlayer.getIsland();
+                        island = com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isActive() ? superiorPlayer.getIsland() : superiorPlayer.getSelectedIsland();
                     }
                     placeholderResult = Optional.ofNullable(customIslandParser.apply(island, superiorPlayer));
                 }
@@ -471,7 +474,7 @@ public class PlaceholdersServiceImpl implements PlaceholdersService, IService {
                         island = plugin.getGrid().getIslandAt(superiorPlayer.getLocation(wrapper.getHandle()));
                     }
                 } else {
-                    island = superiorPlayer.getIsland();
+                    island = com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isActive() ? superiorPlayer.getIsland() : superiorPlayer.getSelectedIsland();
                 }
                 placeholderResult = parsePlaceholdersForIsland(island, superiorPlayer,
                         isLocationPlaceholder ? placeholder.substring(9) : placeholder,

@@ -19,6 +19,13 @@ public class MenuMissions extends AbstractMenu<BaseMenuView, EmptyViewArgs> {
     }
 
     @Override
+    protected boolean capturesViewerIsland() {
+        // A chooser containing only personal categories has no island subject.
+        return plugin.getMissions().getMissionCategories().stream()
+                .anyMatch(MenuMissionsCategory::requiresIslandContext);
+    }
+
+    @Override
     protected BaseMenuView createViewInternal(SuperiorPlayer superiorPlayer, EmptyViewArgs unused,
                                               @Nullable MenuView<?, ?> previousMenuView) {
         return new BaseMenuView(superiorPlayer, previousMenuView, this);

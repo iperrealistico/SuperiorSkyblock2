@@ -63,6 +63,8 @@ public class MissionsManagerImpl extends Manager implements MissionsManager {
     private final Map<String, FileClassLoader> missionTypesClassLoaders = new HashMap<>();
 
     private final MissionsContainer missionsContainer;
+    private volatile boolean progressLoadFailed;
+    private final java.util.Set<RewardAdmission> rewarding = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     public MissionsManagerImpl(SuperiorSkyblockPlugin plugin, MissionsContainer missionsContainer) {
         super(plugin);
@@ -169,7 +171,7 @@ public class MissionsManagerImpl extends Manager implements MissionsManager {
     public boolean canCompleteNoProgress(SuperiorPlayer superiorPlayer, Mission<?> mission) {
         Preconditions.checkNotNull(superiorPlayer, "superiorPlayer parameter cannot be null.");
         Preconditions.checkNotNull(mission, "mission parameter cannot be null.");
-        return canCompleteAgain(superiorPlayer, mission) && hasAllRequiredMissions(superiorPlayer, mission) &&
+        return mission.isProgressAvailable(superiorPlayer) && canCompleteAgain(superiorPlayer, mission) && hasAllRequiredMissions(superiorPlayer, mission) &&
                 canPassAllChecks(superiorPlayer, mission);
     }
 
@@ -267,22 +269,39 @@ public class MissionsManagerImpl extends Manager implements MissionsManager {
             throw new IllegalStateException("Cannot reward island mission " + mission.getName() + " as the player " + superiorPlayer.getName() + " does not have island.");
         }
 
-        BukkitExecutor.ensureAsync(() -> rewardMissionAsyncInternal(mission, missionData, superiorPlayer,
-                missionsHolder, checkAutoReward, forceReward, result));
+        org.bukkit.entity.Player actor = superiorPlayer.asPlayer();
+        if (actor == null) { if (result != null) result.accept(false); return; }
+        BukkitExecutor.entity(actor, () -> {
+            try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope scope =
+                         com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.open(missionsHolder instanceof Island ? (Island) missionsHolder : null)) {
+                rewardMissionAsyncInternal(mission, missionData, superiorPlayer, missionsHolder, checkAutoReward, forceReward, result);
+            }
+        }, 0L, () -> { if (result != null) result.accept(false); });
     }
 
     private void rewardMissionAsyncInternal(Mission<?> mission, MissionData missionData, SuperiorPlayer superiorPlayer,
                                             IMissionsHolder missionsHolder, boolean checkAutoReward, boolean forceReward,
                                             @Nullable Consumer<Boolean> result) {
-        boolean rewarded;
-        synchronized (superiorPlayer) {
-            rewarded = tryRewardMissionLockedInternal(mission, missionData, superiorPlayer, missionsHolder, checkAutoReward, forceReward);
-        }
+        RewardAdmission admission = new RewardAdmission(missionsHolder, mission);
+        if (!rewarding.add(admission)) { if (result != null) result.accept(false); return; }
+        boolean rewarded = false;
+        try { rewarded = tryRewardMissionInternal(mission, missionData, superiorPlayer, missionsHolder, checkAutoReward, forceReward); }
+        catch (Throwable error) { Log.error(error, "Mission completion failed before a successful result"); }
+        finally { rewarding.remove(admission); }
         if (result != null)
             result.accept(rewarded);
     }
 
-    private boolean tryRewardMissionLockedInternal(Mission<?> mission, MissionData missionData, SuperiorPlayer superiorPlayer,
+    private static final class RewardAdmission {
+        private final IMissionsHolder holder;
+        private final Mission<?> mission;
+        private RewardAdmission(IMissionsHolder holder, Mission<?> mission) { this.holder = holder; this.mission = mission; }
+        @Override public int hashCode() { return 31 * System.identityHashCode(holder) + System.identityHashCode(mission); }
+        @Override public boolean equals(Object other) { return other instanceof RewardAdmission &&
+                ((RewardAdmission) other).holder == holder && ((RewardAdmission) other).mission == mission; }
+    }
+
+    private boolean tryRewardMissionInternal(Mission<?> mission, MissionData missionData, SuperiorPlayer superiorPlayer,
                                                    IMissionsHolder missionsHolder, boolean checkAutoReward, boolean forceReward) {
         if (!forceReward) {
             if (!canCompleteAgain(superiorPlayer, mission)) {
@@ -368,24 +387,37 @@ public class MissionsManagerImpl extends Manager implements MissionsManager {
         }
 
         if (!rewardedItems.isEmpty() || !event.getArgs().commandRewards.isEmpty()) {
+            FrozenMissionRewardScope rewardScope = new FrozenMissionRewardScope(
+                    missionsHolder instanceof Island ? (Island) missionsHolder : null,
+                    island -> plugin.getPvcIslandService().isAvailable(island.getUniqueId()),
+                    island -> plugin.getPvcIslandService().getRevision(island.getUniqueId()));
             BukkitExecutor.ensureMain(() -> {
-                if (!rewardedItems.isEmpty()) {
-                    superiorPlayer.runIfOnline(player -> {
-                        try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
-                            for (ItemStack toGive : itemRewards) {
-                                BukkitItems.addItem(toGive, player.getInventory(), player.getLocation(wrapper.getHandle()));
+                if (!rewardScope.runIfCurrent(() -> {
+                    if (!rewardedItems.isEmpty()) {
+                        superiorPlayer.runIfOnline(player -> {
+                            try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
+                                for (ItemStack toGive : rewardedItems) {
+                                    BukkitItems.addItem(toGive, player.getInventory(), player.getLocation(wrapper.getHandle()));
+                                }
                             }
-                        }
-                    });
-                }
+                        });
+                    }
 
-                for (String command : event.getArgs().commandRewards) {
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command
-                            .replace("%mission%", mission.getName())
-                            .replace("%player%", superiorPlayer.getName())
-                            .replace("%island%", getIslandPlaceholder(missionsHolder))
-                    );
-                }
+                    for (String command : event.getArgs().commandRewards) {
+                        if (!rewardScope.isCurrent()) {
+                            Log.warn("Stopped configured mission rewards because the completed island subject changed: ", mission.getName());
+                            return;
+                        }
+                        com.bgsoftware.superiorskyblock.commands.CapturedCommandDispatch.dispatch(plugin, Bukkit.getConsoleSender(), command
+                                .replace("%mission%", mission.getName())
+                                .replace("%player%", superiorPlayer.getName())
+                                .replace("%island%", getIslandPlaceholder(missionsHolder))
+                                .replace("%island_id%", missionsHolder instanceof Island ? String.valueOf(((Island) missionsHolder).getShortId()) : "")
+                                .replace("%island_uuid%", missionsHolder instanceof Island ? ((Island) missionsHolder).getUniqueId().toString() : ""),
+                                missionsHolder instanceof Island ? (Island) missionsHolder : null
+                        );
+                    }
+                })) Log.warn("Skipped configured mission rewards because the completed island subject is no longer current: ", mission.getName());
             });
         }
 
@@ -414,12 +446,14 @@ public class MissionsManagerImpl extends Manager implements MissionsManager {
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Override
     public void saveMissionsData() {
+        if (progressLoadFailed) return; // Preserve the original evidence after an ambiguous migration.
         File dataFolder = BuiltinModules.MISSIONS.getDataStoreFolder();
 
         if (!dataFolder.exists())
             dataFolder.mkdirs();
 
         for (Mission<?> mission : getAllMissions()) {
+            if (!mission.canPersistProgress()) continue;
             YamlConfiguration data = new YamlConfiguration();
 
             try {
@@ -430,6 +464,7 @@ public class MissionsManagerImpl extends Manager implements MissionsManager {
             }
 
             boolean anyDataToWrite = !data.getKeys(true).isEmpty();
+            if (!mission.canPersistProgress()) continue;
 
             File dataFile = new File(dataFolder, mission.getName() + ".yml");
             boolean dataFileExists = dataFile.exists();
@@ -441,10 +476,22 @@ public class MissionsManagerImpl extends Manager implements MissionsManager {
             }
 
             try {
-                if (!dataFileExists)
-                    dataFile.createNewFile();
                 synchronized (DATA_FOLDER_MUTEX) {
-                    data.save(dataFile);
+                    if (!mission.canPersistProgress()) continue;
+                    java.nio.file.Path target = dataFile.toPath();
+                    java.nio.file.Path temporary = java.nio.file.Files.createTempFile(target.getParent(), ".pvc-mission-", ".tmp");
+                    try {
+                        byte[] bytes = data.saveToString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                        try (java.nio.channels.FileChannel channel = java.nio.channels.FileChannel.open(temporary, java.nio.file.StandardOpenOption.WRITE)) {
+                            java.nio.ByteBuffer buffer = java.nio.ByteBuffer.wrap(bytes);
+                            while (buffer.hasRemaining()) channel.write(buffer);
+                            channel.force(true);
+                        }
+                        try { java.nio.file.Files.move(temporary, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE); }
+                        catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
+                            java.nio.file.Files.move(temporary, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        }
+                    } finally { java.nio.file.Files.deleteIfExists(temporary); }
                 }
             } catch (IOException error) {
                 Log.error(error, "An unexpected error occurred while saving missions data to file ", dataFile.getName(), ":");
@@ -477,10 +524,19 @@ public class MissionsManagerImpl extends Manager implements MissionsManager {
             if (dataFile.exists()) {
                 try {
                     synchronized (DATA_FOLDER_MUTEX) {
-                        mission.loadProgress(YamlConfiguration.loadConfiguration(dataFile));
+                        YamlConfiguration data = new YamlConfiguration();
+                        data.load(dataFile);
+                        if (mission.supportsIslandSubjects()) {
+                            java.nio.file.Path backup = new File(dataFolder, dataFile.getName() + ".pvc-subject-migration.bak").toPath();
+                            if (!java.nio.file.Files.exists(backup)) java.nio.file.Files.copy(dataFile.toPath(), backup);
+                        }
+                        mission.loadProgress(data);
                     }
                 } catch (Throwable error) {
+                    progressLoadFailed = true;
                     Log.error(error, "An unexpected error occurred while loading mission data for ", mission.getName(), ":");
+                    plugin.getPvcIslandService().blockOperations(error);
+                    throw new IllegalStateException("Mission progress migration is ambiguous or invalid: " + mission.getName(), error);
                 }
             }
         }

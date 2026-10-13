@@ -94,6 +94,18 @@ public class RegionManagerServiceImpl implements RegionManagerService, IService 
         this.plugin = plugin;
     }
 
+    private void wakeEnteredDragonFight(SuperiorPlayer account, Island island, Location destination) {
+        org.bukkit.World world = destination.getWorld();
+        if (island.isSpawn() || world == null || world.getEnvironment() != org.bukkit.World.Environment.THE_END) return;
+        plugin.executePlayer(account, () -> {
+            Player player = account.asPlayer();
+            if (player != null && world.equals(player.getWorld()) &&
+                    island.equals(plugin.getGrid().getIslandAt(player.getLocation())))
+                plugin.getNMSDragonFight().onPlayerEnteredIsland(island,
+                        com.bgsoftware.superiorskyblock.world.Dimensions.fromEnvironment(world.getEnvironment()));
+        }, 1L);
+    }
+
     public static void registerListeners(PluginEventsDispatcher dispatcher) {
         dispatcher.registerCallback(PluginEventType.SETTINGS_UPDATE_EVENT, RegionManagerServiceImpl::onSettingsUpdate);
     }
@@ -323,7 +335,7 @@ public class RegionManagerServiceImpl implements RegionManagerService, IService 
         }
 
         if (closeInventory && interactionResult != InteractionResult.SUCCESS) {
-            BukkitExecutor.sync(() -> {
+            plugin.executePlayer(superiorPlayer, () -> {
                 Player player = superiorPlayer.asPlayer();
                 if (player != null && player.isOnline()) {
                     Inventory openInventory = player.getOpenInventory().getTopInventory();
@@ -770,7 +782,12 @@ public class RegionManagerServiceImpl implements RegionManagerService, IService 
 
         if (equalIslands) {
             if (!equalWorlds) {
-                BukkitExecutor.sync(() -> plugin.getNMSWorld().setWorldBorder(superiorPlayer, toIsland), 1L);
+                wakeEnteredDragonFight(superiorPlayer, toIsland, to);
+                plugin.executePlayer(superiorPlayer, () -> {
+                    Player online = superiorPlayer.asPlayer();
+                    if (online != null && toIsland.equals(plugin.getGrid().getIslandAt(online.getLocation())))
+                        plugin.getNMSWorld().setWorldBorder(superiorPlayer, toIsland);
+                }, 1L);
                 superiorPlayer.setPlayerStatus(PlayerStatus.PORTALS_IMMUNED);
                 BukkitExecutor.sync(() -> {
                     superiorPlayer.removePlayerStatus(PlayerStatus.PORTALS_IMMUNED);
@@ -786,6 +803,7 @@ public class RegionManagerServiceImpl implements RegionManagerService, IService 
         }
 
         toIsland.setPlayerInside(superiorPlayer, true);
+        wakeEnteredDragonFight(superiorPlayer, toIsland, to);
 
         if (!toIsland.isMember(superiorPlayer) && toIsland.hasSettingsEnabled(IslandFlags.PVP)) {
             Message.ENTER_PVP_ISLAND.send(superiorPlayer);
@@ -804,7 +822,8 @@ public class RegionManagerServiceImpl implements RegionManagerService, IService 
 
         Player player = superiorPlayer.asPlayer();
         if (player != null && (plugin.getSettings().getSpawn().isProtected() || !toIsland.isSpawn())) {
-            BukkitExecutor.sync(() -> {
+            BukkitExecutor.entity(player, () -> {
+                if (!toIsland.equals(plugin.getGrid().getIslandAt(player.getLocation()))) return;
                 // Update player time and player weather with a delay.
                 // Fixes https://github.com/BG-Software-LLC/SuperiorSkyblock2/issues/1260
                 if (toIsland.hasSettingsEnabled(IslandFlags.ALWAYS_DAY)) {
@@ -826,12 +845,16 @@ public class RegionManagerServiceImpl implements RegionManagerService, IService 
         }
 
         if (superiorPlayer.hasIslandFlyEnabled() && !superiorPlayer.hasFlyGamemode()) {
-            BukkitExecutor.sync(() -> {
-                if (player != null) toIsland.updateIslandFly(superiorPlayer);
+            plugin.executePlayer(superiorPlayer, () -> {
+                Player online = superiorPlayer.asPlayer();
+                if (online != null && toIsland.equals(plugin.getGrid().getIslandAt(online.getLocation())))
+                    toIsland.updateIslandFly(superiorPlayer);
             }, 5L);
         }
 
-        BukkitExecutor.sync(() -> {
+        plugin.executePlayer(superiorPlayer, () -> {
+            Player online = superiorPlayer.asPlayer();
+            if (online == null || !toIsland.equals(plugin.getGrid().getIslandAt(online.getLocation()))) return;
             toIsland.applyEffects(superiorPlayer);
             plugin.getNMSWorld().setWorldBorder(superiorPlayer, toIsland);
         }, 1L);

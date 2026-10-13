@@ -49,22 +49,27 @@ public class BiomePagedObjectButton extends AbstractPagedMenuButton<MenuBiomes.V
 
         GameSoundImpl.playSound(player, pagedObject.getAccessSound());
 
-        pagedObject.getAccessCommands().forEach(command -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
-                command.replace("%player%", inventoryViewer.getName())));
+        pagedObject.getAccessCommands().forEach(command -> com.bgsoftware.superiorskyblock.core.menu.MenuCommandsImpl.getInstance()
+                .dispatchConfiguredCommand(menuView, Bukkit.getConsoleSender(),
+                        command.replace("%player%", inventoryViewer.getName()), menuView.getIsland()));
+
+        if (!menuView.isIslandContextCurrent())
+            return;
 
         menuView.getIsland().setBiome(menuView.getDimension(), event.getArgs().biome);
         Message.CHANGED_BIOME.send(inventoryViewer,
                 Formatters.CAPITALIZED_FORMATTER.format(event.getArgs().biome.name()),
                 Formatters.CAPITALIZED_FORMATTER.format(menuView.getDimension().getName()));
 
-        BukkitExecutor.sync(menuView::closeView, 1L);
+        plugin.executePlayer(menuView.getInventoryViewer(), menuView::closeView, 1L);
     }
 
     @Override
     public void onButtonClickLackPermission(ButtonClickContext<MenuBiomes.View> context) {
         super.onButtonClickLackPermission(context);
-        pagedObject.getNoAccessCommands().forEach(command -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
-                command.replace("%player%", menuView.getInventoryViewer().getName())));
+        pagedObject.getNoAccessCommands().forEach(command -> com.bgsoftware.superiorskyblock.core.menu.MenuCommandsImpl.getInstance()
+                .dispatchConfiguredCommand(menuView, Bukkit.getConsoleSender(),
+                        command.replace("%player%", menuView.getInventoryViewer().getName()), menuView.getIsland()));
     }
 
     @Override

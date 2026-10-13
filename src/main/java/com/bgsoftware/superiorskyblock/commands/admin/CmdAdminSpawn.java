@@ -5,7 +5,6 @@ import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.commands.CommandTabCompletes;
 import com.bgsoftware.superiorskyblock.commands.ISuperiorCommand;
 import com.bgsoftware.superiorskyblock.core.messages.Message;
-import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -54,7 +53,7 @@ public class CmdAdminSpawn implements ISuperiorCommand {
         SuperiorPlayer targetPlayer = null;
 
         if (!(sender instanceof Player) && args.length == 2) {
-            sender.sendMessage(ChatColor.RED + "You must specify a player to teleport.");
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "You must specify a player to teleport.");
             return;
         } else if (args.length == 3) {
             targetPlayer = plugin.getPlayers().getSuperiorPlayer(args[2]);

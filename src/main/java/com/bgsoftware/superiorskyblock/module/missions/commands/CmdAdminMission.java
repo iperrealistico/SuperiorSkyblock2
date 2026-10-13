@@ -68,6 +68,10 @@ public class CmdAdminMission implements IAdminPlayerCommand {
 
         if (missions.isEmpty())
             return;
+        if (missions.stream().anyMatch(Mission::getIslandMission) && (targetPlayer.getIsland() == null ||
+                !plugin.getPvcIslandService().isAvailable(targetPlayer.getIsland().getUniqueId()))) {
+            com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "Choose a current island of this player with &6--island &e<ID>&7."); return;
+        }
 
         if (args[3].equalsIgnoreCase("complete")) {
             missions.forEach(mission -> plugin.getMissions().rewardMission(mission, targetPlayer, false, true));

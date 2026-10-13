@@ -26,7 +26,15 @@ public class PlayerLocales {
     }
 
     public static Locale getLocale(CommandSender sender) {
-        return sender instanceof Player ? plugin.getPlayers().getSuperiorPlayer(sender).getUserLocale() : defaultLocale;
+        return getPresentationLocale(sender instanceof Player ? plugin.getPlayers().getSuperiorPlayer(sender).getUserLocale() : defaultLocale);
+    }
+
+    public static boolean isDefaultLanguageForced() {
+        return plugin != null && plugin.getPvcConfig() != null && plugin.getPvcConfig().isDefaultLanguageForced();
+    }
+
+    public static Locale getPresentationLocale(Locale requested) {
+        return com.bgsoftware.superiorskyblock.pvc.PvcPresentationLocale.resolve(requested, defaultLocale, isDefaultLanguageForced());
     }
 
     public static java.util.Locale getLocale(String str) throws IllegalArgumentException {
@@ -40,7 +48,7 @@ public class PlayerLocales {
     }
 
     public static boolean isRightToLeft(Locale locale) {
-        return RTL_LOCALE_PATTERN.matcher(locale.getLanguage()).matches();
+        return RTL_LOCALE_PATTERN.matcher(getPresentationLocale(locale).getLanguage()).matches();
     }
 
     public static void clearLocales() {

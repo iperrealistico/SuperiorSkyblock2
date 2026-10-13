@@ -18,9 +18,9 @@ reset-after-finish: true
 rewards:
   commands:
     - 'eco give %player% 75000'
-    - 'is admin msg %player% &e&lSlayer | &7Successfully finished the mission Slayer III!'
-    - 'is admin msg %player% &e&lSlayer | &7It is time to show who is the boss here.'
-    - 'is admin msg %player% &e&lSlayer | &7&oFor more information about the next mission, checkout /is missions'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Successfully finished the mission Slayer III!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7It is time to show who is the boss here.'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7&oFor more information about the next mission, checkout /is missions'
 
 # List of required missions that must be completed before completing this one.
 required-missions:
@@ -46,7 +46,7 @@ required-entities:
 icons:
   locked:
     type: PAPER
-    name: '&aSlayer III'
+    name: '&6Slayer III'
     lore:
       - '&7It is time to prepare for the boss fights.'
       - '&7Kill 12 blazes, 12 wither skeletons and 24 enderman.'
@@ -62,11 +62,11 @@ icons:
       - '&6Blazes Killed: &7{value_blaze}/12'
       - '&6Wither Skeletons Killed: &7{value_wither_skeleton}/12'
       - '&6Endermans Killed: &7{value_enderman}/24'
-      - '&c&l ✘ &7Locked'
+      - '&6&l ✘ &7Locked'
     amount: 3
   not-completed:
     type: PAPER
-    name: '&aSlayer III'
+    name: '&6Slayer III'
     lore:
       - '&7It is time to prepare for the boss fights.'
       - '&7Kill 12 blazes, 12 wither skeletons and 24 enderman.'
@@ -83,11 +83,11 @@ icons:
       - '&6Wither Skeletons Killed: &7{value_wither_skeleton}/12'
       - '&6Endermans Killed: &7{value_enderman}/24'
       - '&6Progress: &7{0}%'
-      - '&c&l ✘ &7Not Completed'
+      - '&6&l ✘ &7Not Completed'
     amount: 3
   can-complete:
     type: PAPER
-    name: '&aSlayer III'
+    name: '&6Slayer III'
     lore:
       - '&7It is time to prepare for the boss fights.'
       - '&7Kill 12 blazes, 12 wither skeletons and 24 enderman.'
@@ -104,12 +104,12 @@ icons:
       - '&6Wither Skeletons Killed: &712/12'
       - '&6Endermans Killed: &724/24'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Click to redeem your reward.'
+      - '&e&l ✔ &7Click to redeem your reward.'
     amount: 3
     glow: true
   completed:
     type: MAP
-    name: '&aSlayer III'
+    name: '&6Slayer III'
     lore:
       - '&7It is time to prepare for the boss fights.'
       - '&7Kill 12 blazes, 12 wither skeletons and 24 enderman.'
@@ -121,5 +121,5 @@ icons:
       - '&6Wither Skeletons Killed: &712/12'
       - '&6Endermans Killed: &724/24'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Already Claimed.'
+      - '&e&l ✔ &7Already Claimed.'
     amount: 3

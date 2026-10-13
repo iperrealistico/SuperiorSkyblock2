@@ -72,7 +72,7 @@ public class BlocksMissions extends BuiltinMission<KeyDataTracker> implements Li
     protected void registerListeners() {
         registerListener(this);
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        plugin.executeGlobal(() -> {
             if (Bukkit.getPluginManager().isPluginEnabled("WildStacker")) {
                 registerListener(new WildStackerListener());
                 this.isBarrelCheck = block -> WildStackerAPI.getWildStacker().getSystemManager().isStackedBarrel(block);
@@ -89,8 +89,14 @@ public class BlocksMissions extends BuiltinMission<KeyDataTracker> implements Li
         data.clear();
     }
 
+    @Override public boolean isProgressAvailable(SuperiorPlayer player) {
+        return progressWorldsAvailable(player, BlocksTracker.INSTANCE::isWorldAvailable);
+    }
+    @Override public boolean canPersistProgress() { return BlocksTracker.INSTANCE.canPersistProgress(); }
+
     @Override
     public double getProgress(SuperiorPlayer superiorPlayer) {
+        if (!isProgressAvailable(superiorPlayer)) return 0D;
         KeyDataTracker blocksCounter = get(superiorPlayer);
 
         if (blocksCounter == null)
@@ -109,6 +115,7 @@ public class BlocksMissions extends BuiltinMission<KeyDataTracker> implements Li
 
     @Override
     public int getProgressValue(SuperiorPlayer superiorPlayer) {
+        if (!isProgressAvailable(superiorPlayer)) return 0;
         KeyDataTracker blocksCounter = get(superiorPlayer);
 
         if (blocksCounter == null)
@@ -124,8 +131,8 @@ public class BlocksMissions extends BuiltinMission<KeyDataTracker> implements Li
 
     @Override
     public void saveProgress(ConfigurationSection section) {
-        for (Map.Entry<SuperiorPlayer, KeyDataTracker> entry : entrySet()) {
-            String uuid = entry.getKey().getUniqueId().toString();
+        for (Map.Entry<UUID, KeyDataTracker> entry : subjectEntrySet()) {
+            String uuid = entry.getKey().toString();
             for (Map.Entry<Key, Counter> blockCountEntry : entry.getValue().getCounts().entrySet()) {
                 section.set(uuid + ".counts." + blockCountEntry.getKey(), blockCountEntry.getValue().get());
             }
@@ -136,6 +143,7 @@ public class BlocksMissions extends BuiltinMission<KeyDataTracker> implements Li
 
     @Override
     public void loadProgress(ConfigurationSection section) {
+        int trackerVersion = section.getInt("tracker-data-version", 1);
         for (String uuid : section.getKeys(false)) {
             KeyDataTracker blocksCounter = new KeyDataTracker();
             UUID playerUUID;
@@ -147,9 +155,7 @@ public class BlocksMissions extends BuiltinMission<KeyDataTracker> implements Li
                 continue;
             }
 
-            SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(playerUUID);
-
-            insertData(superiorPlayer, blocksCounter);
+            loadSubjectData(UUID.fromString(uuid), blocksCounter);
 
             if (section.contains(uuid + ".counts")) {
                 ConfigurationSection countsSection = section.getConfigurationSection(uuid + ".counts");
@@ -171,25 +177,25 @@ public class BlocksMissions extends BuiltinMission<KeyDataTracker> implements Li
                 }
             }
 
-            loadTrackedBlocks(section.getConfigurationSection(uuid + ".tracked.placed"), section.getConfigurationSection(uuid + ".tracked.broken"));
+            loadTrackedBlocks(section.getConfigurationSection(uuid + ".tracked.placed"), section.getConfigurationSection(uuid + ".tracked.broken"), trackerVersion);
         }
 
-        loadTrackedBlocks(section.getConfigurationSection("tracked.placed"), section.getConfigurationSection("tracked.broken"));
+        loadTrackedBlocks(section.getConfigurationSection("tracked.placed"), section.getConfigurationSection("tracked.broken"), trackerVersion);
     }
 
     private static void loadTrackedBlocks(@Nullable ConfigurationSection trackedPlacedSection,
-                                          @Nullable ConfigurationSection trackedBrokenSection) {
+                                          @Nullable ConfigurationSection trackedBrokenSection, int version) {
         if (trackedPlacedSection != null) {
             for (String worldName : trackedPlacedSection.getKeys(false)) {
                 ConfigurationSection worldSection = trackedPlacedSection.getConfigurationSection(worldName);
-                BlocksTracker.INSTANCE.loadTrackedBlocks(BlocksTracker.TrackingType.PLACED_BLOCKS, worldName, worldSection);
+                BlocksTracker.INSTANCE.loadTrackedBlocks(BlocksTracker.TrackingType.PLACED_BLOCKS, worldName, worldSection, version);
             }
         }
 
         if (trackedBrokenSection != null) {
             for (String worldName : trackedBrokenSection.getKeys(false)) {
                 ConfigurationSection worldSection = trackedBrokenSection.getConfigurationSection(worldName);
-                BlocksTracker.INSTANCE.loadTrackedBlocks(BlocksTracker.TrackingType.BROKEN_BLOCKS, worldName, worldSection);
+                BlocksTracker.INSTANCE.loadTrackedBlocks(BlocksTracker.TrackingType.BROKEN_BLOCKS, worldName, worldSection, version);
             }
         }
     }
@@ -238,7 +244,7 @@ public class BlocksMissions extends BuiltinMission<KeyDataTracker> implements Li
         if (this.onlyNatural) {
             // We want to track block broken & placed only if this mission only progresses for natural blocks
             // We do that in a delayed tick so all other missions will check for their progress as well.
-            Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+            laterRegion(e.getBlock().getLocation(), () -> {
                 BlocksTracker.INSTANCE.untrackBlock(BlocksTracker.TrackingType.BROKEN_BLOCKS, e.getBlock());
                 BlocksTracker.INSTANCE.trackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock());
             }, 1L);
@@ -264,7 +270,7 @@ public class BlocksMissions extends BuiltinMission<KeyDataTracker> implements Li
         if (this.onlyNatural) {
             // We want to track block broken & placed only if this mission only progresses for natural blocks
             // We do that in a delayed tick so all other missions will check for their progress as well.
-            Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+            laterRegion(e.getBlock().getLocation(), () -> {
                 BlocksTracker.INSTANCE.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock());
                 BlocksTracker.INSTANCE.trackBlock(BlocksTracker.TrackingType.BROKEN_BLOCKS, e.getBlock());
             }, 1L);
@@ -330,7 +336,7 @@ public class BlocksMissions extends BuiltinMission<KeyDataTracker> implements Li
                 if (onlyNatural) {
                     // We want to track block broken & placed only if this mission only progresses for natural blocks
                     // We do that in a delayed tick so all other missions will check for their progress as well.
-                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    laterRegion(block.getLocation(), () -> {
                         BlocksTracker.INSTANCE.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, block);
                         BlocksTracker.INSTANCE.trackBlock(BlocksTracker.TrackingType.BROKEN_BLOCKS, block);
                     }, 1L);
@@ -394,7 +400,7 @@ public class BlocksMissions extends BuiltinMission<KeyDataTracker> implements Li
 
         blocksCounter.track(blockKey, amount);
 
-        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(_player -> {
+        laterPlayer(superiorPlayer, () -> superiorPlayer.runIfOnline(_player -> {
             if (canComplete(superiorPlayer))
                 this.plugin.getMissions().rewardMission(this, superiorPlayer, true);
         }), 2L);

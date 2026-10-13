@@ -2,8 +2,12 @@ package com.bgsoftware.superiorskyblock.missions;
 
 import com.bgsoftware.superiorskyblock.api.key.Key;
 import com.bgsoftware.superiorskyblock.api.key.KeySet;
+import com.bgsoftware.superiorskyblock.api.island.Island;
+import com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
+import com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin;
+import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import com.bgsoftware.superiorskyblock.missions.common.BuiltinMission;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
 import com.bgsoftware.superiorskyblock.missions.common.requirements.KeyRequirements;
@@ -40,7 +44,7 @@ public final class KillsMissions extends BuiltinMission<KeyDataTracker> implemen
 
     private final Map<KeyRequirements, Integer> requiredEntities = new LinkedHashMap<>();
 
-    private Function<LivingEntity, Integer> getEntityCount;
+    private volatile Function<LivingEntity, Integer> getEntityCount = entity -> 1;
 
     @Override
     protected void loadConfiguration(ConfigurationSection section) throws MissionLoadException {
@@ -62,7 +66,7 @@ public final class KillsMissions extends BuiltinMission<KeyDataTracker> implemen
     protected void registerListeners() {
         registerListener(this);
 
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+        plugin.executeGlobal(() -> {
             if (plugin.getServer().getPluginManager().isPluginEnabled("WildStacker")) {
                 this.getEntityCount = WildStackerAPI::getEntityAmount;
             } else {
@@ -111,8 +115,8 @@ public final class KillsMissions extends BuiltinMission<KeyDataTracker> implemen
 
     @Override
     public void saveProgress(ConfigurationSection section) {
-        for (Map.Entry<SuperiorPlayer, KeyDataTracker> entry : entrySet()) {
-            String uuid = entry.getKey().getUniqueId().toString();
+        for (Map.Entry<UUID, KeyDataTracker> entry : subjectEntrySet()) {
+            String uuid = entry.getKey().toString();
             entry.getValue().getCounts().forEach((killedType, count) ->
                     section.set(uuid + "." + killedType, count.get()));
         }
@@ -123,9 +127,8 @@ public final class KillsMissions extends BuiltinMission<KeyDataTracker> implemen
         for (String uuid : section.getKeys(false)) {
             KeyDataTracker killsTracker = new KeyDataTracker();
             UUID playerUUID = UUID.fromString(uuid);
-            SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(playerUUID);
 
-            insertData(superiorPlayer, killsTracker);
+            loadSubjectData(UUID.fromString(uuid), killsTracker);
 
             for (String key : section.getConfigurationSection(uuid).getKeys(false)) {
                 killsTracker.load(Key.ofEntityType(key), section.getInt(uuid + "." + key));
@@ -160,59 +163,82 @@ public final class KillsMissions extends BuiltinMission<KeyDataTracker> implemen
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEntityKill(EntityDeathEvent e) {
-        if (!isMissionEntity(e.getEntity()))
+        LivingEntity victim = e.getEntity();
+        Key killedType = getMissionEntityKey(victim);
+        if (killedType == null)
             return;
 
-        EntityDamageEvent damageCause = e.getEntity().getLastDamageCause();
+        EntityDamageEvent damageCause = victim.getLastDamageCause();
 
         if (!(damageCause instanceof EntityDamageByEntityEvent))
             return;
 
         EntityDamageByEntityEvent entityDamageByEntityEvent = (EntityDamageByEntityEvent) damageCause;
 
-        Player damager = null;
-
-        if (entityDamageByEntityEvent.getDamager() instanceof Player) {
-            damager = (Player) entityDamageByEntityEvent.getDamager();
-        } else if (entityDamageByEntityEvent.getDamager() instanceof Projectile) {
-            ProjectileSource shooter = ((Projectile) entityDamageByEntityEvent.getDamager()).getShooter();
-            if (shooter instanceof Player)
-                damager = (Player) shooter;
+        // Capture every live victim fact on the death event's owner. The shooter
+        // can already be in another region (or world); never inspect it here.
+        org.bukkit.Location deathLocation = victim.getLocation();
+        Island target = plugin.getGrid().getIslandAt(deathLocation);
+        UUID deathWorld = deathLocation.getWorld().getUID();
+        int killedAmount = this.getEntityCount.apply(victim);
+        Entity source = entityDamageByEntityEvent.getDamager();
+        if (source instanceof Player) {
+            creditKiller((Player) source, target, deathWorld, killedType, killedAmount);
+        } else if (source instanceof Projectile) {
+            Projectile projectile = (Projectile) source;
+            // Usually the projectile and victim share ownership. If they do
+            // not, the entity scheduler follows the projectile before reading
+            // its live shooter reference. A retired projectile is not credited.
+            BukkitExecutor.entity(projectile, () -> {
+                ProjectileSource shooter = projectile.getShooter();
+                if (shooter instanceof Player)
+                    creditKiller((Player) shooter, target, deathWorld, killedType, killedAmount);
+            });
         }
-
-        if (damager == null)
-            return;
-
-        SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(damager);
-
-        if (!this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this))
-            return;
-
-        KeyDataTracker killsTracker = getOrCreate(superiorPlayer, s -> new KeyDataTracker());
-
-        if (killsTracker == null)
-            return;
-
-        killsTracker.track(Key.of(e.getEntity()), this.getEntityCount.apply(e.getEntity()));
-
-        Bukkit.getScheduler().runTaskLaterAsynchronously(this.plugin, () -> superiorPlayer.runIfOnline(player -> {
-            if (canComplete(superiorPlayer))
-                this.plugin.getMissions().rewardMission(this, superiorPlayer, true);
-        }), 2L);
     }
 
-    private boolean isMissionEntity(@Nullable Entity entity) {
+    private void creditKiller(Player killer, Island target, UUID deathWorld, Key killedType, int killedAmount) {
+        BukkitExecutor.entity(killer, () -> {
+            if (!killer.isOnline() || !deathWorld.equals(killer.getWorld().getUID())) return;
+            SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(killer);
+            if (!isCurrentTarget(target, superiorPlayer)) return;
+            try (IslandExecutionScope scope = IslandExecutionScope.open(target)) {
+                if (!this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this)) return;
+                KeyDataTracker killsTracker = getOrCreate(superiorPlayer, s -> new KeyDataTracker());
+                if (killsTracker == null) return;
+                killsTracker.track(killedType, killedAmount);
+                plugin.executePlayer(superiorPlayer, () -> {
+                    if (!killer.isOnline() || !deathWorld.equals(killer.getWorld().getUID()) ||
+                            !isCurrentTarget(target, superiorPlayer)) return;
+                    try (IslandExecutionScope rewardScope = IslandExecutionScope.open(target)) {
+                        if (canComplete(superiorPlayer))
+                            this.plugin.getMissions().rewardMission(this, superiorPlayer, true);
+                    }
+                }, 2L);
+            }
+        });
+    }
+
+    private boolean isCurrentTarget(@Nullable Island target, SuperiorPlayer player) {
+        if (target == null) return !getIslandMission();
+        return plugin.getGrid().getIslandByUUID(target.getUniqueId()) == target && target.isMember(player) &&
+                (!(plugin instanceof SuperiorSkyblockPlugin) ||
+                        ((SuperiorSkyblockPlugin) plugin).getPvcIslandService().isAvailable(target.getUniqueId()));
+    }
+
+    @Nullable
+    private Key getMissionEntityKey(@Nullable Entity entity) {
         if (entity == null || entity instanceof ArmorStand)
-            return false;
+            return null;
 
         Key entityKey = Key.of(entity);
 
         for (KeyRequirements requirement : requiredEntities.keySet()) {
             if (requirement.contains(entityKey))
-                return true;
+                return entityKey;
         }
 
-        return false;
+        return null;
     }
 
 }

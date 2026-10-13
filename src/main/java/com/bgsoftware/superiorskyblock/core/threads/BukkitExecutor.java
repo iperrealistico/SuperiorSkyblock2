@@ -2,272 +2,126 @@ package com.bgsoftware.superiorskyblock.core.threads;
 
 import com.bgsoftware.common.annotations.Nullable;
 import com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin;
-import com.bgsoftware.superiorskyblock.core.logging.Debug;
-import com.bgsoftware.superiorskyblock.core.logging.Log;
 import org.bukkit.Bukkit;
+import org.bukkit.World;
+import org.bukkit.entity.Entity;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public class BukkitExecutor {
+/** Scheduling boundary. On Folia, sync/global means metadata only, never world ownership. */
+public final class BukkitExecutor {
+    public static final Executor SYNC_EXECUTOR = BukkitExecutor::ensureMain;
+    public static final Executor ASYNC_EXECUTOR = BukkitExecutor::ensureAsync;
+    private static volatile SuperiorSkyblockPlugin plugin;
+    private static volatile ExecutionBridge bridge;
+    private static volatile State state = State.RUNNING;
+    private BukkitExecutor() { }
 
-    private static final int DEFAULT_SHUTDOWN_TIMEOUT = 1000 * 20;
-    private static final int SHUTDOWN_INTERVAL_WAIT_TIME = 100;
-
-    public static final Executor SYNC_EXECUTOR = runnable -> ensureMain(runnable);
-    public static final Executor ASYNC_EXECUTOR = runnable -> ensureAsync(runnable);
-
-    private static SuperiorSkyblockPlugin plugin;
-    private static State state = State.RUNNING;
-
-    private static final AtomicLong ACTIVE_TASKS_COUNT = new AtomicLong(0);
-
-    private BukkitExecutor() {
-
-    }
-
-    public static void init(SuperiorSkyblockPlugin plugin) {
-        BukkitExecutor.plugin = plugin;
-    }
-
-    @Nullable
-    public static BukkitTask ensureMain(Runnable runnable) {
-        if (ensureNotShudown())
-            return null;
-
-        if (state != State.PREPARE_SHUTDOWN && !Bukkit.isPrimaryThread()) {
-            return sync(runnable);
-        } else {
-            runnable.run();
-            return null;
-        }
-    }
-
-    @Nullable
-    public static BukkitTask ensureAsync(Runnable runnable) {
-        if (ensureNotShudown())
-            return null;
-
-        if (state != State.PREPARE_SHUTDOWN && Bukkit.isPrimaryThread()) {
-            return async(runnable);
-        } else {
-            runnable.run();
-            return null;
-        }
-    }
-
-    public static BukkitTask sync(Runnable runnable) {
-        return sync(runnable, 0);
-    }
-
-    public static BukkitTask sync(Runnable runnable, long delay) {
-        if (ensureNotShudown())
-            return null;
-
-        if (state == State.PREPARE_SHUTDOWN) {
-            runnable.run();
-            return null;
-        } else {
-            return Bukkit.getScheduler().runTaskLater(plugin, runnable, delay);
-        }
-    }
-
-    public static BukkitTask async(Runnable runnable) {
-        if (ensureNotShudown())
-            return null;
-
-        if (state == State.PREPARE_SHUTDOWN) {
-            runnable.run();
-            return null;
-        } else {
-            return Bukkit.getScheduler().runTaskAsynchronously(plugin, runnable);
-        }
-    }
-
-    public static BukkitTask async(Runnable runnable, long delay) {
-        if (ensureNotShudown())
-            return null;
-
-        if (state == State.PREPARE_SHUTDOWN) {
-            runnable.run();
-            return null;
-        } else {
-            return Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, runnable, delay);
-        }
-    }
-
-    public static void asyncTimer(Runnable runnable, long delay) {
-        if (ensureNotShudown())
-            return;
-
-        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, runnable, delay, delay);
-    }
-
-    public static void timer(Runnable runnable, long delay) {
-        if (ensureNotShudown())
-            return;
-
-        Bukkit.getScheduler().runTaskTimer(plugin, runnable, delay, delay);
-    }
-
-    public static NestedTask<Void> createTask() {
-        return new NestedTask<Void>().complete();
-    }
-
-    public static void prepareShutdown() {
-        state = State.PREPARE_SHUTDOWN;
-    }
-
-    public static void close(SuperiorSkyblockPlugin plugin) {
-        // Waiting for all active tasks to finish
-
-        Log.info("This can take up to " + (DEFAULT_SHUTDOWN_TIMEOUT / 1000) + " seconds to complete");
-
-        long timeoutLeft = DEFAULT_SHUTDOWN_TIMEOUT;
-
-        while (ACTIVE_TASKS_COUNT.get() != 0 && timeoutLeft > 0) {
+    public static synchronized void init(SuperiorSkyblockPlugin owner) {
+        if (bridge != null && plugin == owner && state == State.RUNNING) return;
+        plugin = owner;
+        state = State.RUNNING;
+        boolean modern = false;
+        boolean folia = false;
+        try { Class.forName("io.papermc.paper.threadedregions.RegionizedServer"); folia = true; }
+        catch (ClassNotFoundException ignored) { }
+        try {
+            Bukkit.class.getMethod("getRegionScheduler");
+            modern = javaMajorVersion() >= 21;
+        } catch (ReflectiveOperationException ignored) { }
+        if (modern) {
             try {
-                Thread.sleep(SHUTDOWN_INTERVAL_WAIT_TIME);
-                timeoutLeft -= SHUTDOWN_INTERVAL_WAIT_TIME;
-            } catch (Throwable ignored) {
+                bridge = (ExecutionBridge) Class.forName("com.bgsoftware.superiorskyblock.platform.folia.PaperExecutionBridge", true,
+                        owner.getPluginClassLoader()).getConstructor(Plugin.class).newInstance(owner);
+            } catch (ReflectiveOperationException | LinkageError error) {
+                if (folia) throw new IllegalStateException("Folia execution bridge could not be loaded", error);
+                owner.getLogger().warning("Modern execution bridge unavailable; using Bukkit scheduler on Paper: " + error);
             }
         }
-
-        if (ACTIVE_TASKS_COUNT.get() != 0) {
-            new RuntimeException("Not all active tasks finished").printStackTrace();
+        if (bridge == null) {
+            if (folia) throw new IllegalStateException("Folia requires the Java 21+ regional execution bridge");
+            bridge = new LegacyExecutionBridge(owner);
         }
-
+    }
+    private static int javaMajorVersion() {
+        String version = System.getProperty("java.specification.version", "8");
+        return Integer.parseInt(version.startsWith("1.") ? version.substring(2) : version.split("\\.")[0]);
+    }
+    public static boolean isFolia() { return bridge != null && bridge.isFolia(); }
+    public static boolean isRunning() { return bridge != null && state == State.RUNNING; }
+    public static boolean owns(Entity entity) { return bridge != null && bridge.owns(entity); }
+    public static boolean owns(World world, int x, int z) { return bridge != null && bridge.owns(world, x, z); }
+    private static void accepting() {
+        if (bridge == null || state != State.RUNNING) throw new RejectedExecutionException("SuperiorSkyblock execution is stopping");
+    }
+    @Nullable public static BukkitTask global(Runnable task) { return sync(task, 0L); }
+    @Nullable public static BukkitTask global(Runnable task, long delay) { return sync(task, delay); }
+    @Nullable public static BukkitTask ensureMain(Runnable task) {
+        accepting();
+        if (!isFolia() && Bukkit.isPrimaryThread()) { task.run(); return null; }
+        return bridge.global(task, 0L);
+    }
+    @Nullable public static BukkitTask ensureAsync(Runnable task) {
+        if (state == State.PREPARE_SHUTDOWN) { task.run(); return null; }
+        accepting();
+        return bridge.async(task, 0L);
+    }
+    @Nullable public static BukkitTask sync(Runnable task) { return sync(task, 0L); }
+    @Nullable public static BukkitTask sync(Runnable task, long delay) {
+        accepting(); return bridge.global(task, delay);
+    }
+    @Nullable public static BukkitTask region(World world, int x, int z, Runnable task) { return region(world, x, z, task, 0L); }
+    @Nullable public static BukkitTask region(World world, int x, int z, Runnable task, long delay) {
+        accepting();
+        if (delay <= 0L && owns(world, x, z)) { task.run(); return null; }
+        return bridge.region(world, x, z, task, delay);
+    }
+    @Nullable public static BukkitTask entity(Entity entity, Runnable task) { return entity(entity, task, 0L, null); }
+    @Nullable public static BukkitTask entity(Entity entity, Runnable task, long delay) { return entity(entity, task, delay, null); }
+    @Nullable public static BukkitTask entity(Entity entity, Runnable task, long delay, Runnable retired) {
+        accepting();
+        if (delay <= 0L && owns(entity)) { task.run(); return null; }
+        return bridge.entity(entity, task, delay, retired);
+    }
+    @Nullable public static BukkitTask async(Runnable task) { return async(task, 0L); }
+    @Nullable public static BukkitTask async(Runnable task, long delay) {
+        if (state == State.PREPARE_SHUTDOWN) { task.run(); return null; }
+        accepting(); return bridge.async(task, delay);
+    }
+    public static void asyncTimer(Runnable task, long delay) { accepting(); bridge.asyncTimer(task, delay, delay); }
+    public static void timer(Runnable task, long delay) { accepting(); bridge.globalTimer(task, delay, delay); }
+    public static BukkitTask asyncRepeating(Runnable task, long delay, long period) { accepting(); return bridge.asyncTimer(task, delay, period); }
+    public static BukkitTask globalRepeating(Runnable task, long delay, long period) { accepting(); return bridge.globalTimer(task, delay, period); }
+    public static NestedTask<Void> createTask() { return new NestedTask<Void>(CompletableFuture.completedFuture(null)); }
+    public static void prepareShutdown() { state = State.PREPARE_SHUTDOWN; }
+    public static void close(SuperiorSkyblockPlugin owner) {
         state = State.SHUTDOWN;
-        Bukkit.getScheduler().cancelTasks(plugin);
+        if (bridge != null) bridge.close();
     }
-
-    private static boolean ensureNotShudown() {
-        if (state == State.SHUTDOWN) {
-            new RuntimeException("Tried to call BukkitExecutor after it was shut down").printStackTrace();
-            return true;
+    public static final class NestedTask<T> {
+        private final CompletableFuture<T> value;
+        private NestedTask(CompletableFuture<T> value) { this.value = value; }
+        private <R> NestedTask<R> next(Function<T, R> function, Executor executor) {
+            // thenApplyAsync propagates source failures and completes callback exceptions.
+            return new NestedTask<>(value.thenApplyAsync(function, executor));
         }
-
-        return false;
+        public <R> NestedTask<R> runSync(Function<T, R> function) { return next(function, SYNC_EXECUTOR); }
+        public NestedTask<Void> runSync(Consumer<T> consumer) { return next(v -> { consumer.accept(v); return null; }, SYNC_EXECUTOR); }
+        public <R> NestedTask<R> runAsync(Function<T, R> function) { return next(function, ASYNC_EXECUTOR); }
+        public NestedTask<Void> runAsync(Consumer<T> consumer) { return next(v -> { consumer.accept(v); return null; }, ASYNC_EXECUTOR); }
+        public NestedTask<Void> runRegion(World world, int x, int z, Consumer<T> consumer) {
+            return next(v -> { consumer.accept(v); return null; }, task -> region(world, x, z, task));
+        }
+        public NestedTask<Void> runEntity(Entity entity, Consumer<T> consumer) {
+            return next(v -> { consumer.accept(v); return null; }, task -> entity(entity, task));
+        }
+        public CompletableFuture<T> future() { return value; }
     }
-
-    public static class NestedTask<T> {
-
-        private final CompletableFuture<T> value = new CompletableFuture<>();
-
-        NestedTask() {
-        }
-
-        public <R> NestedTask<R> runSync(Function<T, R> function) {
-            ensureNotShudown();
-
-            NestedTask<R> nestedTask = new NestedTask<>();
-            if (state == State.PREPARE_SHUTDOWN) {
-                nestedTask.value.complete(function.apply(value.join()));
-            } else {
-                onCreate();
-                value.whenCompleteAsync((v, ex) -> {
-                    try {
-                        nestedTask.value.complete(function.apply(v));
-                    } finally {
-                        onComplete();
-                    }
-                }, SYNC_EXECUTOR);
-            }
-            return nestedTask;
-        }
-
-        public NestedTask<Void> runSync(Consumer<T> consumer) {
-            ensureNotShudown();
-
-            NestedTask<Void> nestedTask = new NestedTask<>();
-            if (state == State.PREPARE_SHUTDOWN) {
-                consumer.accept(value.join());
-                nestedTask.value.complete(null);
-            } else {
-                onCreate();
-                value.whenCompleteAsync((v, ex) -> {
-                    try {
-                        consumer.accept(v);
-                        nestedTask.value.complete(null);
-                    } finally {
-                        onComplete();
-                    }
-                }, SYNC_EXECUTOR);
-            }
-            return nestedTask;
-        }
-
-        public <R> NestedTask<R> runAsync(Function<T, R> function) {
-            ensureNotShudown();
-
-            NestedTask<R> nestedTask = new NestedTask<>();
-            if (state == State.PREPARE_SHUTDOWN) {
-                nestedTask.value.complete(function.apply(value.join()));
-            } else {
-                onCreate();
-                value.whenCompleteAsync((v, ex) -> {
-                    try {
-                        nestedTask.value.complete(function.apply(v));
-                    } finally {
-                        onComplete();
-                    }
-                }, ASYNC_EXECUTOR);
-            }
-            return nestedTask;
-        }
-
-        public NestedTask<Void> runAsync(Consumer<T> consumer) {
-            ensureNotShudown();
-
-            NestedTask<Void> nestedTask = new NestedTask<>();
-            if (state == State.PREPARE_SHUTDOWN) {
-                consumer.accept(value.join());
-                nestedTask.value.complete(null);
-            } else {
-                onCreate();
-                value.whenCompleteAsync((v, ex) -> {
-                    try {
-                        consumer.accept(v);
-                        nestedTask.value.complete(null);
-                    } finally {
-                        onComplete();
-                    }
-                }, ASYNC_EXECUTOR);
-            }
-            return nestedTask;
-        }
-
-        private NestedTask<T> complete() {
-            value.complete(null);
-            return this;
-        }
-
-        private static void onCreate() {
-            long curr = ACTIVE_TASKS_COUNT.incrementAndGet();
-            Log.debug(Debug.TRACK_TASK, curr);
-        }
-
-        private static void onComplete() {
-            long curr = ACTIVE_TASKS_COUNT.decrementAndGet();
-            Log.debug(Debug.TRACK_TASK, curr);
-            if (curr < 0) {
-                new RuntimeException("Active tasks count is less than 0").printStackTrace();
-                ACTIVE_TASKS_COUNT.set(0);
-            }
-        }
-
-    }
-
-    private enum State {
-
-        RUNNING,
-        PREPARE_SHUTDOWN,
-        SHUTDOWN
-
-    }
-
+    private enum State { RUNNING, PREPARE_SHUTDOWN, SHUTDOWN }
 }

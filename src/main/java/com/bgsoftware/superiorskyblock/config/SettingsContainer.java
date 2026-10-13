@@ -338,7 +338,7 @@ public class SettingsContainer {
         this.stackedBlocksLimits = KeyMaps.unmodifiableKeyMap(stackedBlocksLimits);
         stackedBlocksAutoPickup = config.getBoolean("stacked-blocks.auto-collect", false);
         stackedBlocksMenuEnabled = config.getBoolean("stacked-blocks.deposit-menu.enabled", true);
-        stackedBlocksMenuTitle = Formatters.COLOR_FORMATTER.format(config.getString("stacked-blocks.deposit-menu.title", "&lDeposit Blocks"));
+        stackedBlocksMenuTitle = Formatters.COLOR_FORMATTER.format(config.getString("stacked-blocks.deposit-menu.title", "&6&lDeposit Blocks"));
         blockLevelFormula = config.getString("block-level-formula", "{} / 2");
         roundedIslandLevel = config.getBoolean("rounded-island-level", false);
         islandLevelRoundingMode = Optional.ofNullable(EnumHelper.getEnum(RoundingMode.class,
@@ -371,8 +371,8 @@ public class SettingsContainer {
         this.signWarp = Collections.unmodifiableList(signWarp);
         visitorsSignRequiredForVisit = config.getBoolean("visitors-sign.required-for-visit", true);
         visitorsSignLine = config.getString("visitors-sign.line", "[Welcome]");
-        visitorsSignActive = Formatters.COLOR_FORMATTER.format(config.getString("visitors-sign.active", "&a[Welcome]"));
-        visitorsSignInactive = Formatters.COLOR_FORMATTER.format(config.getString("visitors-sign.inactive", "&c[Welcome]"));
+        visitorsSignActive = Formatters.COLOR_FORMATTER.format(config.getString("visitors-sign.active", "&6[Welcome]"));
+        visitorsSignInactive = Formatters.COLOR_FORMATTER.format(config.getString("visitors-sign.inactive", "&8[Welcome]"));
         visitorsSignDescriptionLineFormat = Formatters.COLOR_FORMATTER.format(config.getString("visitors-sign.description-line-format", "{0}"));
         loadDimensions(config.getConfigurationSection("worlds.dimensions"));
         islandWorldName = config.getString("worlds.world-name", "SuperiorWorld");
@@ -558,7 +558,7 @@ public class SettingsContainer {
         disabledHooks = Collections.unmodifiableList(config.getStringList("disabled-hooks")
                 .stream().map(str -> str.toLowerCase(Locale.ENGLISH)).collect(Collectors.toList()));
         schematicNameArgument = config.getBoolean("schematic-name-argument", true);
-        islandChestTitle = Formatters.COLOR_FORMATTER.format(config.getString("island-chests.chest-title", "&4Island Chest"));
+        islandChestTitle = Formatters.COLOR_FORMATTER.format(config.getString("island-chests.chest-title", "&6Island Chest"));
         islandChestsDefaultPage = config.getInt("island-chests.default-pages", 0);
         islandChestsDefaultSize = Math.min(6, Math.max(1, config.getInt("island-chests.default-size", 3)));
         Map<String, List<String>> commandAliases = new HashMap<>();

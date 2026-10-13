@@ -5,7 +5,7 @@
 ##                                                  ##
 ######################################################
 
-title: '&lIsland Panel'
+title: '&6&lIsland Panel'
 previous-menu: true
 
 pattern:
@@ -22,73 +22,73 @@ visitors: '-'
 items:
   '!':
     type: OAK_SIGN
-    name: '&eTeleport'
+    name: '&6Teleport'
     lore:
       - '&7Teleport back to your island.'
   '@':
     type: REPEATER
-    name: '&eIsland Settings'
+    name: '&6Island Settings'
     lore:
       - '&7Manage settings regarding your island.'
   '$':
     type: ENDER_PEARL
-    name: '&eIsland Permissions'
+    name: '&6Island Permissions'
     lore:
       - '&7Manage permissions in your island.'
   '%':
     type: GRASS_BLOCK
-    name: '&eIsland Biomes'
+    name: '&6Island Biomes'
     lore:
       - '&7Change the biome of your island.'
   '_':
     type: EMERALD
-    name: '&eIsland Bank'
+    name: '&6Island Bank'
     lore:
       - '&7Open the bank of your island.'
   '^':
     type: GOLD_INGOT
-    name: '&eIsland Upgrades'
+    name: '&6Island Upgrades'
     lore:
       - '&7Upgrade your island statistics!'
   '&':
     type: BEACON
-    name: '&eTop Islands'
+    name: '&6Top Islands'
     lore:
       - '&7Check which island is the best on the server!'
   '*':
     type: PAPER
-    name: '&eIsland Missions'
+    name: '&6Island Missions'
     lore:
       - '&7Complete missions and get rewarded!'
   '1':
     type: STONE_BRICKS
-    name: '&eIsland Counts'
+    name: '&6Island Counts'
     lore:
       - '&7See all the blocks on your island!'
   '~':
     type: BARRIER
-    name: '&eIsland Disband'
+    name: '&6Island Disband'
     lore:
       - '&7Disband your island.'
-      - '&cThis action cannot be restored!'
+      - '&6This action cannot be restored!'
   '=':
     type: CHEST
-    name: '&eIsland Chest'
+    name: '&6Island Chest'
     lore:
       - '&7Open the community chest of the island.'
   '-':
     type: SKELETON_SKULL
-    name: '&eIsland Visitors'
+    name: '&6Island Visitors'
     lore:
       - '&7Check all the visitors of the island.'
   '+':
     type: PLAYER_HEAD
-    name: '&eIsland Members'
+    name: '&6Island Members'
     lore:
       - '&7Manage the members of the island.'
   '2':
     type: BLACK_STAINED_GLASS_PANE
-    name: '&f'
+    name: '&8'
 
 sounds:
   '!':

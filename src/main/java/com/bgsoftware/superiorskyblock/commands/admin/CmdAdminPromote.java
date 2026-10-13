@@ -69,7 +69,7 @@ public class CmdAdminPromote implements IAdminPlayerCommand {
             return;
         }
 
-        PlayerRole currentRole = targetPlayer.getPlayerRole();
+        PlayerRole currentRole = targetPlayer.getPlayerRole(island);
 
         if (currentRole.isLastRole()) {
             Message.LAST_ROLE_PROMOTE.send(sender);
@@ -94,17 +94,20 @@ public class CmdAdminPromote implements IAdminPlayerCommand {
         if (!PluginEventsFactory.callPlayerChangeRoleEvent(targetPlayer, nextRole))
             return;
 
-        targetPlayer.setPlayerRole(nextRole);
+        targetPlayer.setPlayerRole(island, nextRole);
 
-        Message.PROMOTED_MEMBER.send(sender, targetPlayer.getName(), targetPlayer.getPlayerRole());
-        Message.GOT_PROMOTED.send(targetPlayer, targetPlayer.getPlayerRole());
+        Message.PROMOTED_MEMBER.send(sender, targetPlayer.getName(), targetPlayer.getPlayerRole(island));
+        Message.GOT_PROMOTED.send(targetPlayer, targetPlayer.getPlayerRole(island));
     }
 
     @Override
     public List<String> tabComplete(SuperiorSkyblockPlugin plugin, CommandSender sender, String[] args) {
         return args.length == 3 ? CommandTabCompletes.getOnlinePlayersWithIsland(plugin, args[2], false,
-                superiorPlayer -> !superiorPlayer.getIslandLeader().equals(superiorPlayer) &&
-                        !superiorPlayer.getPlayerRole().getNextRole().isLastRole()) : Collections.emptyList();
+                superiorPlayer -> AdminMemberTargets.anyEligibleIsland(superiorPlayer, island -> {
+                    PlayerRole nextRole = superiorPlayer.getPlayerRole(island).getNextRole();
+                    return plugin.getPvcIslandService().isAvailable(island.getUniqueId()) &&
+                            !island.getOwner().equals(superiorPlayer) && nextRole != null && !nextRole.isLastRole();
+                })) : Collections.emptyList();
     }
 
 }

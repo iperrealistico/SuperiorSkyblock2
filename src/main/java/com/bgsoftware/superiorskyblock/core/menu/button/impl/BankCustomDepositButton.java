@@ -40,7 +40,7 @@ public class BankCustomDepositButton extends AbstractMenuViewButton<IslandMenuVi
 
         menuView.closeView();
 
-        PlayerChat.listen(player, message -> {
+        PlayerChat.listen(player, com.bgsoftware.superiorskyblock.island.privilege.IslandPrivileges.DEPOSIT_MONEY, message -> {
             try {
                 BigDecimal newAmount = BigDecimal.valueOf(Double.parseDouble(message));
                 BankTransaction bankTransaction = island.getIslandBank().depositMoney(clickedPlayer, newAmount);

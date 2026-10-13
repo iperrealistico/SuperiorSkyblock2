@@ -1,0 +1,12 @@
+plugins {
+    id 'io.papermc.paperweight.userdev' version '2.0.0-beta.21'
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+paperweight.reobfArtifactConfiguration = io.papermc.paperweight.userdev.ReobfArtifactConfiguration.getMOJANG_PRODUCTION()
+repositories { maven { url = 'https://repo.papermc.io/repository/maven-public/' } }
+dependencies {
+    paperweight.devBundle('dev.folia', '1.21.11-R0.1-20260222.203011-14')
+    compileOnly project(':API')
+    compileOnly project(':')
+}

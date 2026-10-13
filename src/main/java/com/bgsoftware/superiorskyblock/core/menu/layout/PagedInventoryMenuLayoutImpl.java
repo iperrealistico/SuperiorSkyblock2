@@ -136,11 +136,11 @@ public class PagedInventoryMenuLayoutImpl<V extends PagedMenuView<V, ?, E>, E> e
 
         if (button instanceof PreviousPageButton) {
             return new ItemBuilder(buttonItem)
-                    .replaceAll("{0}", (currentPage == 1 ? "&c" : "&a"))
+                    .replaceAll("{0}", (currentPage == 1 ? "&8" : "&6"))
                     .build(menuView.getInventoryViewer());
         } else if (button instanceof NextPageButton) {
             return new ItemBuilder(buttonItem)
-                    .replaceAll("{0}", (pagedObjects.size() > currentPage * this.objectsPerPageCount ? "&a" : "&c"))
+                    .replaceAll("{0}", (pagedObjects.size() > currentPage * this.objectsPerPageCount ? "&6" : "&8"))
                     .build(menuView.getInventoryViewer());
         } else if (button instanceof CurrentPageButton) {
             return new ItemBuilder(buttonItem)

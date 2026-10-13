@@ -198,6 +198,9 @@ public class ProvidersManagerImpl extends Manager implements ProvidersManager {
     @Override
     public void setWorldsProvider(WorldsProvider worldsProvider) {
         Preconditions.checkNotNull(worldsProvider, "worldsProvider parameter cannot be null.");
+        com.bgsoftware.superiorskyblock.api.hooks.WorldsProviderCapabilities.require(worldsProvider,
+                BukkitExecutor.isFolia(), false, plugin.getPvcConfig() != null &&
+                        plugin.getPvcConfig().getSizeMode() == com.bgsoftware.superiorskyblock.pvc.PvcConfig.SizeMode.PERMISSION_AUTOMATIC);
         setWorldsProviderInternal(worldsProvider);
         PluginEventsFactory.callWorldsProviderUpdateEvent();
     }

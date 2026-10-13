@@ -1,5 +1,7 @@
 package com.bgsoftware.superiorskyblock.island;
 
+import com.bgsoftware.superiorskyblock.core.logging.Log;
+
 import com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin;
 import com.bgsoftware.superiorskyblock.api.enums.BorderColor;
 import com.bgsoftware.superiorskyblock.api.enums.MemberRemoveReason;
@@ -22,6 +24,7 @@ import com.bgsoftware.superiorskyblock.core.events.plugin.PluginEventsFactory;
 import com.bgsoftware.superiorskyblock.core.formatting.Formatters;
 import com.bgsoftware.superiorskyblock.core.messages.Message;
 import com.bgsoftware.superiorskyblock.core.threads.SynchronizedTasks;
+import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
 import com.bgsoftware.superiorskyblock.island.privilege.IslandPrivileges;
 import com.bgsoftware.superiorskyblock.island.role.SPlayerRole;
 import com.bgsoftware.superiorskyblock.world.chunk.ChunkLoadReason;
@@ -32,8 +35,15 @@ import org.bukkit.World;
 import org.bukkit.block.Biome;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.Collection;
+import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Queue;
+import java.util.Set;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -42,6 +52,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 public class IslandUtils {
@@ -50,6 +61,224 @@ public class IslandUtils {
     private static final EnumerateMap<Dimension, Biome> DEFAULT_WORLD_BIOMES = new EnumerateMap<>(Dimension.values());
 
     public static final String DEFAULT_NONE_VALUE = "None";
+
+    public static void disbandWithFeedback(Island island, org.bukkit.command.CommandSender sender, String actorName, Runnable success) {
+        List<SuperiorPlayer> audience = island.getIslandMembers(true);
+        SuperiorPlayer owner = island.getOwner();
+        boolean refund = com.bgsoftware.superiorskyblock.module.BuiltinModules.BANK.getConfiguration().hasDisbandRefund();
+        String refundValue = refund ? Formatters.NUMBER_FORMATTER.format(island.getIslandBank().getBalance().multiply(
+                com.bgsoftware.superiorskyblock.module.BuiltinModules.BANK.getConfiguration().getDisbandRefund())) : "";
+        island.disbandIslandAsync().whenComplete((unused, error) -> {
+            Runnable feedback = () -> {
+                if (error != null || com.bgsoftware.superiorskyblock.core.database.sql.DBSession.isCommitOutcomeUncertain()) {
+                    if (error != null) Log.error(error, "Island deletion did not complete; its durable intent remains reserved");
+                    com.bgsoftware.superiorskyblock.pvc.PvcMessages.send(sender, "The island deletion is incomplete or uncertain. Staff must check recovery before retrying.");
+                    return;
+                }
+                audience.forEach(member -> member.runIfOnline(player -> Message.DISBAND_ANNOUNCEMENT.send(member, actorName)));
+                if (refund) owner.runIfOnline(player -> Message.DISBAND_ISLAND_BALANCE_REFUND.send(owner, refundValue));
+                success.run();
+            };
+            if (sender instanceof org.bukkit.entity.Player) plugin.getPlayers().getSuperiorPlayer(sender).runIfOnline(player -> feedback.run());
+            else feedback.run();
+        });
+    }
+    private static final Object cropRefreshLock = new Object();
+    private static final Map<UUID, CropRefreshJob> cropRefreshJobs = new HashMap<>();
+    private static final Queue<CropRefreshJob> cropRefreshReady = new ArrayDeque<>();
+    private static final Queue<CropRefreshJob> cropCapturePending = new ArrayDeque<>();
+    private static BukkitTask cropRefreshTask;
+    private static BukkitTask cropCaptureTask;
+    private static int cropRefreshOutstanding;
+    private static volatile long cropRefreshGeneration;
+    private static boolean cropRefreshClosed;
+
+    /** Coalesced, loaded-only recalibration; no cell scan or chunk generation. */
+    public static void recalibrateLoadedCropChunks(Island island) {
+        CropRefreshJob job;
+        synchronized (cropRefreshLock) {
+            if (cropRefreshClosed) return;
+            job = cropRefreshJobs.get(island.getUniqueId());
+            if (job != null) { job.dirty = true; return; }
+            job = new CropRefreshJob(island);
+            cropRefreshJobs.put(island.getUniqueId(), job);
+        }
+        scheduleCropCapture(job);
+    }
+
+    private static void scheduleCropCapture(CropRefreshJob job) {
+        synchronized (cropRefreshLock) {
+            if (cropRefreshClosed || job.generation != cropRefreshGeneration ||
+                    cropRefreshJobs.get(job.island.getUniqueId()) != job) return;
+            try {
+                cropCapturePending.add(job);
+                if (cropCaptureTask == null)
+                    cropCaptureTask = BukkitExecutor.globalRepeating(IslandUtils::captureNextCropJob, 1L, 1L);
+            } catch (Throwable stopping) {
+                cropCapturePending.remove(job);
+                cropRefreshJobs.remove(job.island.getUniqueId(), job);
+            }
+        }
+    }
+
+    private static void captureNextCropJob() {
+        List<CropRefreshJob> batch = new ArrayList<>();
+        synchronized (cropRefreshLock) {
+            int budget = Math.max(1, Math.min(8, plugin.getPvcConfig().getChunkLoadConcurrency()));
+            while (batch.size() < budget && !cropCapturePending.isEmpty()) batch.add(cropCapturePending.poll());
+            if (cropCapturePending.isEmpty() && cropCaptureTask != null) {
+                cropCaptureTask.cancel();
+                cropCaptureTask = null;
+            }
+        }
+        Map<UUID, List<ChunkPosition>> snapshots = new HashMap<>();
+        for (CropRefreshJob job : batch) {
+            try { captureLoadedCropChunks(job, snapshots); }
+            catch (Throwable failure) {
+                synchronized (cropRefreshLock) {
+                    cropRefreshJobs.remove(job.island.getUniqueId(), job);
+                    cropRefreshReady.remove(job);
+                }
+                Log.error(failure, "Could not capture loaded crop chunks for island " + job.island.getUniqueId());
+            }
+        }
+    }
+
+    private static void captureLoadedCropChunks(CropRefreshJob job, Map<UUID, List<ChunkPosition>> snapshots) {
+        synchronized (cropRefreshLock) {
+            if (cropRefreshJobs.get(job.island.getUniqueId()) != job)
+                return;
+            job.dirty = false;
+        }
+        if (plugin.getGrid().getIslandByUUID(job.island.getUniqueId()) != job.island) {
+            synchronized (cropRefreshLock) { cropRefreshJobs.remove(job.island.getUniqueId(), job); }
+            return;
+        }
+        Queue<ChunkPosition> positions = new ArrayDeque<>();
+        Set<UUID> seenWorlds = new HashSet<>();
+        for (Dimension dimension : Dimension.values()) {
+            if (plugin.getProviders().getWorldsProvider().isDimensionEnabled(dimension) && job.island.wasSchematicGenerated(dimension)) {
+                World world = job.island.getCenter(dimension).getWorld();
+                collectLoadedCropPositions(job.island, world, seenWorlds, positions, snapshots);
+            }
+        }
+        for (World world : plugin.getGrid().getRegisteredWorlds())
+            collectLoadedCropPositions(job.island, world, seenWorlds, positions, snapshots);
+        synchronized (cropRefreshLock) {
+            if (job.generation != cropRefreshGeneration || cropRefreshJobs.get(job.island.getUniqueId()) != job) return;
+            job.positions = positions;
+            cropRefreshReady.add(job);
+            if (cropRefreshTask == null)
+                cropRefreshTask = BukkitExecutor.asyncRepeating(IslandUtils::drainCropRefreshes, 1L, 1L);
+        }
+    }
+
+    private static void collectLoadedCropPositions(Island island, World world, Set<UUID> seenWorlds,
+                                                   Queue<ChunkPosition> positions, Map<UUID, List<ChunkPosition>> snapshots) {
+        if (world == null || !seenWorlds.add(world.getUID()))
+            return;
+        // Read identities only; live chunk access occurs later on its owner.
+        List<ChunkPosition> loaded = snapshots.computeIfAbsent(world.getUID(), identity -> {
+            List<ChunkPosition> detached = new ArrayList<>();
+            for (Chunk chunk : world.getLoadedChunks())
+                detached.add(ChunkPosition.of(world, chunk.getX(), chunk.getZ(), false));
+            return detached;
+        });
+        for (ChunkPosition position : loaded) {
+            if (island.isInside(world, position.getX(), position.getZ())) positions.add(position);
+        }
+    }
+
+    private static void drainCropRefreshes() {
+        List<CropRefreshWork> work = new ArrayList<>();
+        List<CropRefreshJob> recapture = new ArrayList<>();
+        synchronized (cropRefreshLock) {
+            int budget = Math.max(1, Math.min(8, plugin.getPvcConfig().getChunkLoadConcurrency())) - cropRefreshOutstanding;
+            for (int i = 0; i < budget && !cropRefreshReady.isEmpty(); i++) {
+                CropRefreshJob job = cropRefreshReady.remove();
+                ChunkPosition position = job.positions.poll();
+                if (position != null) {
+                    ++cropRefreshOutstanding; ++job.outstanding;
+                    work.add(new CropRefreshWork(job, position));
+                }
+                if (!job.positions.isEmpty())
+                    cropRefreshReady.add(job);
+                else if (job.outstanding == 0) finishCropRefreshJob(job, recapture);
+            }
+            if (cropRefreshReady.isEmpty() && cropRefreshTask != null) {
+                cropRefreshTask.cancel();
+                cropRefreshTask = null;
+            }
+        }
+        for (CropRefreshWork item : work) {
+            World world = item.position.getWorld();
+            if (world == null) {
+                completeCropRefreshWork(item.job);
+                continue;
+            }
+            try {
+                BukkitExecutor.region(world, item.position.getX(), item.position.getZ(), () -> {
+                    try {
+                    if (item.job.generation != cropRefreshGeneration ||
+                            plugin.getGrid().getIslandByUUID(item.island.getUniqueId()) != item.island ||
+                            !world.isChunkLoaded(item.position.getX(), item.position.getZ()))
+                        return;
+                    Chunk chunk = world.getChunkAt(item.position.getX(), item.position.getZ());
+                    plugin.getNMSChunks().startTickingChunk(item.island, chunk, !item.island.isInsideRange(chunk));
+                    } finally { completeCropRefreshWork(item.job); }
+                }, 1L);
+            } catch (Throwable failure) {
+                completeCropRefreshWork(item.job);
+                Log.error(failure, "Could not schedule loaded crop recalibration");
+            }
+        }
+        recapture.forEach(IslandUtils::scheduleCropCapture);
+    }
+
+    private static void finishCropRefreshJob(CropRefreshJob job, List<CropRefreshJob> recapture) {
+        if (cropRefreshJobs.get(job.island.getUniqueId()) != job) return;
+        if (job.dirty) { job.dirty = false; recapture.add(job); }
+        else cropRefreshJobs.remove(job.island.getUniqueId(), job);
+    }
+    private static void completeCropRefreshWork(CropRefreshJob job) {
+        List<CropRefreshJob> recapture = new ArrayList<>();
+        synchronized (cropRefreshLock) {
+            if (job.generation != cropRefreshGeneration) return;
+            --cropRefreshOutstanding; --job.outstanding;
+            if (job.outstanding == 0 && job.positions.isEmpty()) finishCropRefreshJob(job, recapture);
+        }
+        recapture.forEach(IslandUtils::scheduleCropCapture);
+    }
+    public static void closeCropRefreshes() {
+        synchronized (cropRefreshLock) {
+            cropRefreshClosed = true;
+            ++cropRefreshGeneration;
+            if (cropRefreshTask != null) cropRefreshTask.cancel();
+            if (cropCaptureTask != null) cropCaptureTask.cancel();
+            cropRefreshTask = cropCaptureTask = null; cropRefreshOutstanding = 0;
+            cropRefreshJobs.clear(); cropRefreshReady.clear(); cropCapturePending.clear();
+        }
+    }
+
+    public static void openCropRefreshes() {
+        synchronized (cropRefreshLock) { cropRefreshClosed = false; }
+    }
+
+    private static final class CropRefreshJob {
+        final Island island;
+        Queue<ChunkPosition> positions;
+        boolean dirty;
+        int outstanding;
+        final long generation = cropRefreshGeneration;
+        CropRefreshJob(Island island) { this.island = island; }
+    }
+
+    private static final class CropRefreshWork {
+        final Island island;
+        final CropRefreshJob job;
+        final ChunkPosition position;
+        CropRefreshWork(CropRefreshJob job, ChunkPosition position) { this.job = job; this.island = job.island; this.position = position; }
+    }
 
     private static Biome getDefaultBiomeForEnvironment(World.Environment environment) {
         switch (environment) {
@@ -124,10 +353,33 @@ public class IslandUtils {
     public static List<CompletableFuture<Chunk>> getAllChunksAsync(Island island, WorldInfo worldInfo, @IslandChunkFlags int flags,
                                                                    ChunkLoadReason chunkLoadReason,
                                                                    Consumer<Chunk> onChunkLoad) {
-        return new SequentialListBuilder<CompletableFuture<Chunk>>()
-                .mutable()
-                .build(IslandUtils.getChunkCoords(island, worldInfo, flags), chunkPosition ->
-                        ChunksProvider.loadChunk(chunkPosition, chunkLoadReason, onChunkLoad));
+        List<ChunkPosition> positions = IslandUtils.getChunkCoords(island, worldInfo, flags);
+        List<CompletableFuture<Chunk>> futures = new ArrayList<>(positions.size());
+        for (int i = 0; i < positions.size(); i++)
+            futures.add(new CompletableFuture<>());
+        AtomicInteger cursor = new AtomicInteger();
+        int workers = BukkitExecutor.isFolia() ? 1 : Math.min(8, plugin.getPvcConfig().getChunkLoadConcurrency());
+        for (int i = 0; i < workers; i++)
+            loadNextIslandChunk(positions, futures, cursor, chunkLoadReason, onChunkLoad);
+        return futures;
+    }
+
+    private static void loadNextIslandChunk(List<ChunkPosition> positions, List<CompletableFuture<Chunk>> futures,
+                                           AtomicInteger cursor, ChunkLoadReason reason, Consumer<Chunk> consumer) {
+        int index = cursor.getAndIncrement();
+        if (index >= positions.size())
+            return;
+        ChunksProvider.loadChunk(positions.get(index), reason, consumer).whenComplete((chunk, failure) -> {
+            if (failure == null)
+                futures.get(index).complete(chunk);
+            else
+                futures.get(index).completeExceptionally(failure);
+            try { BukkitExecutor.async(() -> loadNextIslandChunk(positions, futures, cursor, reason, consumer)); }
+            catch (Throwable stopping) {
+                for (CompletableFuture<Chunk> future : futures)
+                    future.completeExceptionally(stopping);
+            }
+        });
     }
 
     public static List<CompletableFuture<Chunk>> getAllChunksAsync(Island island, @IslandChunkFlags int flags,
@@ -182,12 +434,20 @@ public class IslandUtils {
     }
 
     public static void resetChunksExcludedFromList(Island island, Collection<ChunkPosition> excludedChunkPositions) {
-        Map<WorldInfo, List<ChunkPosition>> chunksToDelete = IslandUtils.getChunkCoords(island, 0);
-        chunksToDelete.values().forEach(chunkPositions -> {
-            List<ChunkPosition> clonedChunkPositions = new LinkedList<>(chunkPositions);
-            clonedChunkPositions.removeAll(excludedChunkPositions);
-            deleteChunks(island, clonedChunkPositions, null);
+        resetChunksExcludedFromListAsync(island, excludedChunkPositions).whenComplete((unused, error) -> {
+            if (error != null) Log.error(error, "Excluded-chunk cleanup did not complete");
         });
+    }
+
+    public static CompletableFuture<Void> resetChunksExcludedFromListAsync(Island island, Collection<ChunkPosition> excludedChunkPositions) {
+        Map<WorldInfo, List<ChunkPosition>> chunksToDelete = IslandUtils.getChunkCoords(island, 0);
+        java.util.Set<ChunkPosition> excluded = new java.util.HashSet<>(excludedChunkPositions);
+        CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
+        for (List<ChunkPosition> positions : chunksToDelete.values()) {
+            positions.removeIf(excluded::contains);
+            chain = chain.thenCompose(unused -> deleteExistingChunksAsync(island, positions));
+        }
+        return chain;
     }
 
     public static void sendMessage(Island island, Message message, List<UUID> ignoredMembers, Object... args) {
@@ -204,7 +464,7 @@ public class IslandUtils {
 
     public static PlayerRole getPlayerRole(Island island, SuperiorPlayer superiorPlayer) {
         if (island.isMember(superiorPlayer)) {
-            return superiorPlayer.getPlayerRole();
+            return superiorPlayer.getPlayerRole(island);
         } else if (island.isCoop(superiorPlayer)) {
             return SPlayerRole.coopRole();
         } else {
@@ -213,7 +473,7 @@ public class IslandUtils {
     }
 
     public static boolean checkTransferRestrictions(SuperiorPlayer superiorPlayer, Island island, SuperiorPlayer targetPlayer) {
-        if (!superiorPlayer.getPlayerRole().isLastRole()) {
+        if (!superiorPlayer.getPlayerRole(island).isLastRole()) {
             Message.NO_TRANSFER_PERMISSION.send(superiorPlayer);
             return false;
         }
@@ -232,12 +492,11 @@ public class IslandUtils {
     }
 
     public static void handleTransferIsland(SuperiorPlayer caller, Island island, SuperiorPlayer target) {
-        if (!PluginEventsFactory.callIslandTransferEvent(island, caller, target))
-            return;
-
-        island.transferIsland(target);
-
-        IslandUtils.sendMessage(island, Message.TRANSFER_BROADCAST, Collections.emptyList(), target.getName());
+        if (!checkTransferRestrictions(caller, island, target)) return;
+        island.transferIslandAsync(target).whenComplete((success, error) -> {
+            if (error != null) { Log.error(error, "Cannot complete ownership transfer"); return; }
+            if (Boolean.TRUE.equals(success)) IslandUtils.sendMessage(island, Message.TRANSFER_BROADCAST, Collections.emptyList(), target.getName());
+        });
     }
 
     public static boolean checkKickRestrictions(SuperiorPlayer superiorPlayer, Island island, SuperiorPlayer targetPlayer) {
@@ -246,7 +505,7 @@ public class IslandUtils {
             return false;
         }
 
-        if (!targetPlayer.getPlayerRole().isLessThan(superiorPlayer.getPlayerRole())) {
+        if (!targetPlayer.getPlayerRole(island).isLessThan(superiorPlayer.getPlayerRole(island))) {
             Message.KICK_PLAYERS_WITH_LOWER_ROLE.send(superiorPlayer);
             return false;
         }
@@ -283,7 +542,7 @@ public class IslandUtils {
     public static boolean checkBanRestrictions(SuperiorPlayer superiorPlayer, Island island, SuperiorPlayer targetPlayer) {
         Island playerIsland = superiorPlayer.getIsland();
         if (playerIsland != null && playerIsland.isMember(targetPlayer) &&
-                !targetPlayer.getPlayerRole().isLessThan(superiorPlayer.getPlayerRole())) {
+                !targetPlayer.getPlayerRole(island).isLessThan(superiorPlayer.getPlayerRole(island))) {
             Message.BAN_PLAYERS_WITH_LOWER_ROLE.send(superiorPlayer);
             return false;
         }
@@ -308,6 +567,13 @@ public class IslandUtils {
     }
 
     public static void deleteChunks(Island island, List<ChunkPosition> chunkPositions, Runnable onFinish) {
+        if (BukkitExecutor.isFolia()) {
+            deleteChunksAsync(island, chunkPositions).whenComplete((unused, error) -> {
+                if (error == null && onFinish != null) onFinish.run();
+                else if (error != null) plugin.getLogger().log(java.util.logging.Level.SEVERE, "Island reset failed; cell must remain reserved", error);
+            });
+            return;
+        }
         SynchronizedTasks synchronizedTasks = new SynchronizedTasks(1, onFinish);
         chunkPositions.forEach(chunkPosition -> {
             plugin.getStackedBlocks().removeStackedBlocks(chunkPosition);
@@ -315,6 +581,42 @@ public class IslandUtils {
         });
         plugin.getNMSChunks().deleteChunks(island, chunkPositions, synchronizedTasks::notifyTaskComplete);
         synchronizedTasks.waitAllAsync();
+    }
+
+    public static CompletableFuture<Void> deleteChunksAsync(Island island, List<ChunkPosition> positions) {
+        long generation = plugin.getPvcIslandService().getWorldGeneration(island.getUniqueId());
+        CompletableFuture<Void> clearing;
+        if (!BukkitExecutor.isFolia()) {
+            clearing = com.bgsoftware.superiorskyblock.core.threads.OwnedStage.submit(BukkitExecutor::ensureMain, () -> {
+                if (!plugin.getPvcIslandService().isCurrentWorldWriter(island, generation))
+                    throw new java.util.concurrent.RejectedExecutionException("Island cleanup generation retired");
+                for (ChunkPosition position : positions) {
+                    plugin.getStackedBlocks().removeStackedBlocks(position);
+                    PluginEventsFactory.callIslandChunkResetEvent(island, position);
+                }
+                return plugin.getNMSChunks().deleteChunksAsync(island, positions);
+            });
+        } else clearing = com.bgsoftware.superiorskyblock.world.chunk.ChunksProvider.processExistingBounded(positions,
+                ChunkLoadReason.DELETE_CHUNK, chunk -> {
+                    if (!plugin.getPvcIslandService().isCurrentWorldWriter(island, generation))
+                        throw new java.util.concurrent.RejectedExecutionException("Island cleanup generation retired");
+                    ChunkPosition position = ChunkPosition.of(chunk, false);
+                    plugin.getStackedBlocks().removeStackedBlocks(position);
+                    PluginEventsFactory.callIslandChunkResetEvent(island, position);
+                }).thenCompose(unused -> plugin.getNMSChunks().deleteChunksAsync(island, positions));
+        return clearing.thenCompose(unused -> com.bgsoftware.superiorskyblock.world.chunk.ChunkStorageBridge.saveChunksAsync(island, generation, positions))
+                .thenRun(() -> {
+                    if (!plugin.getPvcIslandService().isCurrentWorldWriter(island, generation))
+                        throw new java.util.concurrent.RejectedExecutionException("Island cleanup generation retired");
+                    positions.forEach(position -> island.markChunkEmpty(position.getWorld(), position.getX(), position.getZ(), true));
+                });
+    }
+
+    public static CompletableFuture<Void> deleteExistingChunksAsync(Island island, List<ChunkPosition> positions) {
+        // Native region-file headers include persisted spill even if dirty-bit
+        // coalescing was interrupted by a crash. Absent coordinates never load.
+        return com.bgsoftware.superiorskyblock.world.chunk.ChunkStorageBridge.existingPositions(positions)
+                .thenCompose(existing -> deleteChunksAsync(island, existing));
     }
 
     public static boolean isValidRoleForLimit(PlayerRole playerRole) {

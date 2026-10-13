@@ -40,12 +40,16 @@ public class BankCustomWithdrawButton extends AbstractMenuViewButton<IslandMenuV
 
         menuView.closeView();
 
-        PlayerChat.listen(player, message -> {
+        PlayerChat.listen(player, com.bgsoftware.superiorskyblock.island.privilege.IslandPrivileges.WITHDRAW_MONEY, message -> {
             try {
                 BigDecimal newAmount = BigDecimal.valueOf(Double.parseDouble(message));
-                BankTransaction bankTransaction = island.getIslandBank().withdrawMoney(clickedPlayer, newAmount, null);
-                MenuActions.handleWithdraw(clickedPlayer, island, bankTransaction,
-                        getTemplate().successSound, getTemplate().failSound, newAmount);
+                island.getIslandBank().withdrawMoneyAsync(clickedPlayer, newAmount, null)
+                        .whenComplete((transaction, failure) -> clickedPlayer.runIfOnline(online -> {
+                            if (failure != null) Message.WITHDRAW_ERROR.send(clickedPlayer,
+                                    "Bank settlement failed; do not retry until an administrator checks it");
+                            else MenuActions.handleWithdraw(clickedPlayer, island, transaction,
+                                    getTemplate().successSound, getTemplate().failSound, newAmount);
+                        }));
             } catch (IllegalArgumentException ex) {
                 Message.INVALID_AMOUNT.send(clickedPlayer, message);
             }

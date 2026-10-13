@@ -56,8 +56,9 @@ public class IslandCreationButton extends AbstractMenuViewButton<MenuIslandCreat
     @Override
     public void onButtonClickLackPermission(ButtonClickContext<MenuIslandCreation.View> context) {
         super.onButtonClickLackPermission(context);
-        getTemplate().lackPermissionCommands.forEach(command -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
-                command.replace("%player%", context.getPlayer().getName())));
+        getTemplate().lackPermissionCommands.forEach(command -> com.bgsoftware.superiorskyblock.core.menu.MenuCommandsImpl.getInstance()
+                .dispatchConfiguredCommand(menuView, Bukkit.getConsoleSender(),
+                        command.replace("%player%", context.getPlayer().getName()), null));
     }
 
     public static class Builder extends AbstractMenuTemplateButton.AbstractBuilder<MenuIslandCreation.View> {

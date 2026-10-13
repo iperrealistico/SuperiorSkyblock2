@@ -22,9 +22,9 @@ rewards:
   commands:
     - 'eco give %player% 1000'
     - 'is admin rankup %player% generator-rates'
-    - 'is admin msg %player% &e&lMiner | &7Successfully finished the mission Miner I!'
-    - 'is admin msg %player% &e&lMiner | &7Now that you are familiar with generators, mine some iron.'
-    - 'is admin msg %player% &e&lMiner | &7&oFor more information about the next mission, checkout /is missions'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Successfully finished the mission Miner I!'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7Now that you are familiar with generators, mine some iron.'
+    - 'is admin msg %player% &8[&6Skyblock&8] &7&oFor more information about the next mission, checkout /is missions'
 
 # List of all required blocks must be gathered in order to complete the mission.
 required-blocks:
@@ -42,7 +42,7 @@ required-blocks:
 icons:
   not-completed:
     type: PAPER
-    name: '&aMiner I'
+    name: '&6Miner I'
     lore:
       - '&7Mine x48 cobblestone and x16 coal ore.'
       - ''
@@ -57,10 +57,10 @@ icons:
       - '&6Cobblestone Mined: &7{value_stone}/48'
       - '&6Coal Ore Mined: &7{value_coal_ore}/16'
       - '&6Progress: &7{0}%'
-      - '&c&l ✘ &7Not Completed'
+      - '&6&l ✘ &7Not Completed'
   can-complete:
     type: PAPER
-    name: '&aMiner I'
+    name: '&6Miner I'
     lore:
       - '&7Mine x48 cobblestone and x16 coal ore.'
       - ''
@@ -75,11 +75,11 @@ icons:
       - '&6Cobblestone Mined: &748/48'
       - '&6Coal Ore Mined: &716/16'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Click to redeem your reward.'
+      - '&e&l ✔ &7Click to redeem your reward.'
     glow: true
   completed:
     type: MAP
-    name: '&aMiner I'
+    name: '&6Miner I'
     lore:
       - '&7Mine x48 cobblestone and x16 coal ore.'
       - ''
@@ -90,4 +90,4 @@ icons:
       - '&6Cobblestone Mined: &748/48'
       - '&6Coal Ore Mined: &716/16'
       - '&6Progress: &7100%'
-      - '&a&l ✔ &7Already Claimed.'
+      - '&e&l ✔ &7Already Claimed.'

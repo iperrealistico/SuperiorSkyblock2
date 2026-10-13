@@ -9,7 +9,7 @@ import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.core.LazyReference;
 import com.bgsoftware.superiorskyblock.core.Text;
 import com.bgsoftware.superiorskyblock.core.collections.ArrayMap;
-import com.bgsoftware.superiorskyblock.core.collections.AutoRemovalCollection;
+import com.google.common.cache.Cache;
 import com.bgsoftware.superiorskyblock.core.events.args.PluginEventArgs;
 import com.bgsoftware.superiorskyblock.core.events.plugin.PluginEvent;
 import com.bgsoftware.superiorskyblock.core.events.plugin.PluginEventType;
@@ -26,11 +26,9 @@ import org.bukkit.entity.Player;
 
 import java.io.File;
 import java.io.InputStream;
-import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 public enum Message {
 
@@ -330,6 +328,10 @@ public enum Message {
     COOP_LIMIT_EXCEED,
     CREATE_ISLAND,
     CREATE_ISLAND_FAILURE,
+    PVC_OWNERSHIP_LIMIT_REACHED,
+    PVC_ISLAND_CREATION_QUEUE_FULL,
+    PVC_OWNERSHIP_POLICY_UNAVAILABLE,
+    PVC_SERVER_LANGUAGE_FIXED,
     CREATE_WORLD_FAILURE,
     DANGEROUS_COMMAND_APPROVED,
     DANGEROUS_COMMAND_CANCELLED,
@@ -831,7 +833,7 @@ public enum Message {
     private final boolean isCustom;
     private final Map<Locale, IMessageComponent> messages = new ArrayMap<>();
     @Nullable
-    private Collection<UUID> delayedMessages;
+    private volatile Cache<UUID, Boolean> delayedMessages;
 
     Message() {
         this(null);
@@ -891,7 +893,10 @@ public enum Message {
             if (plugin.getSettings().getDefaultLanguage().equalsIgnoreCase(fileName))
                 PlayerLocales.setDefaultLocale(fileLocale);
 
+            try { com.bgsoftware.superiorskyblock.pvc.PvcLanguageDefaults.merge(langFile); }
+            catch (java.io.IOException error) { Log.error(error, "PVC locale defaults could not be saved to ", langFile.getName()); }
             CommentedConfiguration cfg = CommentedConfiguration.loadConfiguration(langFile);
+            com.bgsoftware.superiorskyblock.pvc.PvcLanguageDefaults.applyMissing(cfg, langFile);
 
             // Additional saving, because we are not adding a new message, we are only changing the format of the old one,
             // so cfg.syncWithConfig() will not detect it and will not save the file.
@@ -936,7 +941,7 @@ public enum Message {
 
     @Nullable
     public IMessageComponent getComponent(Locale locale) {
-        return messages.get(locale);
+        return messages.get(PlayerLocales.getPresentationLocale(locale));
     }
 
     @Nullable
@@ -946,7 +951,9 @@ public enum Message {
 
     @Nullable
     public String getMessage(Locale locale, Object... args) {
-        return isEmpty(locale) ? defaultMessage : messages.get(locale).getMessage(args);
+        IMessageComponent component = getComponent(locale);
+        return component == null || component.getType() == IMessageComponent.Type.EMPTY || component.getMessage(EMPTY_ARGS).isEmpty()
+                ? defaultMessage : component.getMessage(args);
     }
 
     public final void sendPlayerOrConsole(@Nullable SuperiorPlayer superiorPlayer) {
@@ -995,7 +1002,8 @@ public enum Message {
 
         if (sender instanceof Player) {
             UUID playerUUID = ((Player) sender).getUniqueId();
-            if (delayedMessages != null && !delayedMessages.add(playerUUID))
+            Cache<UUID, Boolean> delaySnapshot = delayedMessages;
+            if (!MessageDelayCache.claim(delaySnapshot, playerUUID))
                 return;
         }
 
@@ -1045,7 +1053,7 @@ public enum Message {
             long delay = plugin.getSettings().getMessageDelays().getOrDefault(message.name(), 0L);
 
             if (delay > 0L)
-                message.delayedMessages = AutoRemovalCollection.newHashSet(delay, TimeUnit.MILLISECONDS);
+                message.delayedMessages = MessageDelayCache.create(delay);
             else
                 message.delayedMessages = null;
         }
