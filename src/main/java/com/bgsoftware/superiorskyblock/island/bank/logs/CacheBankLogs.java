@@ -18,11 +18,14 @@ public class CacheBankLogs implements IBankLogs {
 
     private final Synchronized<SortedSet<BankTransaction>> transactions = Synchronized.of(new TreeSet<>(SortingComparators.BANK_TRANSACTIONS_COMPARATOR));
     private final Map<UUID, Synchronized<List<BankTransaction>>> transactionsByPlayers = new ConcurrentHashMap<>();
+    private final java.util.concurrent.atomic.AtomicInteger position = new java.util.concurrent.atomic.AtomicInteger();
 
     @Override
     public int getLastTransactionPosition() {
-        return this.transactions.readAndGet(set -> set.isEmpty() ? 0 : set.last().getPosition());
+        return position.get();
     }
+
+    @Override public int nextTransactionPosition() { return position.incrementAndGet(); }
 
     @Override
     public List<BankTransaction> getTransactions() {
@@ -32,11 +35,13 @@ public class CacheBankLogs implements IBankLogs {
     @Override
     public List<BankTransaction> getTransactions(UUID playerUUID) {
         Synchronized<List<BankTransaction>> transactions = this.transactionsByPlayers.get(playerUUID);
-        return transactions == null ? Collections.emptyList() : transactions.readAndGet(Collections::unmodifiableList);
+        return transactions == null ? Collections.emptyList() : transactions.readAndGet(list ->
+                Collections.unmodifiableList(new java.util.ArrayList<>(list)));
     }
 
     @Override
     public void addTransaction(BankTransaction bankTransaction, UUID senderUUID, boolean loadFromDatabase) {
+        position.accumulateAndGet(bankTransaction.getPosition(), Math::max);
         transactions.write(transactions -> transactions.add(bankTransaction));
         transactionsByPlayers.computeIfAbsent(senderUUID, p -> Synchronized.of(new LinkedList<>()))
                 .write(transactions -> transactions.add(bankTransaction));

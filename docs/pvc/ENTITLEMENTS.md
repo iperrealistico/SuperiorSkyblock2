@@ -3,7 +3,7 @@
 The fork resolves island ownership and radius from the owner's effective
 permissions, not from rank names, OP state, a Jets command, or a member's rank.
 This policy and the conditional command presentation below describe
-`2026.3-pvc.2`; completed qualification is recorded separately in
+`2026.3-pvc.3`; completed qualification is recorded separately in
 [VERIFICATION.md](VERIFICATION.md).
 
 ## Nodes

@@ -164,6 +164,10 @@ public abstract class BaseMenu<V extends MenuView<V, A>, A extends ViewArgs> imp
             return;
         }
 
+        // Validate the captured subject before any configured hook or built-in effect.
+        if (!onPreButtonClick(menuButton, context))
+            return;
+
         Player player = context.getPlayer();
 
         GameSound clickSound = menuButton.getTemplate().getClickSound();
@@ -173,7 +177,8 @@ public abstract class BaseMenu<V extends MenuView<V, A>, A extends ViewArgs> imp
         menuButton.getTemplate().getClickCommands().forEach(command ->
                 MenuCommands.getInstance().runCommand(menuView, command, context));
 
-        if (onPreButtonClick(menuButton, context))
+        // A configured hook can invalidate the subject validated above.
+        if (onPostConfiguredButtonCommands(menuButton, context))
             menuButton.onButtonClick(context);
     }
 
@@ -190,6 +195,11 @@ public abstract class BaseMenu<V extends MenuView<V, A>, A extends ViewArgs> imp
     }
 
     protected abstract boolean onPreButtonClick(MenuViewButton<V> menuButton, ButtonClickContext<V> context);
+
+    /** Revalidate after configured hooks without repeating paged-object preparation. */
+    protected boolean onPostConfiguredButtonCommands(MenuViewButton<V> menuButton, ButtonClickContext<V> context) {
+        return true;
+    }
 
     protected abstract void onButtonClickLackPermission(MenuViewButton<V> menuButton, ButtonClickContext<V> context);
 

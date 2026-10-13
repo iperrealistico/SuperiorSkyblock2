@@ -29,7 +29,7 @@ public class GlobalWarpsPagedObjectButton extends AbstractPagedMenuButton<MenuGl
         if (Menus.MENU_GLOBAL_WARPS.isVisitorWarps()) {
             menuView.setPreviousMove(false);
             plugin.getCommands().dispatchSubCommand(menuView.getInventoryViewer().asPlayer(),
-                    "visit", pagedObject.getOwner().getName());
+                    "visit", pagedObject.getUniqueId().toString());
         } else {
             plugin.getProviders().getMenusProvider().openWarpCategories(
                     menuView.getInventoryViewer(), MenuViewWrapper.fromView(menuView), pagedObject);

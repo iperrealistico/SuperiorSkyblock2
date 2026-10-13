@@ -3,8 +3,9 @@
 This document describes the maintained execution and storage contracts in the
 PVC source fork. Use the exact artifact identity, platform builds, completed
 scenarios and limitations in the completed
-[verification record](VERIFICATION.md): all 87 native phases passed on the four
-recorded Leaf/Folia 1.21.11 and 26.2 builds. Folia End qualification includes two
+[verification record](VERIFICATION.md). The PVC3 shared-state and bounded-work
+changes are described in [CORRECTIONS-PVC3.md](CORRECTIONS-PVC3.md).
+Folia End qualification includes two
 actual actors, native combat/respawn, ticket lifecycle, genuine topology changes
 and occupied reset. This does not qualify another plugin stack or a future
 native ABI, and does not authorize a server change. Installation, backups,

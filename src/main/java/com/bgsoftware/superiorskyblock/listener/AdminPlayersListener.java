@@ -32,14 +32,14 @@ public class AdminPlayersListener extends AbstractGameEventListener {
 
         // Notifies me when a server uses one of my plugins.
         if (player.getUniqueId().equals(DEVELOPER_UUID)) {
-            Bukkit.getScheduler().runTaskLater(plugin, () -> Message.CUSTOM.send(player,
+            com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.entity(player, () -> Message.CUSTOM.send(player,
                     "&8[&fSuperiorSeries&8] &7This server is using SuperiorSkyblock2 v" +
                             plugin.getDescription().getVersion() + buildName, true), 5L);
         }
 
         // Notifies operators about new updates
         if (player.isOp() && plugin.getUpdater().isOutdated()) {
-            Bukkit.getScheduler().runTaskLater(plugin, () ->
+            com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.entity(player, () ->
                     player.sendMessage(ChatColor.BLUE + "" + ChatColor.BOLD + "SuperiorSkyblock2" + ChatColor.GRAY +
                             " A new version is available (v" + plugin.getUpdater().getLatestVersion() + ")!"), 20L);
         }

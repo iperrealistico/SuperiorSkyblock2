@@ -89,11 +89,15 @@ public class IslandUtils {
     private static final Queue<CropRefreshJob> cropCapturePending = new ArrayDeque<>();
     private static BukkitTask cropRefreshTask;
     private static BukkitTask cropCaptureTask;
+    private static int cropRefreshOutstanding;
+    private static volatile long cropRefreshGeneration;
+    private static boolean cropRefreshClosed;
 
     /** Coalesced, loaded-only recalibration; no cell scan or chunk generation. */
     public static void recalibrateLoadedCropChunks(Island island) {
         CropRefreshJob job;
         synchronized (cropRefreshLock) {
+            if (cropRefreshClosed) return;
             job = cropRefreshJobs.get(island.getUniqueId());
             if (job != null) { job.dirty = true; return; }
             job = new CropRefreshJob(island);
@@ -104,6 +108,8 @@ public class IslandUtils {
 
     private static void scheduleCropCapture(CropRefreshJob job) {
         synchronized (cropRefreshLock) {
+            if (cropRefreshClosed || job.generation != cropRefreshGeneration ||
+                    cropRefreshJobs.get(job.island.getUniqueId()) != job) return;
             try {
                 cropCapturePending.add(job);
                 if (cropCaptureTask == null)
@@ -116,16 +122,18 @@ public class IslandUtils {
     }
 
     private static void captureNextCropJob() {
-        CropRefreshJob job;
+        List<CropRefreshJob> batch = new ArrayList<>();
         synchronized (cropRefreshLock) {
-            job = cropCapturePending.poll();
+            int budget = Math.max(1, Math.min(8, plugin.getPvcConfig().getChunkLoadConcurrency()));
+            while (batch.size() < budget && !cropCapturePending.isEmpty()) batch.add(cropCapturePending.poll());
             if (cropCapturePending.isEmpty() && cropCaptureTask != null) {
                 cropCaptureTask.cancel();
                 cropCaptureTask = null;
             }
         }
-        if (job != null) {
-            try { captureLoadedCropChunks(job); }
+        Map<UUID, List<ChunkPosition>> snapshots = new HashMap<>();
+        for (CropRefreshJob job : batch) {
+            try { captureLoadedCropChunks(job, snapshots); }
             catch (Throwable failure) {
                 synchronized (cropRefreshLock) {
                     cropRefreshJobs.remove(job.island.getUniqueId(), job);
@@ -136,7 +144,7 @@ public class IslandUtils {
         }
     }
 
-    private static void captureLoadedCropChunks(CropRefreshJob job) {
+    private static void captureLoadedCropChunks(CropRefreshJob job, Map<UUID, List<ChunkPosition>> snapshots) {
         synchronized (cropRefreshLock) {
             if (cropRefreshJobs.get(job.island.getUniqueId()) != job)
                 return;
@@ -151,12 +159,13 @@ public class IslandUtils {
         for (Dimension dimension : Dimension.values()) {
             if (plugin.getProviders().getWorldsProvider().isDimensionEnabled(dimension) && job.island.wasSchematicGenerated(dimension)) {
                 World world = job.island.getCenter(dimension).getWorld();
-                collectLoadedCropPositions(job.island, world, seenWorlds, positions);
+                collectLoadedCropPositions(job.island, world, seenWorlds, positions, snapshots);
             }
         }
         for (World world : plugin.getGrid().getRegisteredWorlds())
-            collectLoadedCropPositions(job.island, world, seenWorlds, positions);
+            collectLoadedCropPositions(job.island, world, seenWorlds, positions, snapshots);
         synchronized (cropRefreshLock) {
+            if (job.generation != cropRefreshGeneration || cropRefreshJobs.get(job.island.getUniqueId()) != job) return;
             job.positions = positions;
             cropRefreshReady.add(job);
             if (cropRefreshTask == null)
@@ -165,13 +174,18 @@ public class IslandUtils {
     }
 
     private static void collectLoadedCropPositions(Island island, World world, Set<UUID> seenWorlds,
-                                                   Queue<ChunkPosition> positions) {
+                                                   Queue<ChunkPosition> positions, Map<UUID, List<ChunkPosition>> snapshots) {
         if (world == null || !seenWorlds.add(world.getUID()))
             return;
         // Read identities only; live chunk access occurs later on its owner.
-        for (Chunk chunk : world.getLoadedChunks()) {
-            if (island.isInside(world, chunk.getX(), chunk.getZ()))
-                positions.add(ChunkPosition.of(world, chunk.getX(), chunk.getZ(), false));
+        List<ChunkPosition> loaded = snapshots.computeIfAbsent(world.getUID(), identity -> {
+            List<ChunkPosition> detached = new ArrayList<>();
+            for (Chunk chunk : world.getLoadedChunks())
+                detached.add(ChunkPosition.of(world, chunk.getX(), chunk.getZ(), false));
+            return detached;
+        });
+        for (ChunkPosition position : loaded) {
+            if (island.isInside(world, position.getX(), position.getZ())) positions.add(position);
         }
     }
 
@@ -179,18 +193,17 @@ public class IslandUtils {
         List<CropRefreshWork> work = new ArrayList<>();
         List<CropRefreshJob> recapture = new ArrayList<>();
         synchronized (cropRefreshLock) {
-            int budget = Math.max(1, Math.min(8, plugin.getPvcConfig().getChunkLoadConcurrency()));
+            int budget = Math.max(1, Math.min(8, plugin.getPvcConfig().getChunkLoadConcurrency())) - cropRefreshOutstanding;
             for (int i = 0; i < budget && !cropRefreshReady.isEmpty(); i++) {
                 CropRefreshJob job = cropRefreshReady.remove();
                 ChunkPosition position = job.positions.poll();
-                if (position != null)
-                    work.add(new CropRefreshWork(job.island, position));
+                if (position != null) {
+                    ++cropRefreshOutstanding; ++job.outstanding;
+                    work.add(new CropRefreshWork(job, position));
+                }
                 if (!job.positions.isEmpty())
                     cropRefreshReady.add(job);
-                else if (job.dirty)
-                    recapture.add(job);
-                else
-                    cropRefreshJobs.remove(job.island.getUniqueId(), job);
+                else if (job.outstanding == 0) finishCropRefreshJob(job, recapture);
             }
             if (cropRefreshReady.isEmpty() && cropRefreshTask != null) {
                 cropRefreshTask.cancel();
@@ -199,32 +212,72 @@ public class IslandUtils {
         }
         for (CropRefreshWork item : work) {
             World world = item.position.getWorld();
-            if (world == null)
+            if (world == null) {
+                completeCropRefreshWork(item.job);
                 continue;
+            }
             try {
                 BukkitExecutor.region(world, item.position.getX(), item.position.getZ(), () -> {
-                    if (plugin.getGrid().getIslandByUUID(item.island.getUniqueId()) != item.island ||
+                    try {
+                    if (item.job.generation != cropRefreshGeneration ||
+                            plugin.getGrid().getIslandByUUID(item.island.getUniqueId()) != item.island ||
                             !world.isChunkLoaded(item.position.getX(), item.position.getZ()))
                         return;
                     Chunk chunk = world.getChunkAt(item.position.getX(), item.position.getZ());
                     plugin.getNMSChunks().startTickingChunk(item.island, chunk, !item.island.isInsideRange(chunk));
+                    } finally { completeCropRefreshWork(item.job); }
                 }, 1L);
-            } catch (Throwable failure) { Log.error(failure, "Could not schedule loaded crop recalibration"); }
+            } catch (Throwable failure) {
+                completeCropRefreshWork(item.job);
+                Log.error(failure, "Could not schedule loaded crop recalibration");
+            }
         }
         recapture.forEach(IslandUtils::scheduleCropCapture);
+    }
+
+    private static void finishCropRefreshJob(CropRefreshJob job, List<CropRefreshJob> recapture) {
+        if (cropRefreshJobs.get(job.island.getUniqueId()) != job) return;
+        if (job.dirty) { job.dirty = false; recapture.add(job); }
+        else cropRefreshJobs.remove(job.island.getUniqueId(), job);
+    }
+    private static void completeCropRefreshWork(CropRefreshJob job) {
+        List<CropRefreshJob> recapture = new ArrayList<>();
+        synchronized (cropRefreshLock) {
+            if (job.generation != cropRefreshGeneration) return;
+            --cropRefreshOutstanding; --job.outstanding;
+            if (job.outstanding == 0 && job.positions.isEmpty()) finishCropRefreshJob(job, recapture);
+        }
+        recapture.forEach(IslandUtils::scheduleCropCapture);
+    }
+    public static void closeCropRefreshes() {
+        synchronized (cropRefreshLock) {
+            cropRefreshClosed = true;
+            ++cropRefreshGeneration;
+            if (cropRefreshTask != null) cropRefreshTask.cancel();
+            if (cropCaptureTask != null) cropCaptureTask.cancel();
+            cropRefreshTask = cropCaptureTask = null; cropRefreshOutstanding = 0;
+            cropRefreshJobs.clear(); cropRefreshReady.clear(); cropCapturePending.clear();
+        }
+    }
+
+    public static void openCropRefreshes() {
+        synchronized (cropRefreshLock) { cropRefreshClosed = false; }
     }
 
     private static final class CropRefreshJob {
         final Island island;
         Queue<ChunkPosition> positions;
         boolean dirty;
+        int outstanding;
+        final long generation = cropRefreshGeneration;
         CropRefreshJob(Island island) { this.island = island; }
     }
 
     private static final class CropRefreshWork {
         final Island island;
+        final CropRefreshJob job;
         final ChunkPosition position;
-        CropRefreshWork(Island island, ChunkPosition position) { this.island = island; this.position = position; }
+        CropRefreshWork(CropRefreshJob job, ChunkPosition position) { this.job = job; this.island = job.island; this.position = position; }
     }
 
     private static Biome getDefaultBiomeForEnvironment(World.Environment environment) {

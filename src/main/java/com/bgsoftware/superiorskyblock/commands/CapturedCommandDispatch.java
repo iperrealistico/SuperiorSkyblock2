@@ -9,9 +9,20 @@ import org.bukkit.command.CommandSender;
 public final class CapturedCommandDispatch {
     private CapturedCommandDispatch() { }
 
+    public static boolean isOwnCommand(SuperiorSkyblockPlugin plugin, String command) {
+        return plugin.getCommands() instanceof CommandsManagerImpl &&
+                ((CommandsManagerImpl) plugin.getCommands()).ownsCapturedCommand(command);
+    }
+
     public static boolean dispatch(SuperiorSkyblockPlugin plugin, CommandSender sender, String command, Island target) {
         return plugin.getCommands() instanceof CommandsManagerImpl ?
                 ((CommandsManagerImpl) plugin.getCommands()).dispatchCapturedCommand(sender, command, target) :
+                Bukkit.dispatchCommand(sender, command);
+    }
+
+    public static boolean dispatchCurrent(SuperiorSkyblockPlugin plugin, CommandSender sender, String command) {
+        return plugin.getCommands() instanceof CommandsManagerImpl ?
+                ((CommandsManagerImpl) plugin.getCommands()).dispatchCurrentCommand(sender, command) :
                 Bukkit.dispatchCommand(sender, command);
     }
 }

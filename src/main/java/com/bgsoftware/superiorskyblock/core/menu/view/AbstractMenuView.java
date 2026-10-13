@@ -40,8 +40,7 @@ public abstract class AbstractMenuView<V extends MenuView<V, A>, A extends ViewA
     private boolean refreshing = false;
     private final long actionCreatedAt = System.currentTimeMillis();
     private final java.util.concurrent.atomic.AtomicBoolean actionConsumed = new java.util.concurrent.atomic.AtomicBoolean();
-    private java.util.UUID actionIsland, actionOwner;
-    private long actionRevision;
+    private IslandActionGuard actionGuard;
 
     protected Object[] cachedTitleArgs = null;
 
@@ -51,26 +50,29 @@ public abstract class AbstractMenuView<V extends MenuView<V, A>, A extends ViewA
     }
 
     public final void bindActionTarget(com.bgsoftware.superiorskyblock.api.island.Island island) {
-        actionIsland = island == null ? null : island.getUniqueId();
-        actionOwner = island == null || island.getOwner() == null ? null : island.getOwner().getUniqueId();
-        actionRevision = island == null ? 0L : plugin.getPvcIslandService().getRevision(island.getUniqueId());
+        actionGuard = new IslandActionGuard(island == null ? null : island.getUniqueId(),
+                island == null || island.getOwner() == null ? null : island.getOwner().getUniqueId(),
+                island == null ? 0L : plugin.getPvcIslandService().getRevision(island.getUniqueId()),
+                island == null ? 0L : plugin.getPvcIslandService().getMembershipRevision(island.getUniqueId()), actionCreatedAt);
     }
     public final com.bgsoftware.superiorskyblock.api.island.Island getActionTarget() {
-        return actionIsland == null ? null : plugin.getGrid().getIslandByUUID(actionIsland);
+        return actionGuard.island == null ? null : plugin.getGrid().getIslandByUUID(actionGuard.island);
     }
     public final boolean isIslandContextCurrent() {
         com.bgsoftware.superiorskyblock.api.island.Island target = getActionTarget();
-        return actionIsland == null || (target != null && plugin.getPvcIslandService().isAvailable(actionIsland) &&
-                java.util.Objects.equals(actionOwner, target.getOwner() == null ? null : target.getOwner().getUniqueId()) &&
-                actionRevision == plugin.getPvcIslandService().getRevision(actionIsland));
+        return actionGuard.island == null || target != null && actionGuard.contextCurrent(target.getUniqueId(),
+                target.getOwner() == null ? null : target.getOwner().getUniqueId(),
+                plugin.getPvcIslandService().getRevision(target.getUniqueId()),
+                plugin.getPvcIslandService().getMembershipRevision(target.getUniqueId()),
+                plugin.getPvcIslandService().isAvailable(target.getUniqueId()));
     }
     public final boolean claimIslandAction(com.bgsoftware.superiorskyblock.api.island.Island island,
                                            com.bgsoftware.superiorskyblock.api.island.IslandPrivilege privilege) {
-        boolean valid = island != null && System.currentTimeMillis() - actionCreatedAt <= 60000L &&
-                java.util.Objects.equals(actionIsland, island.getUniqueId()) &&
-                java.util.Objects.equals(actionOwner, island.getOwner() == null ? null : island.getOwner().getUniqueId()) &&
-                actionRevision == plugin.getPvcIslandService().getRevision(island.getUniqueId()) &&
-                plugin.getPvcIslandService().isAvailable(island.getUniqueId()) && island.isMember(inventoryViewer) &&
+        boolean valid = island != null && actionGuard.actionCurrent(island.getUniqueId(),
+                island.getOwner() == null ? null : island.getOwner().getUniqueId(),
+                plugin.getPvcIslandService().getRevision(island.getUniqueId()),
+                plugin.getPvcIslandService().getMembershipRevision(island.getUniqueId()), System.currentTimeMillis(),
+                plugin.getPvcIslandService().isAvailable(island.getUniqueId())) && island.isMember(inventoryViewer) &&
                 (privilege == null || island.hasPermission(inventoryViewer, privilege));
         if (valid && actionConsumed.compareAndSet(false, true)) return true;
         Message.CUSTOM.send(inventoryViewer, "&cThis confirmation expired or the island permissions changed. Open it again.", true);

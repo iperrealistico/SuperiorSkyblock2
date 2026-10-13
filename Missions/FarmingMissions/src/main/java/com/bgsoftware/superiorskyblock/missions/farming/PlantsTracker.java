@@ -37,7 +37,9 @@ public class PlantsTracker {
     public void track(World world, int x, int y, int z, UUID placer) {
         String name = world.getName();
         int minimumHeight = PlantsTrackingComponent.getMinimumHeight(world);
-        synchronized (this) { component(name, minimumHeight).track(x, y, z, placer); }
+        PlantsTrackingComponent component;
+        synchronized (this) { component = component(name, minimumHeight); }
+        component.track(x, y, z, placer);
     }
 
     public void untrack(Block block) {
@@ -47,7 +49,9 @@ public class PlantsTracker {
     public void untrack(World world, int x, int y, int z) {
         String name = world.getName();
         int minimumHeight = PlantsTrackingComponent.getMinimumHeight(world);
-        synchronized (this) { component(name, minimumHeight).untrack(x, y, z); }
+        PlantsTrackingComponent component;
+        synchronized (this) { component = component(name, minimumHeight); }
+        component.untrack(x, y, z);
     }
 
     @Nullable
@@ -60,7 +64,9 @@ public class PlantsTracker {
     public UUID getPlacer(World world, int x, int y, int z) {
         String name = world.getName();
         int minimumHeight = PlantsTrackingComponent.getMinimumHeight(world);
-        synchronized (this) { return component(name, minimumHeight).getPlacer(x, y, z); }
+        PlantsTrackingComponent component;
+        synchronized (this) { component = component(name, minimumHeight); }
+        return component.getPlacer(x, y, z);
     }
 
     public void load(String worldName, long chunkKey, List<Integer> blocks, UUID placer) {
@@ -86,24 +92,30 @@ public class PlantsTracker {
     public synchronized void loadLegacy(String worldName, BlockPosition plant, UUID placer) {
         if (this.legacyRawData == null)
             this.legacyRawData = new HashMap<>();
-        this.legacyRawData.computeIfAbsent(worldName, w -> new LinkedHashMap<>())
-                .computeIfAbsent(placer, i -> new LinkedList<>()).add(plant);
+        Map<UUID, List<BlockPosition>> world = this.legacyRawData.computeIfAbsent(worldName, w -> new LinkedHashMap<>());
+        synchronized (world) { world.computeIfAbsent(placer, i -> new LinkedList<>()).add(plant); }
     }
 
     /** Capture metadata only; YAML construction and file writes happen outside tracker locks. */
     public void save(ConfigurationSection section) {
         if (!canPersistProgress()) throw new IllegalStateException("Ambiguous legacy tracker progress is quarantined and must not be overwritten");
         Map<String, Map<Long, Map<Integer, UUID>>> worlds = new LinkedHashMap<>();
+        Map<String, java.util.function.Supplier<Map<Long, Map<Integer, UUID>>>> sources = new LinkedHashMap<>();
         Map<String, Map<UUID, List<BlockPosition>>> legacy = new LinkedHashMap<>();
+        Map<String, Map<UUID, List<BlockPosition>>> legacySources = new LinkedHashMap<>();
         synchronized (this) {
-            this.plantsTracker.forEach((name, component) -> worlds.put(name, component.getPlants()));
-            if (this.rawData != null) this.rawData.forEach((name, data) -> worlds.put(name, data.getPlants()));
-            if (this.legacyRawData != null) this.legacyRawData.forEach((name, data) -> {
+            this.plantsTracker.forEach((name, component) -> sources.put(name, component::getPlants));
+            if (this.rawData != null) this.rawData.forEach((name, data) -> sources.put(name, data::getPlants));
+            if (this.legacyRawData != null) legacySources.putAll(this.legacyRawData);
+        }
+        legacySources.forEach((name, data) -> {
+            synchronized (data) {
                 Map<UUID, List<BlockPosition>> copy = new LinkedHashMap<>();
                 data.forEach((placer, positions) -> copy.put(placer, new LinkedList<>(positions)));
                 legacy.put(name, copy);
-            });
-        }
+            }
+        });
+        sources.forEach((name, source) -> worlds.put(name, source.get()));
         // The tracker can be shared by several missions. Replace its namespaces on each snapshot,
         // rather than append duplicates or omit all autosaves after the first one.
         section.set("placed-plants", null);
@@ -141,9 +153,11 @@ public class PlantsTracker {
         }
         Map<UUID, List<BlockPosition>> legacy = legacyRawData == null ? null : legacyRawData.remove(name);
         if (legacy != null) {
+            synchronized (legacy) {
             for (Map.Entry<UUID, List<BlockPosition>> entry : legacy.entrySet())
                 for (BlockPosition plant : entry.getValue())
                     component.track(plant.getX(), plant.getY(), plant.getZ(), entry.getKey());
+            }
         }
         return component;
     }

@@ -6,6 +6,32 @@ without implementing them, but linkage does not establish multi-island,
 durability or Folia compatibility. Qualify addons against the exact release and
 its recorded Minecraft 1.21.11 and 26.2 native lanes before deployment.
 
+## PVC3 bank completion contracts
+
+`IslandBank#withdrawMoneyAsync` is additive and is required for configured
+withdrawal hooks on Folia. Built-in GUI withdrawals use its completion; legacy
+synchronous configured-hook calls cannot safely wait on a global scheduler.
+Normal external economy calls retain the provider's required caller context.
+Configured `{1}` is the reserved withdrawal amount, rather than the whole
+balance that another transaction might already have reserved.
+
+`quiesceTransactions()` closes bank admission and completes only after accepted
+settlements and physical SQL acknowledgements have drained. Deletion uses it
+before publishing a durable deletion intent. `resumeTransactions()` can reopen
+a healthy bank after a cancelled preflight; it does not clear an uncertain
+external outcome. Delegate banks forward these methods. An unsupported custom
+bank fails closed rather than claiming a quiescent state it cannot establish.
+
+An external provider exception after a possible payout cannot be interpreted as
+proof of failure. Reconcile it with the provider before retrying or restarting;
+the fork does not provide a distributed transaction with third-party plugins.
+Disband refund admission additionally records `DELETE_REFUND_PENDING` before
+payout and `DELETE_REFUND_HOLD` for an uncertain acknowledgement in the existing
+operation journal. Both states block automatic deletion/refund replay after a
+restart. Staff must inspect the provider and consistent stored bank/island state
+before resolving such a hold. No new configuration keys or SQL columns are
+required for these operation phases.
+
 ## Island identity, membership and selection
 
 Use `Island#getUniqueId()` as the persistent island key. An owner UUID is no

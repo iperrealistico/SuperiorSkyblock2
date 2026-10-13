@@ -1,7 +1,9 @@
 # SuperiorSkyblock2 PVC maintenance fork
 
-This full-history GPL-3.0 fork builds `2026.3-pvc.1` with multiple owned islands,
+This full-history GPL-3.0 fork builds `2026.3-pvc.3` with multiple owned islands,
 owner permission policies, durable operations and regional Folia execution.
+The [PVC3 correction record](docs/pvc/CORRECTIONS-PVC3.md) explains the additional
+command, GUI and concurrent shared-state changes.
 Read the [fork documentation](docs/pvc/README.md),
 [installation guide](docs/pvc/INSTALLATION.md), and
 [release verification](docs/pvc/VERIFICATION.md) before use.

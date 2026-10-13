@@ -26,6 +26,9 @@ public class MenuBlank extends AbstractMenu<BaseMenuView, EmptyViewArgs> {
     }
 
     @Override
+    protected boolean capturesViewerIsland() { return false; }
+
+    @Override
     protected BaseMenuView createViewInternal(SuperiorPlayer superiorPlayer, EmptyViewArgs unused,
                                               @Nullable MenuView<?, ?> previousMenuView) {
         return new BaseMenuView(superiorPlayer, previousMenuView, this);

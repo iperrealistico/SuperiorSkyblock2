@@ -147,6 +147,9 @@ public abstract class AbstractNMSChunks implements NMSChunks {
             List<CalculatedChunk.Blocks> allCalculatedChunks);
 
     @Override
+    public boolean supportsOwnedBlockCalculation() { return true; }
+
+    @Override
     public CalculatedChunk.Blocks calculateChunkBlocksNow(Chunk chunk) {
         if (!com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor.owns(chunk.getWorld(), chunk.getX(), chunk.getZ()))
             throw new IllegalStateException("Chunk calculation requires its owning region");

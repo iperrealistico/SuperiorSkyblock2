@@ -88,6 +88,26 @@ public final class SuperiorProbe extends JavaPlugin {
                     reply(player, "SUPERIOR_ADMIN_REQUESTED");
                 }, 0);
                 case "status" -> status(player);
+                case "legacy-size-regression" -> {
+                    com.bgsoftware.superiorskyblock.island.SIsland island =
+                            (com.bgsoftware.superiorskyblock.island.SIsland) owned(player).get(0);
+                    int originalRaw = island.getIslandSizeRaw(), radius = island.getIslandSize();
+                    int expanded = radius + 8;
+                    if (originalRaw > 0 || expanded > superior.getSettings().getMaxIslandSize())
+                        throw new IllegalStateException("Geometry regression requires the unmodified automatic fixture");
+                    island.refreshEffectiveSize();
+                    org.bukkit.Location edge = island.getCenter(superior.getSettings().getWorlds().getDefaultWorldDimension())
+                            .clone().add(expanded - 2, 0, 0);
+                    try {
+                        island.setIslandSize(expanded);
+                        if (island.getIslandSize() != expanded || !island.isInsideRange(edge))
+                            throw new IllegalStateException("Legacy geometry override was not published");
+                        island.clearLegacySizeOverride();
+                        if (island.getIslandSize() != radius || island.isInsideRange(edge))
+                            throw new IllegalStateException("Removing a legacy override retained stale larger bounds");
+                    } finally { island.clearLegacySizeOverride(); }
+                    reply(player, "SUPERIOR_GEOMETRY_OVERRIDE_RESTORE_PASS radius=" + radius);
+                }
                 case "physical" -> {
                     if (args.length != 2) throw new IllegalArgumentException("Fixed owned short ID required");
                     long expected = Long.parseLong(args[1]);

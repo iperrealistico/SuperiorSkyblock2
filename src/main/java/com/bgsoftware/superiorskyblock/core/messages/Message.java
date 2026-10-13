@@ -9,7 +9,7 @@ import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.core.LazyReference;
 import com.bgsoftware.superiorskyblock.core.Text;
 import com.bgsoftware.superiorskyblock.core.collections.ArrayMap;
-import com.bgsoftware.superiorskyblock.core.collections.AutoRemovalCollection;
+import com.google.common.cache.Cache;
 import com.bgsoftware.superiorskyblock.core.events.args.PluginEventArgs;
 import com.bgsoftware.superiorskyblock.core.events.plugin.PluginEvent;
 import com.bgsoftware.superiorskyblock.core.events.plugin.PluginEventType;
@@ -26,11 +26,9 @@ import org.bukkit.entity.Player;
 
 import java.io.File;
 import java.io.InputStream;
-import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 public enum Message {
 
@@ -834,7 +832,7 @@ public enum Message {
     private final boolean isCustom;
     private final Map<Locale, IMessageComponent> messages = new ArrayMap<>();
     @Nullable
-    private Collection<UUID> delayedMessages;
+    private volatile Cache<UUID, Boolean> delayedMessages;
 
     Message() {
         this(null);
@@ -1001,7 +999,8 @@ public enum Message {
 
         if (sender instanceof Player) {
             UUID playerUUID = ((Player) sender).getUniqueId();
-            if (delayedMessages != null && !delayedMessages.add(playerUUID))
+            Cache<UUID, Boolean> delaySnapshot = delayedMessages;
+            if (!MessageDelayCache.claim(delaySnapshot, playerUUID))
                 return;
         }
 
@@ -1051,7 +1050,7 @@ public enum Message {
             long delay = plugin.getSettings().getMessageDelays().getOrDefault(message.name(), 0L);
 
             if (delay > 0L)
-                message.delayedMessages = AutoRemovalCollection.newHashSet(delay, TimeUnit.MILLISECONDS);
+                message.delayedMessages = MessageDelayCache.create(delay);
             else
                 message.delayedMessages = null;
         }

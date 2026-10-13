@@ -111,8 +111,12 @@ public class MenuActions {
 
         GameSoundImpl.playSound(whoClicked, creationConfig.getSound());
 
-        creationConfig.getCommands().forEach(command -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
-                command.replace("%player%", clickedPlayer.getName())));
+        creationConfig.getCommands().forEach(command -> MenuCommandsImpl.getInstance().dispatchConfiguredCommand(menuView,
+                Bukkit.getConsoleSender(), command.replace("%player%", clickedPlayer.getName()), null));
+
+        if (menuView instanceof com.bgsoftware.superiorskyblock.core.menu.view.AbstractMenuView &&
+                !((com.bgsoftware.superiorskyblock.core.menu.view.AbstractMenuView<?, ?>) menuView).isIslandContextCurrent())
+            return;
 
         Message.ISLAND_CREATE_PROCCESS_REQUEST.send(clickedPlayer);
 

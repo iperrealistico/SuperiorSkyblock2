@@ -75,10 +75,8 @@ public class CmdAdminAddGenerator implements IAdminIslandCommand {
         Key material = Keys.ofMaterialAndData(args[3]);
         boolean percentage = args[4].endsWith("%");
 
-        if (percentage)
-            args[4] = args[4].substring(0, args[4].length() - 1);
-
-        NumberArgument<Integer> arguments = CommandArguments.getAmount(sender, args[4]);
+        String amountArgument = percentage ? args[4].substring(0, args[4].length() - 1) : args[4];
+        NumberArgument<Integer> arguments = CommandArguments.getAmount(sender, amountArgument);
 
         if (!arguments.isSucceed())
             return;

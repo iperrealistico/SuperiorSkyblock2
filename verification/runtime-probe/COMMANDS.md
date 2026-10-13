@@ -19,7 +19,7 @@ arbitrary console command.
 The `commands` profile needs `.superior-owned` and `.superior-commands-owned`,
 fresh SQLite data, `max-island-size: 96`, default radius 32, team limit 4 and warp
 limit 4. Clear only the private fixture's disabled-command list. Configure
-`dangerous-commands: [demote, kick, setsize, addsize, removeratings, adddisbands]`, a zero upgrade cooldown, player kick-confirm disabled for the direct command case,
+`dangerous-commands: [demote, kick, setsize, addsize, removeratings, adddisbands, setgenerator, addgenerator]`, a zero upgrade cooldown, player kick-confirm disabled for the direct command case,
 the existing zero teleport warmups, and `pvc.size-mode: PERMISSION_AUTOMATIC`.
 Keep the official `island-rate.yml` layout and handler, replacing only its
 legacy `SKULL_ITEM` material with native `PLAYER_HEAD` for modern fixtures: the client clicks its real five-star button at slot 7.
@@ -87,3 +87,27 @@ this profile. The production rankup helper separately tests deferred charging,
 business-level acknowledgement, cancellation, external-only ordering and honest
 partial failures. This profile does not invoke purge, so it does not delete its
 native evidence or claim native purge coverage.
+
+## PVC3 extension
+
+The maintained runtime driver also enables Generators in this command fixture,
+seeds a nonzero COBBLESTONE weight of 195 and validates exact STONE percentage
+approvals (25%, then 35%). Permission grants come from actual registered command
+nodes; production permission files are never read or changed by this profile.
+Modern inventory confirmation templates, valid retained global-warps materials
+and public visitor warps are fixture prerequisites only.
+
+The extension exercises public counts/values GUI and team reports on a foreign
+island, literal Discord/warp names, captured and explicitly targeted cmdall,
+configured menu hooks, stale hook rejection, membership-epoch invalidation,
+current ban hierarchy, cancelled console expulsion and setrate event authors.
+Global/personal menu behavior is checked independently of incidental selection.
+
+`NativeSharedStateProbe` performs a fixed number of block/entity metadata
+receipts through two real actor schedulers, validates actor/clone refund
+attribution and waits for bank quiescence and physical SQL acknowledgements.
+A newly created uncached history reader must observe persisted balance and
+unique increasing log positions. Locations/counters are restored. This fixed
+functional observer does not exercise a real Vault payout, a full native
+breeding sequence or production load capacity. Focused source tests cover the
+additional reservation, recalculation and uncertain-settlement contracts.

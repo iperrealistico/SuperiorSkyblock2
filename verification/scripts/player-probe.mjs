@@ -139,6 +139,7 @@ async function run() {
   await advanced('addsizepair', 'SUPERIOR_ADV_ADDSIZE_PAIR_PASS'); await radius(130)
   await command('/pvcskyprobe override120', 'SUPERIOR_ADMIN_REQUESTED'); await radius(120)
   await command('/pvcskyprobe clearoverride', 'SUPERIOR_ADMIN_REQUESTED'); await radius(80)
+  await command('/pvcskyprobe legacy-size-regression', 'SUPERIOR_GEOMETRY_OVERRIDE_RESTORE_PASS')
   await policy('donor240'); await radius(240)
   await command('/pvcskyprobe override120', 'SUPERIOR_ADMIN_REQUESTED'); await radius(120)
   await policy('limit1'); await until(state => state.quota === 1)

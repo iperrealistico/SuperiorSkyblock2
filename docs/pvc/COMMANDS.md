@@ -1,6 +1,6 @@
 # Commands and island targeting
 
-This document describes the maintained command changes for `2026.3-pvc.2`.
+This document describes the maintained command changes for `2026.3-pvc.3`.
 The exact artifact, completed tests and supported native builds belong to the
 [verification record](VERIFICATION.md). Qualification of `2026.3-pvc.1` is
 historical evidence for that artifact, not qualification of a later JAR.
@@ -255,3 +255,20 @@ These changes define the command contract and regression targets. They do not
 claim that every arbitrary custom command, third-party menu, economy hook or
 addon is qualified. Use the completed exact-artifact verification record before
 deployment and repeat the command gates after future upstream merges.
+
+## PVC3 follow-up corrections
+
+The original 149 command classes, aliases and permission nodes remain present.
+The subsequent R01–R12 review adds public `counts`/`values`/`team` selectors,
+literal Discord/warp payload boundaries, captured `cmdall` and configured
+menu/bank/placeholder dispatch, pre-hook stale-menu rejection, membership-epoch
+confirmations and current ban hierarchy checks. Console expulsion/team handling,
+generator approval argument isolation and rating-event authors are corrected.
+Personal/global menus have no incidental island binding; mixed island/personal
+mission menus keep their actual island dependency. Public reports use a specific
+report resolver rather than weakening membership checks for stateful commands.
+
+See [PVC3 corrections](CORRECTIONS-PVC3.md) for the closure matrix and focused
+verification boundaries. Administrative permissions are still required; the
+fork makes no LuckPerms assignments and does not expose multi-island management
+to an ordinary quota-one player.

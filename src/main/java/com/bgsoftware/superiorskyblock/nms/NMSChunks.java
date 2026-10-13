@@ -46,6 +46,8 @@ public interface NMSChunks {
         throw new UnsupportedOperationException("Regional block calculation requires a qualified modern NMS adapter");
     }
 
+    default boolean supportsOwnedBlockCalculation() { return false; }
+
     CompletableFuture<List<CalculatedChunk.Entities>> calculateChunkEntities(Collection<ChunkPosition> chunkPositions);
 
     void injectChunkSections(Chunk chunk);

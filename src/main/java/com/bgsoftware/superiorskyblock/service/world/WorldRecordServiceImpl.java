@@ -16,6 +16,8 @@ import com.bgsoftware.superiorskyblock.core.key.ConstantKeys;
 import com.bgsoftware.superiorskyblock.core.key.Keys;
 import com.bgsoftware.superiorskyblock.core.key.types.SpawnerKey;
 import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
+import com.bgsoftware.superiorskyblock.island.algorithm.ChunkCountReconciliation;
+import com.bgsoftware.superiorskyblock.island.algorithm.DefaultIslandEntitiesTrackerAlgorithm;
 import com.bgsoftware.superiorskyblock.module.BuiltinModules;
 import com.bgsoftware.superiorskyblock.module.upgrades.type.UpgradeTypeEntityLimits;
 import com.bgsoftware.superiorskyblock.service.IService;
@@ -96,7 +98,9 @@ public class WorldRecordServiceImpl implements WorldRecordService, IService {
 
         int blockPlaceFlags = IslandBlockFlags.UPDATE_LAST_TIME_STATUS |
                 (saveBlockCounts ? IslandBlockFlags.SAVE_BLOCK_COUNTS : 0);
-        island.handleBlocksPlace(blockCounts, blockPlaceFlags);
+        try (ChunkCountReconciliation.Scope ignored = ChunkCountReconciliation.at(location)) {
+            island.handleBlocksPlace(blockCounts, blockPlaceFlags);
+        }
 
         if (dirtyChunks) {
             island.markChunkDirty(location.getWorld(), location.getBlockX() >> 4,
@@ -134,7 +138,9 @@ public class WorldRecordServiceImpl implements WorldRecordService, IService {
         if (plugin.getProviders().shouldListenToSpawnerChanges() || !(blockKey instanceof SpawnerKey)) {
             int blockPlaceFlags = IslandBlockFlags.UPDATE_LAST_TIME_STATUS;
             if (saveBlockCounts) blockPlaceFlags |= IslandBlockFlags.SAVE_BLOCK_COUNTS;
-            island.handleBlockPlace(blockKey, blockCount, blockPlaceFlags);
+            try (ChunkCountReconciliation.Scope ignored = ChunkCountReconciliation.at(blockLocation)) {
+                island.handleBlockPlace(blockKey, blockCount, blockPlaceFlags);
+            }
         }
 
         if (dirtyChunks) {
@@ -192,7 +198,9 @@ public class WorldRecordServiceImpl implements WorldRecordService, IService {
         int blockBreakFlags = IslandBlockFlags.UPDATE_LAST_TIME_STATUS |
                 (saveBlockCounts ? IslandBlockFlags.SAVE_BLOCK_COUNTS : 0);
 
-        island.handleBlocksBreak(blockCounts, blockBreakFlags);
+        try (ChunkCountReconciliation.Scope ignored = ChunkCountReconciliation.at(location)) {
+            island.handleBlocksBreak(blockCounts, blockBreakFlags);
+        }
 
         if (dirtyChunks && plugin.getNMSChunks().isChunkEmpty(location.getChunk())) {
             island.markChunkEmpty(location.getWorld(), location.getBlockX() >> 4,
@@ -211,8 +219,11 @@ public class WorldRecordServiceImpl implements WorldRecordService, IService {
         int handleBlockBreakFlag = IslandBlockFlags.UPDATE_LAST_TIME_STATUS |
                 (saveBlockCounts ? IslandBlockFlags.SAVE_BLOCK_COUNTS : 0);
 
-        if (plugin.getProviders().shouldListenToSpawnerChanges() || !(blockKey instanceof SpawnerKey))
-            island.handleBlockBreak(blockKey, blockCount, handleBlockBreakFlag);
+        if (plugin.getProviders().shouldListenToSpawnerChanges() || !(blockKey instanceof SpawnerKey)) {
+            try (ChunkCountReconciliation.Scope ignored = ChunkCountReconciliation.at(blockLocation)) {
+                island.handleBlockBreak(blockKey, blockCount, handleBlockBreakFlag);
+            }
+        }
 
         if (handleNearbyBlocks || dirtyChunks) {
             EnumMap<BlockFace, Key> nearbyBlocks = new EnumMap<>(BlockFace.class);
@@ -244,7 +255,10 @@ public class WorldRecordServiceImpl implements WorldRecordService, IService {
                         Key nearbyBlock = Keys.of(block.getRelative(nearbyFace));
                         Key oldNearbyBlock = nearbyBlocks.getOrDefault(nearbyFace, ConstantKeys.AIR);
                         if (oldNearbyBlock != ConstantKeys.AIR && !nearbyBlock.equals(oldNearbyBlock)) {
-                            island.handleBlockBreak(oldNearbyBlock, 1, handleBlockBreakFlag);
+                            try (ChunkCountReconciliation.Scope ignored = ChunkCountReconciliation.at(
+                                    block.getRelative(nearbyFace).getLocation())) {
+                                island.handleBlockBreak(oldNearbyBlock, 1, handleBlockBreakFlag);
+                            }
                         }
                     }
                 }
@@ -256,14 +270,21 @@ public class WorldRecordServiceImpl implements WorldRecordService, IService {
     public RecordResult recordEntitySpawn(Entity entity) {
         Preconditions.checkNotNull(entity, "entity parameter cannot be null");
 
-        if (entity.isDead())
+        if (entity.isDead()) {
+            DefaultIslandEntitiesTrackerAlgorithm.releaseEntityReservation(entity.getUniqueId());
             return RecordResult.ENTITY_CANNOT_BE_TRACKED;
+        }
 
-        if (BukkitEntities.canBypassEntityLimit(entity))
+        if (BukkitEntities.canBypassEntityLimit(entity)) {
+            DefaultIslandEntitiesTrackerAlgorithm.releaseEntityReservation(entity.getUniqueId());
             return RecordResult.ENTITY_CANNOT_BE_TRACKED;
+        }
 
-        try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
+        try (ChunkCountReconciliation.EntityScope ignored = ChunkCountReconciliation.forEntity(entity.getUniqueId(), Keys.of(entity));
+             ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
             return recordEntitySpawnInternal(entity.getType(), entity.getLocation(wrapper.getHandle()));
+        } finally {
+            DefaultIslandEntitiesTrackerAlgorithm.releaseEntityReservation(entity.getUniqueId());
         }
     }
 
@@ -277,16 +298,24 @@ public class WorldRecordServiceImpl implements WorldRecordService, IService {
     }
 
     private RecordResult recordEntitySpawnInternal(EntityType entityType, Location location) {
+        ChunkCountReconciliation.EntityIdentity identity = ChunkCountReconciliation.currentEntity();
         if (!BuiltinModules.UPGRADES.isUpgradeTypeEnabled(UpgradeTypeEntityLimits.class) ||
-                !BukkitEntities.canHaveLimit(entityType))
+                !BukkitEntities.canHaveLimit(entityType)) {
+            if (identity != null) DefaultIslandEntitiesTrackerAlgorithm.releaseEntityReservation(identity.getUuid());
             return RecordResult.ENTITY_CANNOT_BE_TRACKED;
+        }
 
         Island island = plugin.getGrid().getIslandAt(location);
 
-        if (island == null)
+        if (island == null) {
+            if (identity != null) DefaultIslandEntitiesTrackerAlgorithm.releaseEntityReservation(identity.getUuid());
             return RecordResult.NOT_IN_ISLAND;
+        }
+        if (identity != null) DefaultIslandEntitiesTrackerAlgorithm.releaseOtherEntityReservation(identity.getUuid(), island.getEntitiesTracker());
 
-        island.getEntitiesTracker().trackEntity(Keys.of(entityType), 1);
+        try (ChunkCountReconciliation.Scope ignored = ChunkCountReconciliation.at(location)) {
+            island.getEntitiesTracker().trackEntity(identity == null ? Keys.of(entityType) : identity.getKey(), 1);
+        }
         // TODO: elsewhere
         IslandsDatabaseBridge.saveEntityCounts(island);
 
@@ -302,7 +331,8 @@ public class WorldRecordServiceImpl implements WorldRecordService, IService {
             return RecordResult.ENTITY_CANNOT_BE_TRACKED;
 
         RecordResult recordResult;
-        try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
+        try (ChunkCountReconciliation.EntityScope ignored = ChunkCountReconciliation.forEntity(entity.getUniqueId(), Keys.of(entity));
+             ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
             recordResult = recordEntityDespawnInternal(entity.getType(), entity.getLocation(wrapper.getHandle()));
         }
         if (recordResult != RecordResult.SUCCESS)
@@ -310,7 +340,8 @@ public class WorldRecordServiceImpl implements WorldRecordService, IService {
 
         if (entity instanceof Minecart) {
             Key blockKey = plugin.getNMSAlgorithms().getMinecartBlock((Minecart) entity);
-            try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
+            try (ChunkCountReconciliation.EntityScope ignored = ChunkCountReconciliation.forEntity(entity.getUniqueId(), Keys.of(entity));
+                 ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
                 recordBlockBreak(blockKey, entity.getLocation(wrapper.getHandle()), 1, REGULAR_RECORD_FLAGS);
             }
         }
@@ -337,7 +368,10 @@ public class WorldRecordServiceImpl implements WorldRecordService, IService {
         if (island == null)
             return RecordResult.NOT_IN_ISLAND;
 
-        island.getEntitiesTracker().untrackEntity(Keys.of(entityType), 1);
+        try (ChunkCountReconciliation.Scope ignored = ChunkCountReconciliation.at(location)) {
+            ChunkCountReconciliation.EntityIdentity identity = ChunkCountReconciliation.currentEntity();
+            island.getEntitiesTracker().untrackEntity(identity == null ? Keys.of(entityType) : identity.getKey(), 1);
+        }
         // TODO: not here
         IslandsDatabaseBridge.saveEntityCounts(island);
 

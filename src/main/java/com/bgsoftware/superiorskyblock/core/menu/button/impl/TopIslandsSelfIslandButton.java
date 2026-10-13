@@ -70,23 +70,37 @@ public class TopIslandsSelfIslandButton extends AbstractMenuViewButton<MenuTopIs
         Player player = context.getPlayer();
 
         if (island != null) {
+            SuperiorPlayer capturedOwner = island.getOwner();
+            java.util.UUID islandOwner = capturedOwner == null ? null : capturedOwner.getUniqueId();
+            String ownerName = capturedOwner == null ? "" : capturedOwner.getName();
+            long islandRevision = plugin.getPvcIslandService().getRevision(island.getUniqueId());
+            long membershipRevision = plugin.getPvcIslandService().getMembershipRevision(island.getUniqueId());
             GameSoundImpl.playSound(player, islandSound);
 
             if (islandCommands != null) {
-                islandCommands.forEach(command -> Bukkit.dispatchCommand(command.startsWith("PLAYER:") ?
+                islandCommands.forEach(command -> com.bgsoftware.superiorskyblock.core.menu.MenuCommandsImpl.getInstance()
+                        .dispatchConfiguredCommand(menuView, command.startsWith("PLAYER:") ?
                                 player : Bukkit.getConsoleSender(),
                         command.replace("PLAYER:", "")
                                 .replace("%player%", player.getName())
                                 .replace("%island%", island.getName())
-                                .replace("%owner%", island.getOwner().getName())
+                                .replace("%owner%", ownerName), island
                 ));
             }
+
+            // Global-list views are unbound; fence the clicked item's subject independently.
+            if (!menuView.isIslandContextCurrent() || plugin.getGrid().getIslandByUUID(island.getUniqueId()) != island ||
+                    !plugin.getPvcIslandService().isAvailable(island.getUniqueId()) ||
+                    !java.util.Objects.equals(islandOwner, island.getOwner() == null ? null : island.getOwner().getUniqueId()) ||
+                    islandRevision != plugin.getPvcIslandService().getRevision(island.getUniqueId()) ||
+                    membershipRevision != plugin.getPvcIslandService().getMembershipRevision(island.getUniqueId()))
+                return;
 
             menuView.setPreviousMove(false);
 
             if (context.getClickType().isRightClick()) {
                 if (Menus.MENU_GLOBAL_WARPS.isVisitorWarps()) {
-                    plugin.getCommands().dispatchSubCommand(player, "visit", island.getOwner().getName());
+                    plugin.getCommands().dispatchSubCommand(player, "visit", island.getUniqueId().toString());
                 } else {
                     plugin.getProviders().getMenusProvider().openWarpCategories(
                             menuView.getInventoryViewer(), MenuViewWrapper.fromView(menuView), island);
@@ -101,9 +115,10 @@ public class TopIslandsSelfIslandButton extends AbstractMenuViewButton<MenuTopIs
         GameSoundImpl.playSound(player, noIslandSound);
 
         if (noIslandCommands != null)
-            noIslandCommands.forEach(command -> Bukkit.dispatchCommand(command.startsWith("PLAYER:") ?
+            noIslandCommands.forEach(command -> com.bgsoftware.superiorskyblock.core.menu.MenuCommandsImpl.getInstance()
+                    .dispatchConfiguredCommand(menuView, command.startsWith("PLAYER:") ?
                             player : Bukkit.getConsoleSender(),
-                    command.replace("PLAYER:", "").replace("%player%", player.getName())));
+                    command.replace("PLAYER:", "").replace("%player%", player.getName()), null));
     }
 
     public static ItemStack modifyViewItem(MenuTopIslands.View menuView, Island island, @Nullable TemplateItem islandItem) {

@@ -286,20 +286,35 @@ try {
         if($Profile-eq'commands'){
             $config=$config.Replace('max-island-size: 1000','max-island-size: 96').Replace('  island-size: 100','  island-size: 32').Replace('  warps-limit: 0','  warps-limit: 4').Replace('  team-limit: 1','  team-limit: 4')
             $config=[regex]::Replace($config,'(?ms)^disabled-commands:.*?(?=^[a-zA-Z][a-zA-Z0-9-]*:)', 'disabled-commands: []'+"`n")
-            $config=$config.Replace('dangerous-commands: []','dangerous-commands: [demote, kick, setsize, addsize, removeratings, adddisbands]')
+            $config=$config.Replace('dangerous-commands: []','dangerous-commands: [demote, kick, setsize, addsize, removeratings, adddisbands, setgenerator, addgenerator]')
             $config=$config.Replace('public-warps: false','public-warps: true')
             $config=$config.Replace('kick-confirm: true','kick-confirm: false')
             $privateDatabase=[IO.Path]::GetFullPath((Join-Path $root 'plugins/SuperiorSkyblock2/datastore/database.db'))
             if(-not$privateDatabase.StartsWith($root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'Unsafe fresh command database path.'}
             if(Test-Path -LiteralPath $privateDatabase){Remove-Item -LiteralPath $privateDatabase -Force}
-            foreach($target in @('modules/upgrades','modules/missions/categories/pvc_native','menus')){[void][IO.Directory]::CreateDirectory((Join-Path $root ('plugins/SuperiorSkyblock2/'+$target)))}
+            foreach($target in @('modules/upgrades','modules/generators','modules/missions/categories/pvc_native','menus')){[void][IO.Directory]::CreateDirectory((Join-Path $root ('plugins/SuperiorSkyblock2/'+$target)))}
+            $generatorConfig=[IO.File]::ReadAllText((Join-Path $fixturePath 'modules/generators/config.yml')).Replace('enabled: false','enabled: true')
+            [IO.File]::WriteAllText((Join-Path $root 'plugins/SuperiorSkyblock2/modules/generators/config.yml'),$generatorConfig,$utf8)
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../runtime-probe/native-commands-upgrades.yml') -Destination (Join-Path $root 'plugins/SuperiorSkyblock2/modules/upgrades/config.yml') -Force
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../runtime-probe/native-commands-missions.yml') -Destination (Join-Path $root 'plugins/SuperiorSkyblock2/modules/missions/config.yml') -Force
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../runtime-probe/native-commands-items.yml') -Destination (Join-Path $root 'plugins/SuperiorSkyblock2/modules/missions/categories/pvc_native/pvc_command_items.yml') -Force
             # Retain the upstream layout/handler; modern fixtures use the native material name.
             $ratingMenu=[IO.File]::ReadAllText((Join-Path $PSScriptRoot '../../src/main/resources/menus/island-rate.yml')).Replace('type: SKULL_ITEM','type: PLAYER_HEAD')
             [IO.File]::WriteAllText((Join-Path $root 'plugins/SuperiorSkyblock2/menus/island-rate.yml'),$ratingMenu,$utf8)
+            $visitorMenu=[IO.File]::ReadAllText((Join-Path $fixturePath 'menus/global-warps.yml')).Replace('visitor-warps: false','visitor-warps: true')
+            [IO.File]::WriteAllText((Join-Path $root 'plugins/SuperiorSkyblock2/menus/global-warps.yml'),$visitorMenu,$utf8)
+            # Actual protocol inventory clicks exercise the original confirmation handlers.
+            # The copied operator fixture uses native dialogs; keep this adaptation test-only.
+            foreach($confirmation in @('confirm-kick','confirm-ban')){
+                $confirmationMenu=[IO.File]::ReadAllText((Join-Path $PSScriptRoot ('../../src/main/resources/menus/'+$confirmation+'.yml'))).Replace('type: STAINED_GLASS_PANE','type: BLACK_STAINED_GLASS_PANE').Replace('type: SKULL_ITEM','type: PLAYER_HEAD').Replace('previous-menu: true','previous-menu: false')
+                [IO.File]::WriteAllText((Join-Path $root ('plugins/SuperiorSkyblock2/menus/'+$confirmation+'.yml')),$confirmationMenu,$utf8)
+            }
             [IO.File]::WriteAllText((Join-Path $root '.superior-commands-owned'),'command fixture',$utf8)
+            # Exercise the uncached bank cursor/history API with four finite admin adjustments.
+            $bankConfigPath=Join-Path $root 'plugins/SuperiorSkyblock2/modules/bank/config.yml'
+            $bankFixture=[IO.File]::ReadAllText($bankConfigPath)
+            if(-not$bankFixture.Contains('bank-logs: true')-or-not$bankFixture.Contains('cache-logs: true')){throw 'Expected private bank log fixture settings are absent.'}
+            [IO.File]::WriteAllText($bankConfigPath,$bankFixture.Replace('cache-logs: true','cache-logs: false'),$utf8)
         }
         if($Profile-notin@('legacy','upgrade')){$config+="`npvc:`n  size-mode: PERMISSION_AUTOMATIC`n  entitlements:`n    refresh-seconds: 1`n"}
         if($Profile-eq'upgrade'){

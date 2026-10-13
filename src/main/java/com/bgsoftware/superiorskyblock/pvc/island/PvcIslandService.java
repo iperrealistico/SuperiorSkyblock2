@@ -21,6 +21,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Ownership indexes, stable IDs, selected view and durable operation identities. */
 public final class PvcIslandService implements AutoCloseable {
@@ -138,6 +139,7 @@ public final class PvcIslandService implements AutoCloseable {
         bridge.loadAllObjectsStrict("pvc_island_jobs", row -> {
             DatabaseResult result = new DatabaseResult(row);
             String state = result.getString("state").orElse("UNKNOWN");
+            DisbandRefundPolicy.requireRecoverableState(state);
             if (!"ACTIVE".equals(state) && !"CANCELLED".equals(state) && !"DELETED".equals(state) && !"TRANSFER_DONE".equals(state) && !"RESET_DONE".equals(state) && !"PASTE_DONE".equals(state)) {
                 UUID operation = result.getUUID("operation").orElseThrow(() -> new IllegalStateException("Invalid island journal operation"));
                 UUID islandId = result.getUUID("island").orElseThrow(() -> new IllegalStateException("Invalid island journal target"));
@@ -533,28 +535,81 @@ public final class PvcIslandService implements AutoCloseable {
     }
 
     public CompletableFuture<Void> delete(Island island, java.util.function.Supplier<CompletableFuture<Void>> cleanup, Runnable finish) {
+        return delete(island, cleanup, finish, false, () -> CompletableFuture.completedFuture(null));
+    }
+
+    public CompletableFuture<Void> delete(Island island, java.util.function.Supplier<CompletableFuture<Void>> cleanup, Runnable finish,
+                                          boolean refundRequested, java.util.function.Supplier<CompletableFuture<Void>> refund) {
+        final UUID identity = island.getUniqueId();
+        final CreationReservation creation;
+        final CreationReservation operation;
+        final CompletableFuture<Void> result = new CompletableFuture<>();
+        final AtomicBoolean intentStarted = new AtomicBoolean();
+        final AtomicBoolean refundRejectedWithoutPayout = new AtomicBoolean();
         synchronized (operationLock) {
-            CompletableFuture<Void> existing = deletions.get(island.getUniqueId()); if (existing != null) return existing;
+            CompletableFuture<Void> existing = deletions.get(identity); if (existing != null) return existing;
             if (closed) return failed(new IllegalStateException("Island service is stopping; no cleanup was started"));
-            if (resets.containsKey(island.getUniqueId()) || transfers.containsKey(island.getUniqueId()))
+            if (resets.containsKey(identity) || transfers.containsKey(identity))
                 return failed(new IllegalStateException("The island has another operation in progress"));
-            advanceWorldGeneration(island.getUniqueId());
-            CreationReservation creation = creations.get(island.getUniqueId());
-            CreationReservation operation = creation != null ? creation : new CreationReservation(UUID.randomUUID(), island.getOwner().getUniqueId(), island.getUniqueId());
-            CompletableFuture<Void> intent = creation != null ? state(operation, "DELETING") :
-                    insert("pvc_island_jobs", Arrays.asList("operation", "owner", "island", "state"),
-                            Arrays.asList(operation.operation.toString(), operation.owner.toString(), operation.island.toString(), "DELETING"));
-            CompletableFuture<Void> future = intent.thenCompose(unused -> closed ? failed(new IllegalStateException("Island service is stopping")) : cleanup.get()).thenCompose(unused -> acknowledge(island, finish))
-                    .thenCompose(unused -> state(operation, "DELETED"));
-            deletions.put(island.getUniqueId(), future);
-            future.whenComplete((unused, error) -> {
-                if (error == null && !DBSession.isCommitOutcomeUncertain()) {
-                    creations.remove(island.getUniqueId()); candidates.remove(island.getUniqueId());
-                    reservations.release(operation.operation); deletions.remove(island.getUniqueId(), future); releaseName(island.getUniqueId()); recovering.remove(island.getUniqueId());
-                } else Log.error(error, "PVC island cleanup is incomplete; the cell remains reserved");
-            });
-            return future;
+            creation = creations.get(identity);
+            operation = creation != null ? creation : new CreationReservation(UUID.randomUUID(), island.getOwner().getUniqueId(), identity);
+            // The metadata-only placeholder rejects new operations before bank drain, without a recoverable delete intent.
+            deletions.put(identity, result);
         }
+        CompletableFuture<Void> quiet;
+        try { quiet = island.getIslandBank().quiesceTransactions(); }
+        catch (Throwable failure) { quiet = failed(failure); }
+        quiet.thenCompose(unused -> {
+            if (closed || DBSession.isCommitOutcomeUncertain()) return PvcIslandService.<Void>failed(new IllegalStateException("Island service is stopping or SQL outcome is uncertain"));
+            advanceWorldGeneration(identity);
+            // Read refund eligibility only after all admitted bank changes have settled.
+            boolean payRefund = refundRequested && creation == null && island.getIslandBank().getBalance().signum() > 0;
+            String phase = payRefund ? "DELETE_REFUND_PENDING" : "DELETING";
+            intentStarted.set(true);
+            CompletableFuture<Void> intent = creation != null ? state(operation, phase) :
+                    insert("pvc_island_jobs", Arrays.asList("operation", "owner", "island", "state"),
+                            Arrays.asList(operation.operation.toString(), operation.owner.toString(), operation.island.toString(), phase));
+            return intent.thenCompose(value -> payRefund ? settleDisbandRefund(operation, refund, refundRejectedWithoutPayout) : CompletableFuture.completedFuture(null))
+                    .thenCompose(value -> closed ? failed(new IllegalStateException("Island service is stopping")) : cleanup.get())
+                    .thenCompose(value -> acknowledge(island, finish)).thenCompose(value -> state(operation, "DELETED"));
+        }).whenComplete((unused, error) -> {
+            if (error == null && !DBSession.isCommitOutcomeUncertain()) {
+                creations.remove(identity); candidates.remove(identity);
+                reservations.release(operation.operation); deletions.remove(identity, result); releaseName(identity); recovering.remove(identity);
+                result.complete(null);
+            } else {
+                if (!intentStarted.get() || refundRejectedWithoutPayout.get() && !uncertain(error)) {
+                    deletions.remove(identity, result);
+                    island.getIslandBank().resumeTransactions();
+                } else Log.error(error, "PVC island deletion is incomplete; metadata/intent remain fenced and an uncertain refund must not be retried");
+                result.completeExceptionally(error == null ? new IllegalStateException("SQL deletion outcome is uncertain") : error);
+            }
+        });
+        return result;
+    }
+
+    private CompletableFuture<Void> settleDisbandRefund(CreationReservation operation,
+            java.util.function.Supplier<CompletableFuture<Void>> refund, AtomicBoolean rejectedWithoutPayout) {
+        CompletableFuture<Void> paid;
+        try { paid = closed ? failed(new DisbandRefundFailure("Server stopped before refund admission", true)) : refund.get(); }
+        catch (Throwable failure) { paid = failed(failure); }
+        return paid.handle((unused, error) -> {
+            if (error == null) return state(operation, "DELETING");
+            Throwable cause = error;
+            while (cause instanceof java.util.concurrent.CompletionException && cause.getCause() != null) cause = cause.getCause();
+            final Throwable outcome = cause;
+            if (outcome instanceof DisbandRefundFailure && ((DisbandRefundFailure) outcome).hasNoPayout() && !uncertain(outcome)) {
+                return state(operation, "CANCELLED").thenCompose(value -> {
+                    rejectedWithoutPayout.set(true); return PvcIslandService.<Void>failed(outcome);
+                });
+            }
+            // A crash/throw/partial acknowledgement cannot be compensated or replayed automatically.
+            // If persisting HOLD fails, the already-acknowledged PENDING phase also blocks restart recovery.
+            return state(operation, "DELETE_REFUND_HOLD").handle((value, journalFailure) -> {
+                if (journalFailure != null) outcome.addSuppressed(journalFailure);
+                return PvcIslandService.<Void>failed(outcome);
+            }).thenCompose(value -> value);
+        }).thenCompose(value -> value);
     }
     private CompletableFuture<Void> state(CreationReservation reservation, String state) {
         UpdateSQLDatabaseTransaction update = new UpdateSQLDatabaseTransaction("pvc_island_jobs", Collections.singletonList("state"), Collections.singletonList("operation"));

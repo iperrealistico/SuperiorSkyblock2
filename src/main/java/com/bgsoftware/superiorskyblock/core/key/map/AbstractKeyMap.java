@@ -20,6 +20,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 public class AbstractKeyMap<K extends Key, V> extends AbstractMap<Key, V> implements KeyMap<V> {
@@ -28,8 +29,7 @@ public class AbstractKeyMap<K extends Key, V> extends AbstractMap<Key, V> implem
     private final LazyReference<Map<CustomKey, V>> customInnerMap;
     private final Class<K> keyType;
 
-    private EntrySet entrySet;
-    private int size;
+    private final EntrySet entrySet = new EntrySet();
 
     protected AbstractKeyMap(KeyMapStrategy strategy, Class<K> keyType) {
         this.innerMap = new LazyReference<Map<K, V>>() {
@@ -49,7 +49,8 @@ public class AbstractKeyMap<K extends Key, V> extends AbstractMap<Key, V> implem
 
     @Override
     public int size() {
-        return this.size;
+        return this.innerMap.getIfPresent().map(Map::size).orElse(0) +
+                this.customInnerMap.getIfPresent().map(Map::size).orElse(0);
     }
 
     @Override
@@ -59,14 +60,11 @@ public class AbstractKeyMap<K extends Key, V> extends AbstractMap<Key, V> implem
 
     @Override
     public V get(Object obj) {
-        if (size() == 0)
-            return null;
-
         if (obj instanceof LazyKey) {
             return get(((LazyKey<?>) obj).getBaseKey());
         }
 
-        return getInternal((Key) obj, true);
+        return obj instanceof Key ? getInternal((Key) obj, true) : null;
     }
 
     private V getInternal(Key key, boolean tryGlobal) {
@@ -106,15 +104,12 @@ public class AbstractKeyMap<K extends Key, V> extends AbstractMap<Key, V> implem
             throw new IllegalArgumentException("key " + key.getClass() + " is not of type " + this.keyType);
         }
 
-        if (oldValue == null)
-            ++this.size;
-
         return oldValue;
     }
 
     @Override
     public V remove(Object key) {
-        return size() == 0 ? null : removeNoSizeCheck(key);
+        return removeNoSizeCheck(key);
     }
 
     private V removeNoSizeCheck(Object key) {
@@ -132,9 +127,6 @@ public class AbstractKeyMap<K extends Key, V> extends AbstractMap<Key, V> implem
             return null;
         }
 
-        if (oldValue != null)
-            --this.size;
-
         return oldValue;
     }
 
@@ -142,13 +134,12 @@ public class AbstractKeyMap<K extends Key, V> extends AbstractMap<Key, V> implem
     public void clear() {
         this.innerMap.getIfPresent().ifPresent(Map::clear);
         this.customInnerMap.getIfPresent().ifPresent(Map::clear);
-        this.size = 0;
     }
 
     @NotNull
     @Override
     public Set<Entry<Key, V>> entrySet() {
-        return this.entrySet == null ? (this.entrySet = new EntrySet()) : this.entrySet;
+        return this.entrySet;
     }
 
     @Nullable
@@ -159,11 +150,8 @@ public class AbstractKeyMap<K extends Key, V> extends AbstractMap<Key, V> implem
 
     @Override
     public Key getKey(Key original, @Nullable Key def) {
-        if (size() == 0)
-            return def;
-
         if (original instanceof LazyKey) {
-            return getKey(((LazyKey<?>) original).getBaseKey());
+            return getKey(((LazyKey<?>) original).getBaseKey(), def);
         }
 
         Map<? extends Key, V> map;
@@ -197,20 +185,14 @@ public class AbstractKeyMap<K extends Key, V> extends AbstractMap<Key, V> implem
         {
             Map<K, V> innerMap = this.innerMap.getIfPresent().orElse(null);
             if (innerMap != null) {
-                int originalSize = innerMap.size();
                 removed |= innerMap.entrySet().removeIf(entry -> predicate.test(entry.getKey()));
-                int delta = innerMap.size() - originalSize;
-                this.size -= delta;
             }
         }
 
         {
             Map<CustomKey, V> customInnerMap = this.customInnerMap.getIfPresent().orElse(null);
             if (customInnerMap != null) {
-                int originalSize = customInnerMap.size();
                 removed |= customInnerMap.entrySet().removeIf(entry -> predicate.test(entry.getKey()));
-                int delta = customInnerMap.size() - originalSize;
-                this.size -= delta;
             }
         }
 
@@ -219,9 +201,6 @@ public class AbstractKeyMap<K extends Key, V> extends AbstractMap<Key, V> implem
 
     @Override
     public V getRaw(Key key, V def) {
-        if (size() == 0)
-            return def;
-
         return getRawNoSizeCheck(key, def);
     }
 
@@ -243,14 +222,72 @@ public class AbstractKeyMap<K extends Key, V> extends AbstractMap<Key, V> implem
     public V merge(Key key, @NotNull V value, @NotNull BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
         Objects.requireNonNull(remappingFunction);
         Objects.requireNonNull(value);
-        V oldValue = getRaw(key, null);
-        V newValue = (oldValue == null) ? value : remappingFunction.apply(oldValue, value);
-        if (newValue == null) {
-            remove(key);
-        } else {
-            put(key, newValue);
-        }
-        return newValue;
+        Key rawKey = unwrap(key);
+        return rawMap(rawKey).merge(rawKey, value, remappingFunction);
+    }
+
+    /** Mutations are exact-key operations: a global fallback must never be updated by accident. */
+    @Override public V compute(Key key, BiFunction<? super Key, ? super V, ? extends V> function) {
+        Objects.requireNonNull(function);
+        Key rawKey = unwrap(key);
+        return rawMap(rawKey).compute(rawKey, (k, v) -> function.apply(key, v));
+    }
+
+    @Override public V computeIfAbsent(Key key, Function<? super Key, ? extends V> function) {
+        Objects.requireNonNull(function);
+        Key rawKey = unwrap(key);
+        return rawMap(rawKey).computeIfAbsent(rawKey, k -> function.apply(key));
+    }
+
+    @Override public V computeIfPresent(Key key, BiFunction<? super Key, ? super V, ? extends V> function) {
+        Objects.requireNonNull(function);
+        Key rawKey = unwrap(key);
+        return rawMap(rawKey).computeIfPresent(rawKey, (k, v) -> function.apply(key, v));
+    }
+
+    @Override public V putIfAbsent(Key key, V value) {
+        Key rawKey = unwrap(key);
+        return rawMap(rawKey).putIfAbsent(rawKey, value);
+    }
+
+    @Override public boolean remove(Object key, Object value) {
+        if (!(key instanceof Key)) return false;
+        Key rawKey = unwrap((Key) key);
+        return existingRawMap(rawKey).map(m -> m.remove(rawKey, value)).orElse(false);
+    }
+
+    @Override public boolean replace(Key key, V oldValue, V newValue) {
+        Key rawKey = unwrap(key);
+        return existingRawMap(rawKey).map(m -> m.replace(rawKey, oldValue, newValue)).orElse(false);
+    }
+
+    @Override public V replace(Key key, V value) {
+        Key rawKey = unwrap(key);
+        return existingRawMap(rawKey).map(m -> m.replace(rawKey, value)).orElse(null);
+    }
+
+    @Override public void replaceAll(BiFunction<? super Key, ? super V, ? extends V> function) {
+        Objects.requireNonNull(function);
+        this.innerMap.getIfPresent().ifPresent(m -> m.replaceAll(function));
+        this.customInnerMap.getIfPresent().ifPresent(m -> m.replaceAll(function));
+    }
+
+    private Key unwrap(Key key) {
+        return key instanceof LazyKey ? unwrap(((LazyKey<?>) key).getBaseKey()) : Objects.requireNonNull(key);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private Map<Key, V> rawMap(Key key) {
+        if (this.keyType.isInstance(key)) return (Map) this.innerMap.get();
+        if (key instanceof CustomKey) return (Map) this.customInnerMap.get();
+        throw new IllegalArgumentException("key " + key.getClass() + " is not of type " + this.keyType);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private Optional<Map<Key, V>> existingRawMap(Key key) {
+        if (this.keyType.isInstance(key)) return (Optional) this.innerMap.getIfPresent();
+        if (key instanceof CustomKey) return (Optional) this.customInnerMap.getIfPresent();
+        return Optional.empty();
     }
 
     @Override
@@ -304,54 +341,39 @@ public class AbstractKeyMap<K extends Key, V> extends AbstractMap<Key, V> implem
     private class EntryIterator implements Iterator<Entry<Key, V>> {
 
         private Iterator<Entry> currIterator;
-        private boolean isInnerMapIterator;
-        private final boolean shouldRunCustomIterator;
+        private final Iterator<Entry> customIterator;
+        private Iterator<Entry> lastIterator;
+        private boolean customStarted;
 
         EntryIterator() {
             Map innerMap = AbstractKeyMap.this.innerMap.getIfPresent().orElse(null);
             Map customInnerMap = AbstractKeyMap.this.customInnerMap.getIfPresent().orElse(null);
-            this.shouldRunCustomIterator = customInnerMap != null && !customInnerMap.isEmpty();
-            if (innerMap != null) {
-                this.currIterator = innerMap.entrySet().iterator();
-                this.isInnerMapIterator = true;
-            } else {
-                this.currIterator = customInnerMap == null ? Collections.emptyIterator() : customInnerMap.entrySet().iterator();
-                this.isInnerMapIterator = false;
-            }
+            this.currIterator = innerMap == null ? Collections.emptyIterator() : innerMap.entrySet().iterator();
+            this.customIterator = customInnerMap == null ? Collections.emptyIterator() : customInnerMap.entrySet().iterator();
         }
 
         @Override
         public boolean hasNext() {
-            if (this.isInnerMapIterator) {
-                return this.shouldRunCustomIterator || this.currIterator.hasNext();
-            }
-
-            return this.currIterator.hasNext();
+            return this.currIterator.hasNext() || (!customStarted && this.customIterator.hasNext());
         }
 
         @Override
         public Entry<Key, V> next() {
             if (!this.currIterator.hasNext()) {
-                if (!this.isInnerMapIterator || !this.shouldRunCustomIterator) {
-                    throw new NoSuchElementException();
-                }
-
-                Map customInnerMap = AbstractKeyMap.this.customInnerMap.getIfPresent().orElse(null);
-                // Should never occur as `shouldRunCustomIterator` would be false
-                if (customInnerMap == null || customInnerMap.isEmpty())
-                    throw new NoSuchElementException();
-
-                this.currIterator = customInnerMap.entrySet().iterator();
-                this.isInnerMapIterator = false;
+                if (customStarted) throw new NoSuchElementException();
+                this.currIterator = this.customIterator;
+                this.customStarted = true;
             }
-
-            return this.currIterator.next();
+            Entry<Key, V> entry = this.currIterator.next();
+            this.lastIterator = this.currIterator;
+            return entry;
         }
 
         @Override
         public void remove() {
-            this.currIterator.remove();
-            --AbstractKeyMap.this.size;
+            if (this.lastIterator == null) throw new IllegalStateException();
+            this.lastIterator.remove();
+            this.lastIterator = null;
         }
 
     }

@@ -76,8 +76,10 @@ public class BlockChangesListener extends AbstractGameEventListener {
         }
     }
 
-    private final Collection<Location> alreadySpongeAbosrbCalled = AutoRemovalCollection.newArrayList(5L * 50, TimeUnit.MILLISECONDS);
-    private final Collection<Location> alreadyChorusFlowerTracked = AutoRemovalCollection.newArrayList(1L * 50, TimeUnit.MILLISECONDS);
+    private final com.google.common.cache.Cache<com.bgsoftware.superiorskyblock.core.WorldBlockKey, Boolean> alreadySpongeAbosrbCalled =
+            com.google.common.cache.CacheBuilder.newBuilder().maximumSize(4096).expireAfterWrite(250, TimeUnit.MILLISECONDS).build();
+    private final com.google.common.cache.Cache<com.bgsoftware.superiorskyblock.core.WorldBlockKey, Boolean> alreadyChorusFlowerTracked =
+            com.google.common.cache.CacheBuilder.newBuilder().maximumSize(4096).expireAfterWrite(50, TimeUnit.MILLISECONDS).build();
 
     private final LazyReference<WorldRecordService> worldRecordService = new LazyReference<WorldRecordService>() {
         @Override
@@ -201,9 +203,9 @@ public class BlockChangesListener extends AbstractGameEventListener {
                 Location spreadBlockLocation = source.getLocation(wrapper.getHandle());
                 // When a chorus flower grows, it is replaced with a flower plant and multiple new flowers can grow.
                 // Therefore, we want to track a plant one time instead of a new flower.
-                if (!alreadyChorusFlowerTracked.contains(spreadBlockLocation)) {
+                if (alreadyChorusFlowerTracked.asMap().putIfAbsent(
+                        com.bgsoftware.superiorskyblock.core.WorldBlockKey.of(spreadBlockLocation), Boolean.TRUE) == null) {
                     spreadBlock = ConstantKeys.CHORUS_PLANT;
-                    alreadyChorusFlowerTracked.add(spreadBlockLocation.clone());
                 }
             }
         }
@@ -252,7 +254,9 @@ public class BlockChangesListener extends AbstractGameEventListener {
 
         Key minecartBlockKey = getMinecartBlockKey(vehicle.getType());
         if (minecartBlockKey != null) {
-            try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
+            try (com.bgsoftware.superiorskyblock.island.algorithm.ChunkCountReconciliation.EntityScope entityScope =
+                         com.bgsoftware.superiorskyblock.island.algorithm.ChunkCountReconciliation.forEntity(vehicle.getUniqueId(), Keys.of(vehicle));
+                 ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
                 this.worldRecordService.get().recordBlockPlace(minecartBlockKey,
                         vehicle.getLocation(wrapper.getHandle()),
                         1, null, REGULAR_RECORD_FLAGS);
@@ -579,13 +583,13 @@ public class BlockChangesListener extends AbstractGameEventListener {
         try (ObjectsPools.Wrapper<Location> wrapper = ObjectsPools.LOCATION.obtain()) {
             Location location = block.getLocation(wrapper.getHandle());
 
-            if (alreadySpongeAbosrbCalled.contains(location))
+            if (alreadySpongeAbosrbCalled.asMap().putIfAbsent(
+                    com.bgsoftware.superiorskyblock.core.WorldBlockKey.of(location), Boolean.TRUE) != null)
                 return;
 
             worldRecordService.get().recordBlockPlace(ConstantKeys.WET_SPONGE, location, 1,
                     block.getState(), WorldRecordFlags.SAVE_BLOCK_COUNT);
 
-            alreadySpongeAbosrbCalled.add(location.clone());
         }
     }
 

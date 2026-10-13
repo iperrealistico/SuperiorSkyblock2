@@ -29,29 +29,31 @@ public class TrackedBlocksData {
 
     }
 
-    public synchronized void track(long chunkKey, int block) {
-        TRACKED_BLOCKS.computeIfAbsent(chunkKey, key -> new ChunkBitSet()).set(block);
+    public void track(long chunkKey, int block) {
+        ChunkBitSet chunk;
+        synchronized (this) { chunk = TRACKED_BLOCKS.computeIfAbsent(chunkKey, key -> new ChunkBitSet()); }
+        chunk.set(block);
     }
 
     public boolean untrack(long chunkKey, IntSupplier block) {
         int index = block.getAsInt();
-        synchronized (this) {
-            ChunkBitSet bitSet = TRACKED_BLOCKS.get(chunkKey);
-            return bitSet != null && bitSet.clear(index);
-        }
+        ChunkBitSet bitSet;
+        synchronized (this) { bitSet = TRACKED_BLOCKS.get(chunkKey); }
+        return bitSet != null && bitSet.clear(index);
     }
 
     public boolean contains(long chunkKey, IntSupplier block) {
         int index = block.getAsInt();
-        synchronized (this) {
-            ChunkBitSet bitSet = TRACKED_BLOCKS.get(chunkKey);
-            return bitSet != null && bitSet.get(index);
-        }
+        ChunkBitSet bitSet;
+        synchronized (this) { bitSet = TRACKED_BLOCKS.get(chunkKey); }
+        return bitSet != null && bitSet.get(index);
     }
 
-    public synchronized Map<Long, ChunkBitSet> getBlocks() {
+    public Map<Long, ChunkBitSet> getBlocks() {
+        Map<Long, ChunkBitSet> sources;
+        synchronized (this) { sources = new HashMap<>(TRACKED_BLOCKS); }
         Map<Long, ChunkBitSet> snapshot = new HashMap<>();
-        TRACKED_BLOCKS.forEach((key, value) -> snapshot.put(key, value.copy()));
+        sources.forEach((key, value) -> snapshot.put(key, value.copy()));
         return Collections.unmodifiableMap(snapshot);
     }
 

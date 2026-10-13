@@ -62,8 +62,9 @@ public class IslandPrivilegePagedObjectButton extends AbstractPagedMenuButton<Me
 
         GameSoundImpl.playSound(player, button.pagedObject.getAccessSound());
 
-        button.pagedObject.getAccessCommands().forEach(command -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
-                command.replace("%player%", clickedPlayer.getName())));
+        button.pagedObject.getAccessCommands().forEach(command -> com.bgsoftware.superiorskyblock.core.menu.MenuCommandsImpl.getInstance()
+                .dispatchConfiguredCommand(button.menuView, Bukkit.getConsoleSender(),
+                        command.replace("%player%", clickedPlayer.getName()), button.menuView.getIsland()));
 
         Menus.MENU_ISLAND_PRIVILEGES.refreshViews();
     }
@@ -80,8 +81,9 @@ public class IslandPrivilegePagedObjectButton extends AbstractPagedMenuButton<Me
 
         GameSoundImpl.playSound(player, button.pagedObject.getNoAccessSound());
 
-        button.pagedObject.getNoAccessCommands().forEach(command -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
-                command.replace("%player%", clickedPlayer.getName())));
+        button.pagedObject.getNoAccessCommands().forEach(command -> com.bgsoftware.superiorskyblock.core.menu.MenuCommandsImpl.getInstance()
+                .dispatchConfiguredCommand(button.menuView, Bukkit.getConsoleSender(),
+                        command.replace("%player%", clickedPlayer.getName()), button.menuView.getIsland()));
     }
 
     private static boolean isRoleAllowed(@Nullable PlayerRole playerRole, @Nullable IslandPrivilege.Type islandPrivilegeType) {

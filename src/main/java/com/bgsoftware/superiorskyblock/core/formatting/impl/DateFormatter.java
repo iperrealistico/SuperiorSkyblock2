@@ -11,7 +11,7 @@ public class DateFormatter implements IFormatter<Date> {
 
     private static final DateFormatter INSTANCE = new DateFormatter();
 
-    private static SimpleDateFormat dateFormatter;
+    private static volatile SimpleDateFormat dateFormatter;
 
     public static void setDateFormatter(SuperiorSkyblockPlugin plugin, String dateFormat) {
         dateFormatter = new SimpleDateFormat(dateFormat);
@@ -33,7 +33,8 @@ public class DateFormatter implements IFormatter<Date> {
 
     @Override
     public String format(Date value) {
-        return dateFormatter.format(value);
+        // SimpleDateFormat mutates its calendar while formatting; regions must not share that state.
+        return ((SimpleDateFormat) dateFormatter.clone()).format(value);
     }
 
 }

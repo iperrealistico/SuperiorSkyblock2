@@ -42,6 +42,9 @@ public class MenuGlobalWarps extends AbstractPagedMenu<MenuGlobalWarps.View, Emp
     }
 
     @Override
+    protected boolean capturesViewerIsland() { return false; }
+
+    @Override
     protected View createViewInternal(SuperiorPlayer superiorPlayer, EmptyViewArgs unused,
                                       @Nullable MenuView<?, ?> previousMenuView) {
         return new View(superiorPlayer, previousMenuView, this);

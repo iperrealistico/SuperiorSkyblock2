@@ -51,6 +51,12 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
 
     private static volatile Set<String> DANGEROUS_COMMANDS_CACHE = Collections.emptySet();
 
+    /** The same public-target policy applies to execution and selector completion. */
+    static boolean allowsExternalIsland(String family) {
+        return Arrays.asList("admin", "visit", "warp", "show", "rate", "ratings", "accept",
+                "counts", "values", "team").contains(family);
+    }
+
     private final Map<UUID, Map<String, Long>> commandsCooldown = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<String, Cache<UUID, DangerousCommandRequest>> dangerousCommandsRequests = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -194,10 +200,26 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
     }
 
     /** Same command validation path, with an explicit source subject for own configured chains. */
+    public boolean ownsCapturedCommand(String command) {
+        String trimmed = command.trim();
+        return pluginCommand != null && !trimmed.isEmpty() && pluginCommand.ownsLabel(trimmed.split("\\s+", 2)[0]);
+    }
+
     public boolean dispatchCapturedCommand(CommandSender sender, String command, com.bgsoftware.superiorskyblock.api.island.Island target) {
-        String[] words = command.split(" ");
+        return dispatchOwnCommand(sender, command, target, true);
+    }
+
+    /** Personal/global menus have no captured island; use the ordinary current-player policy. */
+    public boolean dispatchCurrentCommand(CommandSender sender, String command) {
+        return dispatchOwnCommand(sender, command, null, false);
+    }
+
+    private boolean dispatchOwnCommand(CommandSender sender, String command,
+                                       com.bgsoftware.superiorskyblock.api.island.Island target, boolean captured) {
+        String[] words = command.trim().split("\\s+");
         if (pluginCommand == null || words.length == 0 || !pluginCommand.ownsLabel(words[0]))
             return Bukkit.dispatchCommand(sender, command);
+        if (!captured) return pluginCommand.execute(sender, words[0], Arrays.copyOfRange(words, 1, words.length));
         try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope scope =
                      com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.openInherited(target)) {
             return pluginCommand.execute(sender, words[0], Arrays.copyOfRange(words, 1, words.length));
@@ -376,7 +398,7 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
                             approvedArgs[2] = "owner:" + owner.getName();
                             try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope scope =
                                          com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.open(null, false)) {
-                                command.execute(plugin, player, approvedArgs);
+                                command.execute(plugin, player, approvedArgs.clone());
                             }
                         }
                     } else if (request.ratingAuthor != null) {
@@ -388,7 +410,7 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
                         for (com.bgsoftware.superiorskyblock.api.island.Island island : resolved) {
                             try (com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope scope =
                                          com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.open(island)) {
-                                command.execute(plugin, player, approvedArgs);
+                                command.execute(plugin, player, approvedArgs.clone());
                             }
                         }
                     }
@@ -590,7 +612,7 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
             if (target != null && sender instanceof Player) {
                 SuperiorPlayer player = plugin.getPlayers().getSuperiorPlayer(sender);
                 String family = parsed.arguments.length == 0 ? "tp" : playerFamily(parsed.arguments[0]);
-                boolean external = Arrays.asList("admin", "visit", "warp", "show", "rate", "ratings", "accept").contains(family);
+                boolean external = allowsExternalIsland(family);
                 if (!external && !target.isMember(player)) { Message.INVALID_ISLAND.send(sender); return false; }
             }
             try (CommandPresentation presentation = CommandPresentation.open(advanced || administrative || !(sender instanceof Player));
@@ -747,7 +769,8 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
                         this::playerFamily, this::adminFamily, true);
             } catch (IllegalArgumentException invalid) { return Collections.emptyList(); }
             if (parsed.completingSelector) {
-                List<com.bgsoftware.superiorskyblock.api.island.Island> choices = administrative || !(sender instanceof Player) ? plugin.getGrid().getIslands() :
+                String family = parsed.arguments.length == 0 ? "tp" : playerFamily(parsed.arguments[0]);
+                List<com.bgsoftware.superiorskyblock.api.island.Island> choices = administrative || !(sender instanceof Player) || allowsExternalIsland(family) ? plugin.getGrid().getIslands() :
                         plugin.getPlayers().getSuperiorPlayer(sender).getIslands();
                 List<String> result = new java.util.ArrayList<>();
                 String prefix = parsed.selector;
@@ -765,7 +788,7 @@ public class CommandsManagerImpl extends Manager implements CommandsManager {
             if (parsed.selector != null && target == null) return Collections.emptyList();
             if (target != null && sender instanceof Player && !administrative) {
                 String family = parsed.arguments.length == 0 ? "tp" : playerFamily(parsed.arguments[0]);
-                if (!Arrays.asList("visit", "warp", "show", "rate", "ratings", "accept").contains(family) &&
+                if (!allowsExternalIsland(family) &&
                         !target.isMember(plugin.getPlayers().getSuperiorPlayer(sender))) return Collections.emptyList();
             }
             try (CommandPresentation presentation = CommandPresentation.open(advanced || administrative || !(sender instanceof Player));

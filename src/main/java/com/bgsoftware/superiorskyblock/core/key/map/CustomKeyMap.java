@@ -13,7 +13,10 @@ import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 public class CustomKeyMap<V> extends AbstractMap<Key, V> implements KeyMap<V> {
@@ -41,14 +44,11 @@ public class CustomKeyMap<V> extends AbstractMap<Key, V> implements KeyMap<V> {
 
     @Override
     public V get(Object obj) {
-        if (size() == 0)
-            return null;
-
         if (obj instanceof LazyKey) {
             return get(((LazyKey<?>) obj).getBaseKey());
         }
 
-        return getInternal((Key) obj, true);
+        return obj instanceof Key ? getInternal((Key) obj, true) : null;
     }
 
     private V getInternal(Key key, boolean tryGlobal) {
@@ -75,7 +75,7 @@ public class CustomKeyMap<V> extends AbstractMap<Key, V> implements KeyMap<V> {
 
     @Override
     public V remove(Object key) {
-        return size() == 0 ? null : removeNoSizeCheck(key);
+        return removeNoSizeCheck(key);
     }
 
     private V removeNoSizeCheck(Object key) {
@@ -105,11 +105,8 @@ public class CustomKeyMap<V> extends AbstractMap<Key, V> implements KeyMap<V> {
 
     @Override
     public Key getKey(Key original, @Nullable Key def) {
-        if (size() == 0)
-            return def;
-
         if (original instanceof LazyKey) {
-            return getKey(((LazyKey<?>) original).getBaseKey());
+            return getKey(((LazyKey<?>) original).getBaseKey(), def);
         }
 
         Map<Key, V> map = this.innerMap.getIfPresent().orElse(null);
@@ -137,9 +134,6 @@ public class CustomKeyMap<V> extends AbstractMap<Key, V> implements KeyMap<V> {
 
     @Override
     public V getRaw(Key key, V def) {
-        if (size() == 0)
-            return def;
-
         return getRawNoSizeCheck(key, def);
     }
 
@@ -160,6 +154,43 @@ public class CustomKeyMap<V> extends AbstractMap<Key, V> implements KeyMap<V> {
     @Override
     public Map<Key, V> asMap() {
         return this;
+    }
+
+    private Key unwrap(Key key) {
+        return key instanceof LazyKey ? unwrap(((LazyKey<?>) key).getBaseKey()) : Objects.requireNonNull(key);
+    }
+
+    @Override public V merge(Key key, V value, BiFunction<? super V, ? super V, ? extends V> function) {
+        return this.innerMap.get().merge(unwrap(key), value, function);
+    }
+    @Override public V compute(Key key, BiFunction<? super Key, ? super V, ? extends V> function) {
+        Objects.requireNonNull(function);
+        return this.innerMap.get().compute(unwrap(key), (k, v) -> function.apply(key, v));
+    }
+    @Override public V computeIfAbsent(Key key, Function<? super Key, ? extends V> function) {
+        Objects.requireNonNull(function);
+        return this.innerMap.get().computeIfAbsent(unwrap(key), k -> function.apply(key));
+    }
+    @Override public V computeIfPresent(Key key, BiFunction<? super Key, ? super V, ? extends V> function) {
+        Objects.requireNonNull(function);
+        return this.innerMap.get().computeIfPresent(unwrap(key), (k, v) -> function.apply(key, v));
+    }
+    @Override public V putIfAbsent(Key key, V value) {
+        return this.innerMap.get().putIfAbsent(unwrap(key), value);
+    }
+    @Override public boolean remove(Object key, Object value) {
+        return key instanceof Key && this.innerMap.getIfPresent()
+                .map(m -> m.remove(unwrap((Key) key), value)).orElse(false);
+    }
+    @Override public boolean replace(Key key, V oldValue, V newValue) {
+        return this.innerMap.getIfPresent().map(m -> m.replace(unwrap(key), oldValue, newValue)).orElse(false);
+    }
+    @Override public V replace(Key key, V value) {
+        return this.innerMap.getIfPresent().map(m -> m.replace(unwrap(key), value)).orElse(null);
+    }
+    @Override public void replaceAll(BiFunction<? super Key, ? super V, ? extends V> function) {
+        Objects.requireNonNull(function);
+        this.innerMap.getIfPresent().ifPresent(m -> m.replaceAll(function));
     }
 
 }

@@ -266,6 +266,8 @@ public class SIsland implements Island {
      * Island Flags
      */
     private volatile boolean beingRecalculated = false;
+    private final Object geometryRefreshLock = new Object();
+    private int lastGeometryRadius = Integer.MIN_VALUE;
     private final AtomicReference<BigInteger> currentTotalBlockCounts = new AtomicReference<>(BigInteger.ZERO);
     private volatile BigInteger lastSavedBlockCounts = BigInteger.ZERO;
     private volatile SuperiorPlayer owner;
@@ -1806,7 +1808,40 @@ public class SIsland implements Island {
     @Override public java.util.concurrent.CompletableFuture<Void> disbandIslandAsync() {
         long profilerId = Profiler.start(ProfileType.DISBAND_ISLAND, 2);
         return plugin.getPvcIslandService().delete(this, () -> evacuatePlayersAsync().thenCompose(unused -> resetChunksAsync(IslandChunkFlags.NO_EMPTY_CHUNKS)),
-                () -> finishDisband(profilerId));
+                () -> finishDisband(profilerId), shouldRefundDisband(), this::refundDisbandAsync)
+                .whenComplete((unused, failure) -> { if (failure != null) Profiler.end(profilerId); });
+    }
+
+    private boolean shouldRefundDisband() {
+        return !plugin.getPvcIslandService().isRecovering(uuid) && !plugin.getPvcIslandService().isCreationPending(uuid) &&
+                BuiltinModules.BANK.getConfiguration().hasDisbandRefund();
+    }
+
+    /** Called only after bank drain and an acknowledged pending-refund phase, before any world or metadata deletion. */
+    private java.util.concurrent.CompletableFuture<Void> refundDisbandAsync() {
+        java.util.concurrent.CompletableFuture<Void> result = new java.util.concurrent.CompletableFuture<>();
+        SuperiorPlayer recipient = getOwner();
+        final BigDecimal amount;
+        try { amount = com.bgsoftware.superiorskyblock.pvc.island.DisbandRefundPolicy.providerAmount(
+                islandBank.getBalance().multiply(BuiltinModules.BANK.getConfiguration().getDisbandRefund())); }
+        catch (Throwable failure) { result.completeExceptionally(failure); return result; }
+        Runnable payout = () -> {
+            try {
+                if (!recipient.getUniqueId().equals(getOwner().getUniqueId()))
+                    throw new com.bgsoftware.superiorskyblock.pvc.island.DisbandRefundFailure("Refund recipient changed before payout", true);
+                com.bgsoftware.superiorskyblock.api.hooks.EconomyProvider.EconomyResult outcome = plugin.getProviders().depositMoney(recipient, amount);
+                com.bgsoftware.superiorskyblock.pvc.island.DisbandRefundPolicy.acknowledge(outcome, amount);
+                result.complete(null);
+            } catch (Throwable failure) { result.completeExceptionally(failure); }
+        };
+        try {
+            Player actor = recipient.asPlayer();
+            if (actor == null) BukkitExecutor.global(payout); // Qualified offline-provider compatibility context.
+            else BukkitExecutor.entity(actor, payout, 0L, () -> result.completeExceptionally(
+                    new com.bgsoftware.superiorskyblock.pvc.island.DisbandRefundFailure("Refund recipient retired before payout", true)));
+        } catch (Throwable rejected) { result.completeExceptionally(
+                new com.bgsoftware.superiorskyblock.pvc.island.DisbandRefundFailure("Refund scheduler rejected work before payout", true)); }
+        return result;
     }
 
     private java.util.concurrent.CompletableFuture<Void> evacuatePlayersAsync() {
@@ -1847,11 +1882,6 @@ public class SIsland implements Island {
 
         invitedPlayers.forEach(invitedPlayer -> invitedPlayer.removeInvite(this));
         coopPlayers.forEach(coopPlayer -> coopPlayer.removeCoop(this));
-
-        if (!recovering && BuiltinModules.BANK.getConfiguration().hasDisbandRefund()) {
-            BigDecimal disbandRefund = BuiltinModules.BANK.getConfiguration().getDisbandRefund();
-            plugin.getProviders().depositMoney(getOwner(), islandBank.getBalance().multiply(disbandRefund));
-        }
 
         if (!recovering) plugin.getMissions().getIslandMissions().forEach(this::resetMission);
 
@@ -2074,8 +2104,7 @@ public class SIsland implements Island {
         boolean cropGrowthEnabled = BuiltinModules.UPGRADES.isUpgradeTypeEnabled(UpgradeTypeCropGrowth.class);
 
         if (BukkitExecutor.isFolia()) {
-            this.islandSize.set(islandSize);
-            this.protectedArea.update(this.center, getIslandSize());
+            publishIslandSize(islandSize);
             if (cropGrowthEnabled)
                 IslandUtils.recalibrateLoadedCropChunks(this);
             updateBorder();
@@ -2091,7 +2120,7 @@ public class SIsland implements Island {
         }
 
         // Changing the size of the island
-        this.islandSize.set(islandSize);
+        publishIslandSize(islandSize);
 
         if (cropGrowthEnabled) {
             // We now collect the new chunks after the size was changed
@@ -2105,14 +2134,26 @@ public class SIsland implements Island {
             }));
         }
 
-        this.protectedArea.update(this.center, getIslandSize());
-
         updateBorder();
+    }
+
+    private void publishIslandSize(IntValue islandSize) {
+        synchronized (geometryRefreshLock) {
+            this.islandSize.set(islandSize);
+            int radius = getIslandSize();
+            this.protectedArea.update(this.center, radius);
+            lastGeometryRadius = radius;
+        }
     }
 
     /** Metadata refresh only; derived policy is never written as an administrative fixed value. */
     public void refreshEffectiveSize() {
-        this.protectedArea.update(this.center, getIslandSize());
+        synchronized (geometryRefreshLock) {
+            int radius = getIslandSize();
+            if (lastGeometryRadius == radius) return;
+            this.protectedArea.update(this.center, radius);
+            lastGeometryRadius = radius;
+        }
         if (BukkitExecutor.isFolia() && BuiltinModules.UPGRADES.isUpgradeTypeEnabled(UpgradeTypeCropGrowth.class))
             IslandUtils.recalibrateLoadedCropChunks(this);
         updateBorder();
@@ -2452,8 +2493,18 @@ public class SIsland implements Island {
 
         Log.debug(Debug.EXECUTE_ISLAND_COMMANDS, owner.getName(), command, onlyOnlineMembers, Arrays.toString(ignoredMembers));
 
+        UUID capturedOwner = getOwner().getUniqueId();
+        long capturedRevision = plugin.getPvcIslandService().getRevision(uuid);
+        long capturedMembership = plugin.getPvcIslandService().getMembershipRevision(uuid);
+        UUID[] capturedIgnored = ignoredMembers.clone();
         registerTask(BukkitExecutor.ensureMain(() -> {
-            forEachIslandMember(ignoredMembers, onlyOnlineMembers, islandMember -> {
+            if (plugin.getGrid().getIslandByUUID(uuid) != this || !plugin.getPvcIslandService().isAvailable(uuid) ||
+                    !capturedOwner.equals(getOwner().getUniqueId()) ||
+                    capturedRevision != plugin.getPvcIslandService().getRevision(uuid) ||
+                    capturedMembership != plugin.getPvcIslandService().getMembershipRevision(uuid)) return;
+            forEachIslandMember(capturedIgnored, onlyOnlineMembers, islandMember -> {
+                if (!capturedOwner.equals(getOwner().getUniqueId()) ||
+                        capturedRevision != plugin.getPvcIslandService().getRevision(uuid)) return;
                 String playerCommand = command;
 
                 if (!Text.isBlank(playerCommand)) {
@@ -2461,7 +2512,7 @@ public class SIsland implements Island {
                             .replace("{player-name}", islandMember.getName());
                 }
 
-                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), playerCommand);
+                com.bgsoftware.superiorskyblock.commands.CapturedCommandDispatch.dispatch(plugin, Bukkit.getConsoleSender(), playerCommand, this);
             });
         }));
     }
@@ -2706,45 +2757,44 @@ public class SIsland implements Island {
         return handleBlockPlaceInternal(key, amountBig, flags);
     }
 
+
     private BlockChangeResult handleBlockPlaceInternal(Key key, @Size BigInteger amount, @IslandBlockFlags int flags) {
-        boolean rawBlocks = (flags & IslandBlockFlags.RAW_BLOCKS) != 0;
+        return handleBlockAccounting(key, amount, flags, false);
+    }
 
-        boolean trackedBlock = accessBlocksTracker(rawBlocks,
-                blocksTracker -> blocksTracker.trackBlock(key, amount));
+    private Object getBlockMutationLock() {
+        return blocksTracker instanceof com.bgsoftware.superiorskyblock.island.algorithm.DefaultIslandBlocksTrackerAlgorithm ?
+                ((com.bgsoftware.superiorskyblock.island.algorithm.DefaultIslandBlocksTrackerAlgorithm) blocksTracker).getMutationLock() : blocksTracker;
+    }
 
-        if (!trackedBlock)
-            return BlockChangeResult.MISSING_BLOCK_VALUE;
-
-        BigInteger newTotalBlocksCount = this.currentTotalBlockCounts.updateAndGet(count -> count.add(amount));
-
-        BigDecimal oldWorth = getWorth();
-        BigDecimal oldLevel = getIslandLevel();
-
-        BlockValue blockValue = plugin.getBlockValues().getBlockValue(key);
-        BigDecimal blockWorth = blockValue.getWorth();
-        BigDecimal blockLevel = blockValue.getLevel();
-
-        boolean saveBlockCounts = (flags & IslandBlockFlags.SAVE_BLOCK_COUNTS) != 0;
-        boolean updateLastTimeStatus = (flags & IslandBlockFlags.UPDATE_LAST_TIME_STATUS) != 0;
-
-        if (blockWorth.compareTo(BigDecimal.ZERO) != 0) {
-            islandWorth.updateAndGet(islandWorth -> islandWorth.add(blockWorth.multiply(new BigDecimal(amount))));
-            if (saveBlockCounts)
-                plugin.getGrid().getIslandsContainer().notifyChange(SortingTypes.BY_WORTH, this);
+    private BlockChangeResult handleBlockAccounting(Key key, BigInteger amount, int flags, boolean removal) {
+        boolean raw = (flags & IslandBlockFlags.RAW_BLOCKS) != 0;
+        com.bgsoftware.superiorskyblock.island.algorithm.DefaultIslandBlocksTrackerAlgorithm tracker =
+                blocksTracker instanceof com.bgsoftware.superiorskyblock.island.algorithm.DefaultIslandBlocksTrackerAlgorithm ?
+                (com.bgsoftware.superiorskyblock.island.algorithm.DefaultIslandBlocksTrackerAlgorithm) blocksTracker : null;
+        com.bgsoftware.superiorskyblock.island.algorithm.DefaultIslandBlocksTrackerAlgorithm.BlockMutation mutation = tracker == null ? null :
+                tracker.prepareBlockMutation(key, amount, removal, raw || tracker.isLoadingDataMode());
+        BlockValue value = plugin.getBlockValues().getBlockValue(key);
+        BigDecimal worthDelta = value.getWorth().multiply(new BigDecimal(amount));
+        BigDecimal levelDelta = value.getLevel().multiply(new BigDecimal(amount));
+        BigInteger total;
+        BigDecimal oldWorth, oldLevel;
+        synchronized (getBlockMutationLock()) {
+            boolean tracked = tracker != null ? tracker.applyBlockMutation(mutation) :
+                    accessBlocksTracker(raw, current -> removal ? current.untrackBlock(key, amount) : current.trackBlock(key, amount));
+            if (!tracked) return BlockChangeResult.MISSING_BLOCK_VALUE;
+            oldWorth = getWorth(); oldLevel = getIslandLevel();
+            total = currentTotalBlockCounts.updateAndGet(count -> removal ? count.subtract(amount) : count.add(amount));
+            islandWorth.updateAndGet(count -> removal ? count.subtract(worthDelta) : count.add(worthDelta));
+            islandLevel.updateAndGet(count -> removal ? count.subtract(levelDelta) : count.add(levelDelta));
         }
-
-        if (blockLevel.compareTo(BigDecimal.ZERO) != 0) {
-            islandLevel.updateAndGet(islandLevel -> islandLevel.add(blockLevel.multiply(new BigDecimal(amount))));
-            if (saveBlockCounts)
-                plugin.getGrid().getIslandsContainer().notifyChange(SortingTypes.BY_LEVEL, this);
+        boolean save = (flags & IslandBlockFlags.SAVE_BLOCK_COUNTS) != 0;
+        if (save) {
+            if (worthDelta.signum() != 0) plugin.getGrid().getIslandsContainer().notifyChange(SortingTypes.BY_WORTH, this);
+            if (levelDelta.signum() != 0) plugin.getGrid().getIslandsContainer().notifyChange(SortingTypes.BY_LEVEL, this);
+            saveBlockCounts(total, oldWorth, oldLevel);
         }
-
-        if (updateLastTimeStatus)
-            updateLastTime();
-
-        if (saveBlockCounts)
-            saveBlockCounts(newTotalBlocksCount, oldWorth, oldLevel);
-
+        if ((flags & IslandBlockFlags.UPDATE_LAST_TIME_STATUS) != 0) updateLastTime();
         return BlockChangeResult.SUCCESS;
     }
 
@@ -2912,50 +2962,11 @@ public class SIsland implements Island {
     }
 
     @Override
+
     public BlockChangeResult handleBlockBreakWithResult(Key key, @Size int amount, int flags) {
         Preconditions.checkNotNull(key, "key parameter cannot be null.");
         Preconditions.checkArgument(amount > 0, "amount parameter must be positive.");
-
-        BigInteger amountBig = BigInteger.valueOf(amount);
-
-        boolean rawBlocks = (flags & IslandBlockFlags.RAW_BLOCKS) != 0;
-
-        boolean untrackedBlocks = accessBlocksTracker(rawBlocks,
-                blocksTracker -> blocksTracker.untrackBlock(key, amountBig));
-
-        if (!untrackedBlocks)
-            return BlockChangeResult.MISSING_BLOCK_VALUE;
-
-        BigInteger newTotalBlocksCount = this.currentTotalBlockCounts.updateAndGet(count -> count.subtract(amountBig));
-
-        BigDecimal oldWorth = getWorth(), oldLevel = getIslandLevel();
-
-        BlockValue blockValue = plugin.getBlockValues().getBlockValue(key);
-        BigDecimal blockWorth = blockValue.getWorth();
-        BigDecimal blockLevel = blockValue.getLevel();
-
-        boolean saveBlockCounts = (flags & IslandBlockFlags.SAVE_BLOCK_COUNTS) != 0;
-        boolean updateLastTimeStatus = (flags & IslandBlockFlags.UPDATE_LAST_TIME_STATUS) != 0;
-
-        if (blockWorth.compareTo(BigDecimal.ZERO) != 0) {
-            this.islandWorth.updateAndGet(islandWorth -> islandWorth.subtract(blockWorth.multiply(new BigDecimal(amount))));
-            if (saveBlockCounts)
-                plugin.getGrid().getIslandsContainer().notifyChange(SortingTypes.BY_WORTH, this);
-        }
-
-        if (blockLevel.compareTo(BigDecimal.ZERO) != 0) {
-            this.islandLevel.updateAndGet(islandLevel -> islandLevel.subtract(blockLevel.multiply(new BigDecimal(amount))));
-            if (saveBlockCounts)
-                plugin.getGrid().getIslandsContainer().notifyChange(SortingTypes.BY_LEVEL, this);
-        }
-
-        if (updateLastTimeStatus)
-            updateLastTime();
-
-        if (saveBlockCounts)
-            saveBlockCounts(newTotalBlocksCount, oldWorth, oldLevel);
-
-        return BlockChangeResult.SUCCESS;
+        return handleBlockAccounting(key, BigInteger.valueOf(amount), flags, true);
     }
 
     @Override
@@ -3110,13 +3121,13 @@ public class SIsland implements Island {
     }
 
     @Override
+
     public void clearBlockCounts() {
-        blocksTracker.clearBlockCounts();
-        this.currentTotalBlockCounts.set(BigInteger.ZERO);
-
-        islandWorth.set(BigDecimal.ZERO);
-        islandLevel.set(BigDecimal.ZERO);
-
+        synchronized (getBlockMutationLock()) {
+            blocksTracker.clearBlockCounts();
+            currentTotalBlockCounts.set(BigInteger.ZERO);
+            islandWorth.set(BigDecimal.ZERO); islandLevel.set(BigDecimal.ZERO);
+        }
         plugin.getGrid().getIslandsContainer().notifyChange(SortingTypes.BY_WORTH, this);
         plugin.getGrid().getIslandsContainer().notifyChange(SortingTypes.BY_LEVEL, this);
     }
@@ -4697,68 +4708,120 @@ public class SIsland implements Island {
         IslandsDatabaseBridge.markIslandChestsToBeSaved(this, islandChests[index]);
     }
 
+
     private void calcIslandWorthInternal(@Nullable SuperiorPlayer asker, @Nullable Runnable callback) {
-        try {
-            this.beingRecalculated = true;
-            plugin.getGrid().startCalcTask();
-            runCalcIslandWorthInternal(asker, callback);
-        } catch (Throwable error) {
-            // In case of an error, we get out of the recalculate state.
-            this.beingRecalculated = false;
-            plugin.getGrid().stopCalcTask();
-            throw error;
+        synchronized (geometryRefreshLock) {
+            if (beingRecalculated) {
+                if (callback != null) BukkitExecutor.global(callback);
+                return;
+            }
+            beingRecalculated = true;
+        }
+        plugin.getGrid().startCalcTask();
+        try { runCalcIslandWorthInternal(asker, callback); }
+        catch (Throwable error) {
+            beingRecalculated = false; plugin.getGrid().stopCalcTask(); throw error;
         }
     }
 
     private void runCalcIslandWorthInternal(@Nullable SuperiorPlayer asker, @Nullable Runnable callback) {
         Log.debug(Debug.CALCULATE_ISLAND, owner.getName(), asker);
-
-        BigDecimal oldWorth = getWorth();
-        BigDecimal oldLevel = getIslandLevel();
-
-        CompletableFuture<IslandCalculationAlgorithm.IslandCalculationResult> calculationResult;
-
+        BigDecimal oldWorth = getWorth(), oldLevel = getIslandLevel();
+        UUID capturedOwner = getOwner().getUniqueId();
+        long revision = plugin.getPvcIslandService().getRevision(uuid);
+        com.bgsoftware.superiorskyblock.island.algorithm.DefaultIslandBlocksTrackerAlgorithm tracker =
+                blocksTracker instanceof com.bgsoftware.superiorskyblock.island.algorithm.DefaultIslandBlocksTrackerAlgorithm ?
+                (com.bgsoftware.superiorskyblock.island.algorithm.DefaultIslandBlocksTrackerAlgorithm) blocksTracker : null;
+        long token = tracker == null ? 0L : tracker.beginRecalculation();
+        if (tracker != null) tracker.configureRecalculation(token, Collections.emptyList(), false);
+        CompletableFuture<IslandCalculationAlgorithm.IslandCalculationResult> result;
         try {
-            // Legacy support
-            // noinspection deprecation
-            calculationResult = calculationAlgorithm.calculateIsland();
-        } catch (UnsupportedOperationException ex) {
-            calculationResult = calculationAlgorithm.calculateIsland(this);
+            try { result = calculationAlgorithm.calculateIsland(); }
+            catch (UnsupportedOperationException legacy) { result = calculationAlgorithm.calculateIsland(this); }
+        } catch (Throwable failure) {
+            if (tracker != null) tracker.cancelRecalculation(token);
+            throw failure;
         }
 
-        calculationResult.whenCompleteAsync((result, error) -> {
+        final CompletableFuture<IslandCalculationAlgorithm.IslandCalculationResult> capturedResult = result;
+        CompletableFuture<Boolean> published = capturedResult.thenApplyAsync(calculated -> {
+            if (plugin.getGrid().getIslandByUUID(uuid) != this || !plugin.getPvcIslandService().isAvailable(uuid) ||
+                    !capturedOwner.equals(getOwner().getUniqueId()) || revision != plugin.getPvcIslandService().getRevision(uuid)) return false;
+            if (tracker == null) return false; // The legacy/custom tracker is applied on its original global context below.
+            for (int attempt = 0; attempt < 3; ++attempt) {
+                com.bgsoftware.superiorskyblock.island.algorithm.ChunkCountReconciliation.Prepared prepared =
+                        tracker.prepareRecalculation(token, calculated.getBlockCounts());
+                if (prepared == null) return false;
+                Map<Key, BigInteger> normalized = tracker.normalizeRecalculationCounts(prepared.getCounts());
+                BlockCalculationTotals totals = prepareBlockTotals(prepared.getRawCounts());
+                if (plugin.getGrid().getIslandByUUID(uuid) != this || !plugin.getPvcIslandService().isAvailable(uuid) ||
+                        !capturedOwner.equals(getOwner().getUniqueId()) || revision != plugin.getPvcIslandService().getRevision(uuid)) return false;
+                if (tracker.finishRecalculation(prepared, normalized, () -> {
+                    currentTotalBlockCounts.set(totals.count); islandWorth.set(totals.worth); islandLevel.set(totals.level);
+                })) return true;
+            }
+            return false; // Keep all live events if a continuously changing snapshot cannot be committed.
+        }, BukkitExecutor.ASYNC_EXECUTOR);
+
+        java.util.concurrent.atomic.AtomicBoolean lastActive = new java.util.concurrent.atomic.AtomicBoolean();
+        // Cleanup is detached metadata and must run even if the global scheduler rejects the UI completion.
+        CompletableFuture<Boolean> cleaned = published.whenComplete((replaced, error) -> {
+            if (tracker != null) tracker.cancelRecalculation(token);
             beingRecalculated = false;
-            boolean isLastActiveTask = plugin.getGrid().stopCalcTask();
-
+            lastActive.set(plugin.getGrid().stopCalcTask());
+        });
+        cleaned.whenCompleteAsync((replaced, error) -> {
+            boolean last = lastActive.get();
             if (error != null) {
-                if (error instanceof TimeoutException) {
-                    if (asker != null)
-                        Message.ISLAND_WORTH_TIME_OUT.send(asker);
-                } else {
-                    Log.entering(owner.getName(), asker);
-                    Log.error(error, "An unexpected error occurred while calculating island worth:");
-
-                    if (asker != null)
-                        Message.ISLAND_WORTH_ERROR.send(asker);
-                }
-
+                Log.error(error, "Island calculation failed; live accounting was retained");
+                if (asker != null) Message.ISLAND_WORTH_ERROR.send(asker);
+                if (callback != null) callback.run();
                 return;
             }
-
-            clearBlockCounts();
-            result.getBlockCounts().forEach((blockKey, amount) -> handleBlockPlaceInternal(blockKey, amount, 0));
-
-            BigDecimal newIslandLevel = getIslandLevel();
-            BigDecimal newIslandWorth = getWorth();
-
-            finishCalcIsland(asker, callback, newIslandLevel, newIslandWorth);
-
-            plugin.getMenus().refreshValues(this);
-            plugin.getMenus().refreshCounts(this);
-
-            saveBlockCounts(this.currentTotalBlockCounts.get(), oldWorth, oldLevel, true, isLastActiveTask);
+            if (tracker == null && plugin.getGrid().getIslandByUUID(uuid) == this &&
+                    plugin.getPvcIslandService().isAvailable(uuid) && capturedOwner.equals(getOwner().getUniqueId()) &&
+                    revision == plugin.getPvcIslandService().getRevision(uuid)) {
+                IslandCalculationAlgorithm.IslandCalculationResult calculated = capturedResult.getNow(null);
+                if (calculated != null) {
+                    clearBlockCounts();
+                    calculated.getBlockCounts().forEach((key, amount) -> handleBlockPlaceInternal(key, amount, 0));
+                }
+            }
+            if (plugin.getGrid().getIslandByUUID(uuid) != this || !plugin.getPvcIslandService().isAvailable(uuid) ||
+                    !capturedOwner.equals(getOwner().getUniqueId()) || revision != plugin.getPvcIslandService().getRevision(uuid)) {
+                if (callback != null) callback.run();
+                return;
+            }
+            if (tracker != null && !Boolean.TRUE.equals(replaced)) {
+                if (asker != null) Message.CUSTOM.send(asker, "&cThe island changed during calculation. Current counts were preserved; try again.", true);
+                saveBlockCounts(currentTotalBlockCounts.get(), oldWorth, oldLevel, true, last);
+                if (callback != null) callback.run();
+                return;
+            }
+            finishCalcIsland(asker, callback, getIslandLevel(), getWorth());
+            plugin.getMenus().refreshValues(this); plugin.getMenus().refreshCounts(this);
+            plugin.getGrid().getIslandsContainer().notifyChange(SortingTypes.BY_WORTH, this);
+            plugin.getGrid().getIslandsContainer().notifyChange(SortingTypes.BY_LEVEL, this);
+            saveBlockCounts(currentTotalBlockCounts.get(), oldWorth, oldLevel, true, last);
             updateLastTime();
         }, BukkitExecutor.SYNC_EXECUTOR);
+    }
+
+    private BlockCalculationTotals prepareBlockTotals(Map<Key, BigInteger> physicalCounts) {
+        BlockCalculationTotals totals = new BlockCalculationTotals();
+        physicalCounts.forEach((key, amount) -> {
+            BlockValue value = plugin.getBlockValues().getBlockValue(key);
+            if (value == BlockValue.ZERO && getBlockLimit(key) == IslandUpgradeConstants.NO_LIMIT_VALUE &&
+                    !plugin.getBlockValues().isValuesMenu(key)) return;
+            totals.count = totals.count.add(amount);
+            totals.worth = totals.worth.add(value.getWorth().multiply(new BigDecimal(amount)));
+            totals.level = totals.level.add(value.getLevel().multiply(new BigDecimal(amount)));
+        });
+        return totals;
+    }
+    private static final class BlockCalculationTotals {
+        BigInteger count = BigInteger.ZERO;
+        BigDecimal worth = BigDecimal.ZERO, level = BigDecimal.ZERO;
     }
 
     private boolean hasGiveInterestFailed() {

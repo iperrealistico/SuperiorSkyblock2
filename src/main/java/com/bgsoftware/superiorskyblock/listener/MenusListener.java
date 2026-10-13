@@ -127,8 +127,9 @@ public class MenusListener extends AbstractGameEventListener {
     private IslandExecutionScope actionScope(MenuView menuView) {
         if (menuView instanceof IIslandMenuView)
             return IslandExecutionScope.open(((IIslandMenuView) menuView).getIsland(), true);
-        return IslandExecutionScope.open(menuView instanceof AbstractMenuView ?
-                ((AbstractMenuView) menuView).getActionTarget() : null, false);
+        com.bgsoftware.superiorskyblock.api.island.Island target = menuView instanceof AbstractMenuView ?
+                ((AbstractMenuView) menuView).getActionTarget() : null;
+        return target == null ? null : IslandExecutionScope.open(target, false);
     }
 
 }

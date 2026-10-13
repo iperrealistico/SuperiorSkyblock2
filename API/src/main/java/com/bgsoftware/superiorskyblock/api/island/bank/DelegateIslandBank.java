@@ -46,9 +46,18 @@ public class DelegateIslandBank implements IslandBank {
     }
 
     @Override
+    public java.util.concurrent.CompletableFuture<BankTransaction> withdrawMoneyAsync(
+            SuperiorPlayer superiorPlayer, BigDecimal amount, @Nullable List<String> commandsToExecute) {
+        return this.handle.withdrawMoneyAsync(superiorPlayer, amount, commandsToExecute);
+    }
+
+    @Override
     public BankTransaction withdrawAdminMoney(CommandSender commandSender, BigDecimal amount) {
         return this.handle.withdrawAdminMoney(commandSender, amount);
     }
+
+    @Override public java.util.concurrent.CompletableFuture<Void> quiesceTransactions() { return handle.quiesceTransactions(); }
+    @Override public void resumeTransactions() { handle.resumeTransactions(); }
 
     @Override
     public List<BankTransaction> getAllTransactions() {

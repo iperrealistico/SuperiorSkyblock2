@@ -94,6 +94,19 @@ public class IslandSelectorParserTest {
         assertArrayEquals(input, result.arguments); assertNull(result.selector); assertFalse(result.completingSelector);
     }
 
+    @Test public void discordAndMultiwordWarpNamesCannotRedirectToAnotherIsland() {
+        for (String alias : new String[]{"setdiscord", "delwarp"}) {
+            String[] payload = {alias, "base", "--island", "id:2"};
+            assertParsed(payload, payload, null);
+            assertParsed(new String[]{alias, "--island", "id:1", "base", "--island", "id:2"}, payload, "id:1");
+            IslandSelectorParser.Result completed = parse(payload, true);
+            assertFalse(completed.completingSelector); assertNull(completed.selector);
+        }
+        String[] payload = {"admin", "delwarp", "id:1", "base", "--island", "id:2"};
+        assertParsed(payload, payload, null);
+        assertParsed(new String[]{"admin", "delwarp", "id:1", "--island", "id:3", "base", "--island", "id:2"}, payload, "id:3");
+    }
+
     private static IslandSelectorParser.Result parse(String[] input, boolean completion) {
         return IslandSelectorParser.parse(input, true, PLAYERS, ADMINISTRATORS, completion);
     }

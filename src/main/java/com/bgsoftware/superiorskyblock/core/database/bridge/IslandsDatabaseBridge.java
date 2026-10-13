@@ -872,23 +872,57 @@ public class IslandsDatabaseBridge {
     }
 
     public static void markIslandChestsToBeSaved(Island island, IslandChest islandChest) {
-        SAVE_METHODS_TO_BE_EXECUTED.computeIfAbsent(island.getUniqueId(), u -> new EnumMap<>(FutureSave.class))
-                .computeIfAbsent(FutureSave.ISLAND_CHESTS, e -> new HashSet<>())
-                .add(islandChest);
+        markFutureSave(island.getUniqueId(), FutureSave.ISLAND_CHESTS, islandChest);
     }
 
     public static void markBlockCountsToBeSaved(Island island) {
-        Set<Object> varsForBlockCounts = SAVE_METHODS_TO_BE_EXECUTED.computeIfAbsent(island.getUniqueId(), u -> new EnumMap<>(FutureSave.class))
-                .computeIfAbsent(FutureSave.BLOCK_COUNTS, e -> new HashSet<>());
-        if (varsForBlockCounts.isEmpty())
-            varsForBlockCounts.add(new Object());
+        markFutureSave(island.getUniqueId(), FutureSave.BLOCK_COUNTS, Boolean.TRUE);
     }
 
     public static void markPersistentDataContainerToBeSaved(Island island) {
-        Set<Object> varsForPersistentData = SAVE_METHODS_TO_BE_EXECUTED.computeIfAbsent(island.getUniqueId(), u -> new EnumMap<>(FutureSave.class))
-                .computeIfAbsent(FutureSave.PERSISTENT_DATA, e -> new HashSet<>());
-        if (varsForPersistentData.isEmpty())
-            varsForPersistentData.add(new Object());
+        markFutureSave(island.getUniqueId(), FutureSave.PERSISTENT_DATA, Boolean.TRUE);
+    }
+
+    /** One immutable ordered settlement, with the standard SQL balance and log committed together. */
+    public static java.util.concurrent.CompletableFuture<Void> saveBankSettlement(Island island, java.math.BigDecimal balance,
+                                                                               BankTransaction transaction) {
+        DatabaseBridge bridge = island.getDatabaseBridge();
+        Runnable save = () -> {
+            runOperationIfRunning(bridge, database -> {
+                try (ObjectsPools.Wrapper<DBColumn> wrapper = ObjectsPools.DB_COLUMN.obtain()) {
+                    database.updateObject("islands_banks", createFilter("island", island),
+                            wrapper.getHandle().withNameAndValue("balance", balance.toPlainString()));
+                }
+            });
+            if (transaction != null) saveBankTransaction(island, transaction);
+        };
+        if (bridge instanceof com.bgsoftware.superiorskyblock.core.database.sql.SQLDatabaseBridge)
+            return ((com.bgsoftware.superiorskyblock.core.database.sql.SQLDatabaseBridge) bridge).executeAcknowledgedForced(save);
+        java.util.concurrent.CompletableFuture<Void> result = new java.util.concurrent.CompletableFuture<>();
+        try { save.run(); result.complete(null); } catch (Throwable failure) { result.completeExceptionally(failure); }
+        return result;
+    }
+
+    /** Every mutation stays inside the UUID's compute boundary; drained maps never have live writers. */
+    static void markFutureSave(UUID island, FutureSave type, Object value) {
+        SAVE_METHODS_TO_BE_EXECUTED.compute(island, (uuid, pending) -> {
+            if (pending == null) pending = new EnumMap<>(FutureSave.class);
+            pending.computeIfAbsent(type, ignored -> new HashSet<>()).add(value);
+            return pending;
+        });
+    }
+
+    static Map<FutureSave, Set<Object>> drainFutureSaves(UUID island) {
+        return SAVE_METHODS_TO_BE_EXECUTED.remove(island);
+    }
+
+    static Set<Object> drainFutureSave(UUID island, FutureSave type) {
+        java.util.concurrent.atomic.AtomicReference<Set<Object>> drained = new java.util.concurrent.atomic.AtomicReference<>();
+        SAVE_METHODS_TO_BE_EXECUTED.computeIfPresent(island, (uuid, pending) -> {
+            drained.set(pending.remove(type));
+            return pending.isEmpty() ? null : pending;
+        });
+        return drained.get();
     }
 
     public static boolean isModified(Island island) {
@@ -896,7 +930,7 @@ public class IslandsDatabaseBridge {
     }
 
     public static void executeFutureSaves(Island island) {
-        Map<FutureSave, Set<Object>> futureSaves = SAVE_METHODS_TO_BE_EXECUTED.remove(island.getUniqueId());
+        Map<FutureSave, Set<Object>> futureSaves = drainFutureSaves(island.getUniqueId());
         if (futureSaves != null) {
             for (Map.Entry<FutureSave, Set<Object>> futureSaveEntry : futureSaves.entrySet()) {
                 switch (futureSaveEntry.getKey()) {
@@ -916,18 +950,10 @@ public class IslandsDatabaseBridge {
     }
 
     public static void executeFutureSaves(Island island, FutureSave futureSave) {
-        Map<FutureSave, Set<Object>> futureSaves = SAVE_METHODS_TO_BE_EXECUTED.get(island.getUniqueId());
-
-        if (futureSaves == null)
-            return;
-
-        Set<Object> values = futureSaves.remove(futureSave);
+        Set<Object> values = drainFutureSave(island.getUniqueId(), futureSave);
 
         if (values == null)
             return;
-
-        if (futureSaves.isEmpty())
-            SAVE_METHODS_TO_BE_EXECUTED.remove(island.getUniqueId());
 
         switch (futureSave) {
             case BLOCK_COUNTS:

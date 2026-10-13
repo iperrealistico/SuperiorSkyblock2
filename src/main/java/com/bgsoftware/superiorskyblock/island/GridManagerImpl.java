@@ -104,23 +104,15 @@ public class GridManagerImpl extends Manager implements GridManager {
     @Nullable
     private UUID serverUUID;
 
-    private BigDecimal totalWorth = BigDecimal.ZERO;
-    private long lastTimeWorthUpdate = 0;
-    private BigDecimal totalLevel = BigDecimal.ZERO;
-    private long lastTimeLevelUpdate = 0;
+    private final java.util.concurrent.atomic.AtomicReference<TotalSnapshot> worthSnapshot = new java.util.concurrent.atomic.AtomicReference<>(new TotalSnapshot(BigDecimal.ZERO, 0L));
+    private final java.util.concurrent.atomic.AtomicReference<TotalSnapshot> levelSnapshot = new java.util.concurrent.atomic.AtomicReference<>(new TotalSnapshot(BigDecimal.ZERO, 0L));
 
     private boolean pluginDisable = false;
 
-    private boolean forceSort = false;
+    private final ThreadLocal<Boolean> forceSort = new ThreadLocal<>();
 
     private final List<SortingType> pendingSortingTypes = new LinkedList<>();
     private final AtomicInteger activeCalcTasks = new AtomicInteger(0);
-    private final LazyReference<Synchronized<EnumerateSet<SortingType>>> activeSortingTasks = new LazyReference<Synchronized<EnumerateSet<SortingType>>>() {
-        @Override
-        protected Synchronized<EnumerateSet<SortingType>> create() {
-            return Synchronized.of(new EnumerateSet<>(SortingType.values()));
-        }
-    };
 
     public GridManagerImpl(SuperiorSkyblockPlugin plugin, IslandsPurger islandsPurger, IslandPreviews islandPreviews) {
         super(plugin);
@@ -733,29 +725,19 @@ public class GridManagerImpl extends Manager implements GridManager {
 
         Log.debug(Debug.SORT_ISLANDS, sortingType.getName());
 
-        boolean isSortedAlready = activeSortingTasks.get().readAndGet(
-                activeSortingTasks -> activeSortingTasks.contains(sortingType));
-        if (isSortedAlready) {
-            if (onFinish != null)
-                onFinish.run();
-            forceSort = false;
-            return;
-        }
-
-        activeSortingTasks.get().write(activeSortingTasks -> activeSortingTasks.add(sortingType));
-
-        this.islandsContainer.sortIslands(sortingType, forceSort, () -> {
+        boolean requestedForce = Boolean.TRUE.equals(forceSort.get());
+        forceSort.remove();
+        // The container owns the atomic per-type admission and attaches completion callbacks
+        // to the admitted sort; duplicate callers must not report completion prematurely.
+        this.islandsContainer.sortIslands(sortingType, requestedForce, () -> {
             plugin.getMenus().refreshTopIslands(sortingType);
-            activeSortingTasks.get().write(activeSortingTasks -> activeSortingTasks.remove(sortingType));
             if (onFinish != null)
                 onFinish.run();
         });
-
-        forceSort = false;
     }
 
     public void setForceSort(boolean forceSort) {
-        this.forceSort = forceSort;
+        if (forceSort) this.forceSort.set(Boolean.TRUE); else this.forceSort.remove();
     }
 
     @Override
@@ -987,30 +969,29 @@ public class GridManagerImpl extends Manager implements GridManager {
 
     @Override
     public BigDecimal getTotalWorth() {
-        long currentTime = System.currentTimeMillis();
-
-        if (currentTime - lastTimeWorthUpdate > 60000) {
-            lastTimeWorthUpdate = currentTime;
-            totalWorth = BigDecimal.ZERO;
-            for (Island island : getIslands())
-                totalWorth = totalWorth.add(island.getWorth());
-        }
-
-        return totalWorth;
+        return totalValue(worthSnapshot, Island::getWorth);
     }
 
     @Override
     public BigDecimal getTotalLevel() {
-        long currentTime = System.currentTimeMillis();
+        return totalValue(levelSnapshot, Island::getIslandLevel);
+    }
 
-        if (currentTime - lastTimeLevelUpdate > 60000) {
-            lastTimeLevelUpdate = currentTime;
-            totalLevel = BigDecimal.ZERO;
-            for (Island island : getIslands())
-                totalLevel = totalLevel.add(island.getIslandLevel());
-        }
+    private BigDecimal totalValue(java.util.concurrent.atomic.AtomicReference<TotalSnapshot> cache,
+                                  java.util.function.Function<Island, BigDecimal> value) {
+        TotalSnapshot previous = cache.get();
+        long now = System.currentTimeMillis();
+        if (now - previous.created <= 60000L) return previous.total;
+        BigDecimal total = BigDecimal.ZERO;
+        for (Island island : getIslands()) total = total.add(value.apply(island));
+        TotalSnapshot updated = new TotalSnapshot(total, now);
+        cache.compareAndSet(previous, updated);
+        return cache.get().total;
+    }
 
-        return totalLevel;
+    private static final class TotalSnapshot {
+        final BigDecimal total; final long created;
+        TotalSnapshot(BigDecimal total, long created) { this.total = total; this.created = created; }
     }
 
     @Override

@@ -62,6 +62,9 @@ public class MenuTopIslands extends AbstractPagedMenu<MenuTopIslands.View, MenuT
     }
 
     @Override
+    protected boolean capturesViewerIsland() { return false; }
+
+    @Override
     protected View createViewInternal(SuperiorPlayer superiorPlayer, Args args,
                                       @Nullable MenuView<?, ?> previousMenuView) {
         return new View(superiorPlayer, previousMenuView, this, args);

@@ -52,6 +52,9 @@ public class MenuConfigEditor extends AbstractPagedMenu<MenuConfigEditor.View, M
     }
 
     @Override
+    protected boolean capturesViewerIsland() { return false; }
+
+    @Override
     protected View createViewInternal(SuperiorPlayer superiorPlayer, MenuConfigEditor.Args args,
                                       @Nullable MenuView<?, ?> previousMenuView) {
         return new View(superiorPlayer, previousMenuView, this, args);

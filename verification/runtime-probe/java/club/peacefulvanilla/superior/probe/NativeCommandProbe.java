@@ -4,6 +4,9 @@ import com.bgsoftware.superiorskyblock.SuperiorSkyblockPlugin;
 import com.bgsoftware.superiorskyblock.api.commands.SuperiorCommand;
 import com.bgsoftware.superiorskyblock.api.events.IslandChatEvent;
 import com.bgsoftware.superiorskyblock.api.events.PlayerChangeChatStateEvent;
+import com.bgsoftware.superiorskyblock.api.events.IslandRateEvent;
+import com.bgsoftware.superiorskyblock.api.events.IslandRemoveRatingEvent;
+import com.bgsoftware.superiorskyblock.api.enums.Rating;
 import com.bgsoftware.superiorskyblock.api.island.Island;
 import com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope;
 import com.bgsoftware.superiorskyblock.api.missions.Mission;
@@ -11,6 +14,22 @@ import com.bgsoftware.superiorskyblock.api.upgrades.Upgrade;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.core.database.sql.SQLDatabaseBridge;
 import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
+import com.bgsoftware.superiorskyblock.core.menu.Menus;
+import com.bgsoftware.superiorskyblock.core.menu.impl.MenuConfirmKick;
+import com.bgsoftware.superiorskyblock.core.menu.impl.MenuConfirmBan;
+import com.bgsoftware.superiorskyblock.core.menu.view.AbstractMenuView;
+import com.bgsoftware.superiorskyblock.core.menu.view.IIslandMenuView;
+import com.bgsoftware.superiorskyblock.api.menu.MenuCommands;
+import com.bgsoftware.superiorskyblock.api.menu.button.click.ButtonClickContext;
+import com.bgsoftware.superiorskyblock.api.menu.button.MenuTemplateButton;
+import com.bgsoftware.superiorskyblock.api.menu.button.PagedMenuTemplateButton;
+import com.bgsoftware.superiorskyblock.api.menu.view.PagedMenuView;
+import com.bgsoftware.superiorskyblock.api.menu.layout.PagedMenuLayout;
+import com.bgsoftware.superiorskyblock.api.menu.view.MenuView;
+import com.bgsoftware.superiorskyblock.api.island.PlayerRole;
+import com.bgsoftware.superiorskyblock.core.key.Keys;
+import com.bgsoftware.superiorskyblock.commands.player.CmdTeam;
+import com.bgsoftware.superiorskyblock.island.privilege.IslandPrivileges;
 import com.bgsoftware.superiorskyblock.module.upgrades.commands.CmdAdminSetUpgrade;
 import com.bgsoftware.superiorskyblock.player.chat.ChatStates;
 import net.luckperms.api.LuckPermsProvider;
@@ -23,6 +42,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -52,6 +72,9 @@ public final class NativeCommandProbe implements Listener {
             zeroOwnedSizeChecked, bulkDisbandsChecked;
     private int demoteRoleA, demoteRoleB, changedDemoteRole;
     private int primaryDisbands, auxiliaryDisbands;
+    private volatile UUID adminRatingAuthor, removedRatingAuthor, consoleTeamIsland;
+    private volatile boolean recheckChecked;
+    private PlayerRole previousBanRole;
 
     public NativeCommandProbe(JavaPlugin observer, SuperiorSkyblockPlugin superior) {
         this.observer = observer; this.superior = superior;
@@ -60,6 +83,9 @@ public final class NativeCommandProbe implements Listener {
         SuperiorCommand original = superior.getCommands().getAdminCommand("setupgrade");
         if (!(original instanceof CmdAdminSetUpgrade)) throw new IllegalStateException("The original setupgrade handler is required");
         superior.getCommands().registerAdminCommand(new SetupgradeTrace(original));
+        SuperiorCommand originalTeam = superior.getCommands().getCommand("team");
+        if (!(originalTeam instanceof CmdTeam)) throw new IllegalStateException("Original team handler required");
+        superior.getCommands().registerCommand(new TeamTrace(originalTeam));
     }
 
     private void guard() {
@@ -109,8 +135,28 @@ public final class NativeCommandProbe implements Listener {
                 case "approve-addsize" -> approve(actor, "addsize");
                 case "approve-removeratings" -> approve(actor, "removeratings");
                 case "approve-adddisbands" -> approve(actor, "adddisbands");
+                case "approve-setgenerator" -> approve(actor, "setgenerator");
+                case "approve-addgenerator" -> approve(actor, "addgenerator");
                 case "sizecheck" -> sizecheck(actor);
                 case "payloadcheck" -> payloadcheck(actor);
+                case "tail-prepare" -> tailPrepare(actor);
+                case "tail-status" -> tailStatus(actor);
+                case "tail-inspect" -> tailInspect(actor);
+                case "tail-console" -> tailConsole(actor);
+                case "tail-expel" -> tailExpel(actor);
+                case "tail-menuhook" -> tailMenuHook(actor);
+                case "tail-openkick" -> tailOpenKick(actor);
+                case "tail-openban" -> tailOpenBan(actor);
+                case "tail-guicheck" -> tailGuiCheck(actor);
+                case "tail-globalcheck" -> tailGlobalCheck(actor);
+                case "tail-globalhomecheck" -> tailGlobalHomeCheck(actor);
+                case "tail-list-slot" -> tailListSlot(actor);
+                case "tail-eventclear" -> tailEventClear(actor);
+                case "tail-eventcheck" -> tailEventCheck(actor);
+                case "tail-finish" -> tailFinish(actor);
+                case "shared-state" -> NativeSharedStateProbe.run(observer, superior, actor).whenComplete((unused, error) -> {
+                    if (error != null) fail(actor, error); else reply(actor, "SUPERIOR_SHARED_STATE_PASS actors=2 loadTest=false");
+                });
                 case "finish" -> checkpoint(actor, false);
                 case "restartfinish" -> checkpoint(actor, true);
                 default -> throw new IllegalArgumentException("Unknown fixed native command case");
@@ -177,13 +223,21 @@ public final class NativeCommandProbe implements Listener {
             user.data().add(PermissionNode.builder("superior.island").build());
             user.data().add(PermissionNode.builder("superior.island.schematic.normal").build());
             for (String suffix : List.of("create", "teleport", "help", "name", "rankup", "mission", "localchat",
-                    "warp", "setwarp", "rate", "ratings", "promote", "demote", "kick", "setrole"))
-                user.data().add(PermissionNode.builder("superior.island." + suffix).build());
+                    "warp", "setwarp", "rate", "ratings", "promote", "demote", "kick", "setrole",
+                    "counts", "values", "team", "lang", "setdiscord", "delwarp", "visit", "warps", "top"))
+                user.data().add(PermissionNode.builder(requiredPermission(false, suffix)).build());
             user.data().add(PermissionNode.builder("superior.admin").build());
-            for (String suffix : List.of("join", "removeratings", "rankup", "msgall", "cmdall", "demote", "kick", "setsize", "addsize", "clearsizeoverride", "givedisbands"))
-                user.data().add(PermissionNode.builder("superior.admin." + suffix).build());
+            for (String suffix : List.of("join", "removeratings", "rankup", "msgall", "cmdall", "demote", "kick", "setsize", "addsize", "clearsizeoverride", "givedisbands",
+                    "setbonus", "setgenerator", "addgenerator", "delwarp", "setrate"))
+                user.data().add(PermissionNode.builder(requiredPermission(true, suffix)).build());
             return api.getUserManager().saveUser(user);
         });
+    }
+    private String requiredPermission(boolean administrative, String alias) {
+        SuperiorCommand command = administrative ? superior.getCommands().getAdminCommand(alias) : superior.getCommands().getCommand(alias);
+        if (command == null || command.getPermission() == null || command.getPermission().isEmpty())
+            throw new IllegalStateException("Required fixture command or permission is missing: " + (administrative ? "admin " : "") + alias);
+        return command.getPermission();
     }
     private void quota(Player actor, boolean expanded) {
         quota(actor, actor, expanded);
@@ -215,7 +269,7 @@ public final class NativeCommandProbe implements Listener {
             reply(actor, "SUPERIOR_COMMAND_STATUS count=" + islands.size() + " quota=" + superior.getPvcEntitlements().getOwnershipLimit(owner.getUniqueId()) +
                     " ids=" + ids + " selected=" + (owner.getSelectedIsland() == null ? 0 : owner.getSelectedIsland().getShortId()) +
                     " available=" + islands.stream().allMatch(island -> superior.getPvcIslandService().isAvailable(island.getUniqueId())) +
-                    " auxPhysical=" + physical + " memberA=" + (a != null && a.isMember(member)) + " memberB=" + (b != null && b.isMember(member)) +
+                    " auxPhysical=" + physical + " auxOwned=" + member.getOwnedIslands().size() + " memberA=" + (a != null && a.isMember(member)) + " memberB=" + (b != null && b.isMember(member)) +
                     " roleA=" + (a == null ? -1 : member.getPlayerRole(a).getWeight()) + " roleB=" + (b == null ? -1 : member.getPlayerRole(b).getWeight()) +
                     " ratingsA=" + (a == null ? 0 : a.getRatingAmount()) + " ratingsB=" + (b == null ? 0 : b.getRatingAmount()) +
                     " levelA=" + (a == null ? 0 : a.getUpgradeLevel(upgrade()).getLevel()) + " levelB=" + (b == null ? 0 : b.getUpgradeLevel(upgrade()).getLevel()) +
@@ -300,7 +354,7 @@ public final class NativeCommandProbe implements Listener {
         reply(actor, stale ? "SUPERIOR_COMMAND_STALE_DEMOTE_SNAPSHOT" : "SUPERIOR_COMMAND_DEMOTE_SNAPSHOT");
     }
     private void approve(Player actor, String command) {
-        if (!List.of("demote", "kick", "setsize", "addsize", "removeratings", "adddisbands").contains(command))
+        if (!List.of("demote", "kick", "setsize", "addsize", "removeratings", "adddisbands", "setgenerator", "addgenerator").contains(command))
             throw new IllegalArgumentException("Unexpected approval");
         var registered = superior.getCommands().getAdminCommand(command);
         if (registered == null || !superior.getCommands().hasPendingDangerousRequests(registered))
@@ -344,10 +398,176 @@ public final class NativeCommandProbe implements Listener {
         payloadChecked = true; reply(actor, "SUPERIOR_COMMAND_LITERAL_PAYLOAD_PASS actors=2");
     }
 
+    private Island third() {
+        List<Island> islands = account(AUXILIARY).getOwnedIslands();
+        if (islands.size() != 1) throw new IllegalStateException("The functional recheck requires exactly one auxiliary-owned small island");
+        return islands.get(0);
+    }
+    private void tailPrepare(Player actor) {
+        var dimension = superior.getSettings().getWorlds().getDefaultWorldDimension();
+        for (Island island : List.of(first(), second(), third())) {
+            island.setBonusWorth(java.math.BigDecimal.ZERO);
+            // An exact denominator makes 25% and 35% representable without rounding ambiguity.
+            island.removeGeneratorAmount(Keys.ofMaterialAndData("STONE"), dimension);
+            island.setGeneratorAmount(Keys.ofMaterialAndData("COBBLESTONE"), 195, dimension);
+        }
+        first().setVisitorsLocation(actor.getLocation());
+        first().createWarp("admin --island id:" + second().getShortId(), actor.getLocation(), null);
+        first().createWarp("user --island id:" + second().getShortId(), actor.getLocation(), null);
+        second().createWarp("admin", actor.getLocation(), null);
+        second().createWarp("user", actor.getLocation(), null);
+        adminRatingAuthor = null; removedRatingAuthor = null; consoleTeamIsland = null;
+        reply(actor, "SUPERIOR_COMMAND_RECHECK_PREPARED third=" + third().getShortId());
+    }
+    private void tailStatus(Player actor) {
+        List<Island> all = List.of(first(), second(), third());
+        var dimension = superior.getSettings().getWorlds().getDefaultWorldDimension();
+        reply(actor, "SUPERIOR_COMMAND_RECHECK_STATUS third=" + third().getShortId() +
+                " bonusA=" + first().getBonusWorth() + " bonusB=" + second().getBonusWorth() + " bonusC=" + third().getBonusWorth() +
+                " discordA=" + java.util.Base64.getEncoder().encodeToString(java.util.Objects.toString(first().getDiscord(), "").getBytes(java.nio.charset.StandardCharsets.UTF_8)) +
+                " adminWarpGone=" + (first().getWarp("admin --island id:" + second().getShortId()) == null) +
+                " userWarpGone=" + (first().getWarp("user --island id:" + second().getShortId()) == null) +
+                " baseWarpsPreserved=" + (second().getWarp("admin") != null && second().getWarp("user") != null) +
+                " generators=" + all.stream().map(island -> String.valueOf(island.getGeneratorPercentage(Keys.ofMaterialAndData("STONE"), dimension))).collect(java.util.stream.Collectors.joining(",")));
+    }
+    private void tailInspect(Player actor) {
+        MenuView<?, ?> view = account(PRIMARY).getOpenedView();
+        if (!(view instanceof IIslandMenuView actual) || actual.getIsland() != third())
+            throw new IllegalStateException("The public selector did not open the external island's real menu");
+        reply(actor, "SUPERIOR_COMMAND_RECHECK_PUBLIC_GUI_PASS target=external-third");
+    }
+    private void tailConsole(Player actor) {
+        BukkitExecutor.global(() -> {
+            try {
+                superior.getCommands().dispatchSubCommand(Bukkit.getConsoleSender(), "team", "--island id:" + third().getShortId());
+                superior.getCommands().dispatchSubCommand(Bukkit.getConsoleSender(), "expel", AUXILIARY + " --island id:" + first().getShortId());
+                reply(actor, "SUPERIOR_COMMAND_RECHECK_CONSOLE_SENT target=explicit");
+            } catch (Throwable error) { fail(actor, error); }
+        });
+    }
+    private void tailExpel(Player actor) {
+        BukkitExecutor.global(() -> {
+            try {
+                superior.getCommands().dispatchSubCommand(Bukkit.getConsoleSender(), "expel", AUXILIARY + " --island id:" + third().getShortId());
+                reply(actor, "SUPERIOR_COMMAND_RECHECK_EXPEL_SENT target=matching");
+            } catch (Throwable error) { fail(actor, error); }
+        });
+    }
+    private void tailMenuHook(Player actor) {
+        MenuView<?, ?> view = account(PRIMARY).getOpenedView();
+        if (!(view instanceof IIslandMenuView target) || target.getIsland() != first())
+            throw new IllegalStateException("An actual counts GUI of the first island must be open");
+        MenuCommands.getInstance().runCommand(view, "[admin] setbonus %player% worth 43",
+                ButtonClickContext.create(actor, (MenuView) view, 0, ClickType.LEFT));
+        reply(actor, "SUPERIOR_COMMAND_RECHECK_MENUHOOK_SENT target=captured-first");
+    }
+    private void tailOpenKick(Player actor) {
+        Menus.MENU_CONFIRM_KICK.createView(account(PRIMARY), new MenuConfirmKick.Args(first(), account(AUXILIARY)))
+                .whenComplete((view, error) -> {
+                    if (error != null) fail(actor, error); else reply(actor, "SUPERIOR_COMMAND_RECHECK_KICK_GUI_READY");
+                });
+    }
+    private void tailOpenBan(Player actor) {
+        previousBanRole = first().getRequiredPlayerRole(IslandPrivileges.BAN_MEMBER);
+        first().setPermission(account(AUXILIARY).getPlayerRole(first()), IslandPrivileges.BAN_MEMBER);
+        auxiliary().thenCompose(other -> onPlayer(other, () -> Menus.MENU_CONFIRM_BAN.createView(account(AUXILIARY),
+                new MenuConfirmBan.Args(first(), account(PRIMARY)))))
+                .thenCompose(view -> view).whenComplete((view, error) -> {
+                    if (error != null) fail(actor, error); else reply(actor, "SUPERIOR_COMMAND_RECHECK_BAN_GUI_READY");
+                });
+    }
+    private void tailGuiCheck(Player actor) {
+        if (!first().isMember(account(AUXILIARY)) || first().isBanned(account(PRIMARY)))
+            throw new IllegalStateException("The stale membership GUI or current ban hierarchy changed membership");
+        first().setPermission(previousBanRole, IslandPrivileges.BAN_MEMBER);
+        previousBanRole = null;
+        reply(actor, "SUPERIOR_COMMAND_RECHECK_GUI_PASS membership=epoch ban=current-hierarchy");
+    }
+    private void tailGlobalCheck(Player actor) {
+        MenuView<?, ?> view = account(PRIMARY).getOpenedView();
+        if (!(view instanceof AbstractMenuView<?, ?> actual) || actual.getActionTarget() != null || !actual.isIslandContextCurrent())
+            throw new IllegalStateException("The real language menu is incidentally bound to an island");
+        account(PRIMARY).selectIsland(second());
+        MenuCommands.getInstance().runCommand(view, "[player] is home",
+                ButtonClickContext.create(actor, (MenuView) view, 10, ClickType.LEFT));
+        reply(actor, "SUPERIOR_COMMAND_RECHECK_GLOBAL_GUI_PASS context=personal");
+    }
+    private void tailGlobalHomeCheck(Player actor) {
+        onPlayer(actor, () -> {
+            if (!second().isInside(actor.getLocation()))
+                throw new IllegalStateException("An unbound personal menu suppressed the natural current-island home command");
+            return null;
+        }).whenComplete((unused, error) -> {
+            if (error != null) fail(actor, error); else reply(actor, "SUPERIOR_COMMAND_RECHECK_GLOBAL_HOME_PASS target=current-selection");
+        });
+    }
+    private void tailListSlot(Player actor) {
+        if (!Menus.MENU_GLOBAL_WARPS.isVisitorWarps())
+            throw new IllegalStateException("Private visitor GUI qualification requires global-warps visitor-warps:true");
+        auxiliary().thenCompose(other -> onPlayer(other, () -> {
+            MenuView<?, ?> view = account(AUXILIARY).getOpenedView();
+            if (view == null || view.getMenu() != Menus.MENU_GLOBAL_WARPS && view.getMenu() != Menus.MENU_TOP_ISLANDS ||
+                    !(view instanceof AbstractMenuView<?, ?> actual) || actual.getActionTarget() != null)
+                throw new IllegalStateException("An actual global visitor/top GUI must be open for the auxiliary client");
+            for (int slot = 0; slot < view.getInventory().getSize(); slot++) {
+                var template = view.getMenu().getLayout().getButton(slot);
+                if (template instanceof PagedMenuTemplateButton<?, ?> paged && view instanceof PagedMenuView<?, ?, ?> list) {
+                    int index = paged.getButtonIndex() +
+                            ((PagedMenuLayout<?>) view.getMenu().getLayout()).getObjectsPerPageCount() * (list.getCurrentPage() - 1);
+                    if (index < list.getPagedObjects().size() && list.getPagedObjects().get(index) == first() && view.getInventory().getItem(slot) != null)
+                        return slot;
+                }
+            }
+            throw new IllegalStateException("The original first island is absent from the actual global listing");
+        })).whenComplete((slot, error) -> {
+            if (error != null) fail(actor, error); else reply(actor, "SUPERIOR_COMMAND_RECHECK_LIST_SLOT slot=" + slot);
+        });
+    }
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void adminRate(IslandRateEvent event) {
+        if (event.getPlayer() == null && PRIMARY.equals(event.getIsland().getOwner().getName()))
+            adminRatingAuthor = event.getRatingPlayer() == null ? null : event.getRatingPlayer().getUniqueId();
+    }
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void adminRemoveRate(IslandRemoveRatingEvent event) {
+        if (event.getPlayer() == null && PRIMARY.equals(event.getIsland().getOwner().getName()))
+            removedRatingAuthor = event.getRatingPlayer() == null ? null : event.getRatingPlayer().getUniqueId();
+    }
+    private void tailEventClear(Player actor) {
+        BukkitExecutor.global(() -> {
+            try {
+                superior.getCommands().dispatchSubCommand(Bukkit.getConsoleSender(), "admin", "setrate id:" + first().getShortId() + " " + AUXILIARY + " FIVE_STARS");
+                superior.getCommands().dispatchSubCommand(Bukkit.getConsoleSender(), "admin", "setrate id:" + first().getShortId() + " " + AUXILIARY + " UNKNOWN");
+                reply(actor, "SUPERIOR_COMMAND_RECHECK_RATING_SENT subject=auxiliary");
+            } catch (Throwable error) { fail(actor, error); }
+        });
+    }
+    private void tailEventCheck(Player actor) {
+        UUID expected = account(AUXILIARY).getUniqueId();
+        if (!expected.equals(adminRatingAuthor) || !expected.equals(removedRatingAuthor) || first().getRatingAmount() != 0)
+            throw new IllegalStateException("Admin setrate changed/emitted another rating author");
+        reply(actor, "SUPERIOR_COMMAND_RECHECK_RATING_PASS author=actual-target");
+    }
+    private void tailFinish(Player actor) {
+        if (!third().getUniqueId().equals(consoleTeamIsland) || first().getBonusWorth().intValueExact() != 43 ||
+                second().getBonusWorth().signum() != 0 || third().getBonusWorth().signum() != 0 ||
+                !first().getDiscord().equals("Join --island id:" + second().getShortId()) ||
+                first().getWarp("admin --island id:" + second().getShortId()) != null ||
+                first().getWarp("user --island id:" + second().getShortId()) != null ||
+                second().getWarp("admin") == null || second().getWarp("user") == null)
+            throw new IllegalStateException("The functional command recheck is incomplete");
+        var dimension = superior.getSettings().getWorlds().getDefaultWorldDimension();
+        for (Island island : List.of(first(), second(), third()))
+            if (island.getGeneratorPercentage(Keys.ofMaterialAndData("STONE"), dimension) != 35)
+                throw new IllegalStateException("Approved wildcard generators lost their percentage on a later island");
+        recheckChecked = true;
+        reply(actor, "SUPERIOR_COMMAND_RECHECK_PASS actors=2 smallIslands=3 loadTest=false");
+    }
+
     private void checkpoint(Player actor, boolean restart) {
         if (failed || (!restart && (!chatChecked || !warpChecked || !ratingsChecked || !upgradeChecked || !missionChecked ||
                 !demoteChecked || !staleDemoteChecked || !kickChecked || !staleKickChecked || !sizeChecked || !payloadChecked ||
-                !zeroOwnedSizeChecked || !bulkDisbandsChecked)))
+                !zeroOwnedSizeChecked || !bulkDisbandsChecked || !recheckChecked)))
             throw new IllegalStateException("Native command qualification is incomplete");
         var member = account(AUXILIARY);
         if (owned().size() != 2 || !first().isMember(member) || !second().isMember(member) ||
@@ -412,6 +632,17 @@ public final class NativeCommandProbe implements Listener {
                     " subject=" + (subject == null ? "none" : subject.getName()) +
                     " member=" + (target != null && subject != null && target.isMember(subject)));
             original.execute(plugin, sender, arguments);
+        }
+    }
+
+    /** Observes the original console handler only after it returns without a player cast failure. */
+    private final class TeamTrace extends CmdTeam {
+        private final SuperiorCommand original;
+        TeamTrace(SuperiorCommand original) { this.original = original; }
+        @Override public void execute(SuperiorSkyblockPlugin plugin, CommandSender sender, String[] arguments) {
+            Island captured = IslandExecutionScope.current();
+            original.execute(plugin, sender, arguments);
+            if (sender instanceof ConsoleCommandSender && captured != null) consoleTeamIsland = captured.getUniqueId();
         }
     }
 }

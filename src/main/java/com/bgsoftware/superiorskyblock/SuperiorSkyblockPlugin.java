@@ -331,6 +331,8 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
             }
 
             loadingStage = PluginLoadingStage.MANAGERS_INITIALIZED;
+            // IslandUtils initializes default dimension biomes: load it only after worlds/managers exist.
+            com.bgsoftware.superiorskyblock.island.IslandUtils.openCropRefreshes();
 
             pvcEntitlements.start();
 
@@ -402,6 +404,8 @@ public class SuperiorSkyblockPlugin extends JavaPlugin implements SuperiorSkyblo
         if (!pvcDisableStarted.compareAndSet(false, true)) return;
         try {
             playerSnapshotsListener.close();
+            com.bgsoftware.superiorskyblock.island.IslandUtils.closeCropRefreshes();
+            com.bgsoftware.superiorskyblock.island.bank.SIslandBank.shutdownPending();
             if (pvcSnapshotsTask != null) pvcSnapshotsTask.cancel();
             if (loadingStage.isAtLeast(PluginLoadingStage.MANAGERS_INITIALIZED))
                 for (Island island : gridHandler.getIslandsToPurge())

@@ -34,10 +34,11 @@ public final class IslandSelectorParser {
                                     Function<String, String> administrators) {
         if (words.isEmpty()) return Integer.MAX_VALUE;
         String family = players.apply(words.get(0));
-        if ("localchat".equals(family) || "teamchat".equals(family)) return 1;
+        if ("localchat".equals(family) || "teamchat".equals(family) ||
+                "setdiscord".equals(family) || "delwarp".equals(family)) return 1;
         if (!"admin".equals(family) || words.size() < 2) return Integer.MAX_VALUE;
         String command = administrators.apply(words.get(1));
-        if ("msg".equals(command) || "msgall".equals(command)) return 3;
+        if ("msg".equals(command) || "msgall".equals(command) || "delwarp".equals(command)) return 3;
         if ("cmdall".equals(command)) return 4;
         if ("title".equals(command) || "titleall".equals(command)) return 6;
         if ("data".equals(command) && words.size() > 2 && "set".equalsIgnoreCase(words.get(2))) return 6;

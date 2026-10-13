@@ -125,11 +125,103 @@ async function rate(islandId) {
 }
 async function approval(action) { await probe('approve-' + action, 'SUPERIOR_COMMAND_APPROVAL_DISPATCHED command=' + action) }
 
+async function gui(bot, trigger) {
+  if (bot.currentWindow) { bot.closeWindow(bot.currentWindow); await pause(250) }
+  const opened = new Promise((resolve, reject) => {
+    const listener = window => { clearTimeout(timeout); resolve(window) }
+    const timeout = setTimeout(() => { bot.removeListener('windowOpen', listener); reject(new Error('Actual recheck GUI did not open')) }, 15000)
+    bot.once('windowOpen', listener)
+  })
+  await trigger(); return opened
+}
+async function tailStatus() {
+  const text = await probe('tail-status', 'SUPERIOR_COMMAND_RECHECK_STATUS')
+  return Object.fromEntries([...text.matchAll(/([A-Za-z]+)=([^ ]+)/g)].map(match => [match[1],
+    match[1] === 'discordA' ? Buffer.from(match[2], 'base64').toString('utf8') :
+      match[1] === 'generators' ? match[2].split(',').map(Number) :
+        match[2] === 'true' ? true : match[2] === 'false' ? false : Number(match[2])]))
+}
+async function tailUntil(test, timeout = 20000) {
+  const deadline = Date.now() + timeout
+  while (Date.now() < deadline) { const value = await tailStatus(); if (test(value)) return value; await pause(150) }
+  throw new Error('Actual new command recheck did not converge')
+}
+async function newRecheck(a, b) {
+  // Two clients and three small functional fixtures; this is not a workload benchmark.
+  await send(auxiliary, '/is create'); await until(state => state.auxOwned === 1)
+  await send(auxiliary, '/is name PVCCommandExternal')
+  await send(primary, '/is home --island ' + a); await pause(500)
+  const prepared = await probe('tail-prepare', 'SUPERIOR_COMMAND_RECHECK_PREPARED')
+  const c = Number(prepared.match(/third=(\d+)/)[1]); assert(c > b)
+  for (const family of ['counts', 'values']) {
+    const window = await gui(primary, () => send(primary, '/is ' + family + ' --island ' + c))
+    await probe('tail-inspect', 'SUPERIOR_COMMAND_RECHECK_PUBLIC_GUI_PASS')
+    primary.closeWindow(window)
+    const names = matches(await primary.tabComplete('/is ' + family + ' --island ', true, false))
+    assert(names.includes(String(c)), 'External island is absent from public selector completion for ' + family)
+  }
+  const teamFrom = messages[0].length
+  await send(primary, '/is showteam --island ' + c)
+  await waitFor(text => text.includes('PVCSkyProbeB'), teamFrom)
+  await send(primary, '/is select ' + a); await until(state => state.selected === a)
+  await send(primary, '/is setdiscord --island ' + a + ' Join --island id:' + b)
+  await send(primary, '/is admin delwarp id:' + a + ' admin --island id:' + b)
+  await send(primary, '/is delwarp user --island id:' + b)
+  await tailUntil(state => state.discordA === 'Join --island id:' + b && state.adminWarpGone && state.userWarpGone && state.baseWarpsPreserved)
+
+  await send(auxiliary, '/is home --island ' + c); await until(state => state.auxPhysical === c)
+  await probe('tail-console', 'SUPERIOR_COMMAND_RECHECK_CONSOLE_SENT')
+  await pause(350); assert.equal((await status()).auxPhysical, c, 'Console expel ignored its explicit mismatching island')
+  await probe('tail-expel', 'SUPERIOR_COMMAND_RECHECK_EXPEL_SENT'); await until(state => state.auxPhysical === 0)
+
+  await send(primary, '/is admin cmdall id:' + a + ' true is admin setbonus {player-name} worth 37')
+  await tailUntil(state => state.bonusA === 37 && state.bonusB === 0 && state.bonusC === 0)
+  await send(primary, '/is admin cmdall id:' + a + ' true is admin setbonus id:' + c + ' worth 41')
+  await tailUntil(state => state.bonusA === 37 && state.bonusB === 0 && state.bonusC === 41)
+  await send(primary, '/is admin setbonus id:' + c + ' worth 0')
+  await gui(primary, () => send(primary, '/is counts --island ' + a))
+  await probe('tail-menuhook', 'SUPERIOR_COMMAND_RECHECK_MENUHOOK_SENT')
+  await tailUntil(state => state.bonusA === 43 && state.bonusB === 0 && state.bonusC === 0)
+
+  const kickWindow = await gui(primary, () => probe('tail-openkick', 'SUPERIOR_COMMAND_RECHECK_KICK_GUI_READY'))
+  assert(kickWindow.slots[1], 'Official confirm-kick fixture has no confirm button')
+  await send(primary, '/is kick PVCSkyProbeB --island ' + a); await until(state => !state.memberA)
+  await send(auxiliary, '/is admin join ' + a); await until(state => state.memberA)
+  await primary.clickWindow(1, 0, 0); await pause(350)
+  assert.equal((await status()).memberA, true, 'An old confirmation kicked the new membership')
+  const banWindow = await gui(auxiliary, () => probe('tail-openban', 'SUPERIOR_COMMAND_RECHECK_BAN_GUI_READY'))
+  assert(banWindow.slots[1], 'Official confirm-ban fixture has no confirm button')
+  await auxiliary.clickWindow(1, 0, 0); await pause(350)
+  await probe('tail-guicheck', 'SUPERIOR_COMMAND_RECHECK_GUI_PASS')
+  await gui(primary, () => send(primary, '/is lang'))
+  await probe('tail-globalcheck', 'SUPERIOR_COMMAND_RECHECK_GLOBAL_GUI_PASS')
+  await pause(1000); await probe('tail-globalhomecheck', 'SUPERIOR_COMMAND_RECHECK_GLOBAL_HOME_PASS')
+  if (primary.currentWindow) primary.closeWindow(primary.currentWindow)
+
+  for (const [family, button] of [['warps', 0], ['top', 1]]) {
+    await send(auxiliary, '/is home --island ' + c); await until(state => state.auxPhysical === c)
+    const window = await gui(auxiliary, () => send(auxiliary, '/is ' + family))
+    const marker = await probe('tail-list-slot', 'SUPERIOR_COMMAND_RECHECK_LIST_SLOT')
+    const slot = Number(marker.match(/slot=(\d+)/)[1]); assert(window.slots[slot])
+    await auxiliary.clickWindow(slot, button, 0); await until(state => state.auxPhysical === a)
+    console.log('SUPERIOR_COMMAND_RECHECK_VISITOR_GUI_PASS menu=' + family + ' ownerIslands=2 target=' + a)
+  }
+
+  await send(primary, '/is admin setgenerator * STONE 25%'); await approval('setgenerator')
+  await tailUntil(state => state.generators.every(value => value === 25))
+  await send(primary, '/is admin addgenerator * STONE 10%'); await approval('addgenerator')
+  await tailUntil(state => state.generators.every(value => value === 35))
+  await probe('tail-eventclear', 'SUPERIOR_COMMAND_RECHECK_RATING_SENT')
+  await probe('tail-eventcheck', 'SUPERIOR_COMMAND_RECHECK_RATING_PASS')
+  await probe('tail-finish', 'SUPERIOR_COMMAND_RECHECK_PASS')
+}
+
 async function run() {
   await auxiliarySpawned
   if (phase === 'restart') {
     await until(state => state.count === 2 && state.levelA === 3 && state.levelB === 2 && state.sizeA === 52 && state.sizeB === 52
       && state.memberA && state.memberB && state.missionA && !state.missionB && state.ratingsA === 0 && state.ratingsB === 0)
+    await probe('shared-state', 'SUPERIOR_SHARED_STATE_PASS')
     await probe('restartfinish', 'SUPERIOR_COMMAND_RESTART_PASS')
     console.log('SUPERIOR_COMMAND_CLIENT_PASS restart actors=2 ids=durable commands=persisted'); finish(); return
   }
@@ -232,7 +324,9 @@ async function run() {
   await send(primary, '/is admin cmdall ' + a + ' true pvcskyprobe command-capture {player-name} --island id:0')
   await until(state => state.payloadActors === 2)
   await probe('payloadcheck', 'SUPERIOR_COMMAND_LITERAL_PAYLOAD_PASS')
+  await newRecheck(a, b)
   await send(primary, '/is select ' + b); await until(state => state.selected === b)
+  await probe('shared-state', 'SUPERIOR_SHARED_STATE_PASS')
   await probe('finish', 'SUPERIOR_COMMAND_PROBE_PASS')
   console.log('SUPERIOR_COMMAND_CLIENT_PASS initial actors=2 nativeCommands=actual tabs=actualPackets commandTrees=' + commandPackets.length
     + ' ratings=actualGuiClicks upgrades=actualTargetLevels mission=actualInventoryCompletion approvals=actualConsole')

@@ -4,10 +4,18 @@ import java.util.Optional;
 
 public abstract class LazyReference<E> {
 
-    private E instance;
+    private volatile E instance;
 
     public E get() {
-        return instance == null ? (instance = create()) : instance;
+        E value = instance;
+        if (value == null) {
+            synchronized (this) {
+                value = instance;
+                if (value == null)
+                    instance = value = create();
+            }
+        }
+        return value;
     }
 
     protected abstract E create();

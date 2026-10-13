@@ -114,8 +114,9 @@ public class CommandArguments {
     }
 
     public static IslandArgument getSenderIsland(SuperiorSkyblockPlugin plugin, CommandSender sender) {
-        SuperiorPlayer superiorPlayer = plugin.getPlayers().getSuperiorPlayer(sender);
-        Island island = superiorPlayer.getIsland();
+        SuperiorPlayer superiorPlayer = sender instanceof Player ? plugin.getPlayers().getSuperiorPlayer(sender) : null;
+        Island island = superiorPlayer == null ?
+                com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current() : superiorPlayer.getIsland();
 
         if (island != null && !plugin.getPvcIslandService().isAvailable(island.getUniqueId())) {
             Message.CUSTOM.send(sender, "&cThis island is being recovered or removed. Please wait.", true);
@@ -123,9 +124,29 @@ public class CommandArguments {
         }
 
         if (island == null)
-            Message.INVALID_ISLAND.send(superiorPlayer);
+            Message.INVALID_ISLAND.send(sender);
 
         return new IslandArgument(island, superiorPlayer);
+    }
+
+    /** Public reporters can inspect a precise foreign subject without changing membership-based wrappers. */
+    public static IslandArgument getReportingIsland(SuperiorSkyblockPlugin plugin, CommandSender sender) {
+        return reportingIsland(com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isExplicitTarget() ||
+                        com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.isInheritedTarget(),
+                com.bgsoftware.superiorskyblock.api.island.IslandExecutionScope.current(),
+                () -> getSenderIsland(plugin, sender), island -> {
+                    if (plugin.getGrid().getIslandByUUID(island.getUniqueId()) != island ||
+                            !plugin.getPvcIslandService().isAvailable(island.getUniqueId())) {
+                        Message.INVALID_ISLAND.send(sender); return IslandArgument.EMPTY;
+                    }
+                    return getIsland(plugin, sender, "uuid:" + island.getUniqueId());
+                });
+    }
+
+    static IslandArgument reportingIsland(boolean precise, Island captured,
+                                           java.util.function.Supplier<IslandArgument> ordinary,
+                                           java.util.function.Function<Island, IslandArgument> report) {
+        return precise && captured != null ? report.apply(captured) : ordinary.get();
     }
 
     public static SuperiorPlayer getPlayer(SuperiorSkyblockPlugin plugin, SuperiorPlayer superiorPlayer, String argument) {

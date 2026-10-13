@@ -12,7 +12,6 @@ import com.bgsoftware.superiorskyblock.core.IslandPosition;
 import com.bgsoftware.superiorskyblock.core.LazyWorldLocation;
 import com.bgsoftware.superiorskyblock.core.SWorldPosition;
 import com.bgsoftware.superiorskyblock.core.SequentialListBuilder;
-import com.bgsoftware.superiorskyblock.core.collections.EnumerateSet;
 import com.bgsoftware.superiorskyblock.core.events.plugin.PluginEventType;
 import com.bgsoftware.superiorskyblock.core.logging.Log;
 import com.bgsoftware.superiorskyblock.core.threads.BukkitExecutor;
@@ -45,8 +44,10 @@ public class DefaultIslandsContainer implements IslandsContainer {
     private IslandsGrid islandsGrid;
 
     private final Map<SortingType, Synchronized<List<Island>>> sortedIslands = new ConcurrentHashMap<>();
-
-    private final EnumerateSet<SortingType> notifiedValues = new EnumerateSet<>(SortingType.values());
+    private final java.util.Set<SortingType> notifiedValues = ConcurrentHashMap.newKeySet();
+    private final Object sortingLock = new Object();
+    private final Map<SortingType, List<Runnable>> sortingCallbacks = new java.util.HashMap<>();
+    private long membershipRevision;
 
     private final SuperiorSkyblockPlugin plugin;
 
@@ -61,13 +62,17 @@ public class DefaultIslandsContainer implements IslandsContainer {
     public void addIsland(Island island) {
         addIslandToGrid(island);
 
-        this.islandsByUUID.put(island.getUniqueId(), island);
+        synchronized (sortingLock) {
+            this.islandsByUUID.put(island.getUniqueId(), island);
+            ++membershipRevision;
+            sortedIslands.forEach((type, sorted) -> {
+                sorted.write(list -> { if (!list.contains(island)) list.add(island); });
+                notifiedValues.add(type);
+            });
+        }
         plugin.getPvcIslandService().register(island);
         if (!island.getStrippedName().isEmpty()) this.islandsByNames.put(IslandNames.getNameForLookup(island.getStrippedName()), island);
 
-        sortedIslands.values().forEach(sortedIslands -> {
-            sortedIslands.write(_sortedIslands -> _sortedIslands.add(island));
-        });
     }
 
     private void addIslandToGrid(Island island) {
@@ -106,13 +111,17 @@ public class DefaultIslandsContainer implements IslandsContainer {
             islandsGrid.removeIslandAt(null, packedPos);
         }
 
-        this.islandsByUUID.remove(island.getUniqueId());
+        synchronized (sortingLock) {
+            this.islandsByUUID.remove(island.getUniqueId(), island);
+            ++membershipRevision;
+            sortedIslands.forEach((type, sorted) -> {
+                sorted.write(list -> list.remove(island));
+                notifiedValues.add(type);
+            });
+        }
         plugin.getPvcIslandService().unregister(island);
         this.islandsByNames.remove(IslandNames.getNameForLookup(island.getStrippedName()), island);
 
-        sortedIslands.values().forEach(sortedIslands -> {
-            sortedIslands.write(_sortedIslands -> _sortedIslands.remove(island));
-        });
     }
 
     @Nullable
@@ -187,15 +196,25 @@ public class DefaultIslandsContainer implements IslandsContainer {
     public void sortIslands(SortingType sortingType, boolean forceSort, @Nullable Runnable onFinish) {
         ensureSortingType(sortingType);
 
-        Synchronized<List<Island>> sortedIslands = this.sortedIslands.get(sortingType);
-
-        if (!forceSort && (sortedIslands.readAndGet(List::size) <= 1 || !notifiedValues.remove(sortingType))) {
-            if (onFinish != null)
-                onFinish.run();
-            return;
+        boolean start;
+        synchronized (sortingLock) {
+            List<Runnable> callbacks = sortingCallbacks.get(sortingType);
+            if (callbacks != null) {
+                if (onFinish != null) callbacks.add(onFinish);
+                if (forceSort) notifiedValues.add(sortingType);
+                return;
+            }
+            boolean dirty = notifiedValues.remove(sortingType);
+            start = forceSort || dirty;
+            if (start) {
+                callbacks = new java.util.ArrayList<>();
+                if (onFinish != null) callbacks.add(onFinish);
+                sortingCallbacks.put(sortingType, callbacks);
+            }
         }
-
-        BukkitExecutor.ensureAsync(() -> sortIslandsInternal(sortingType, onFinish));
+        if (!start) { if (onFinish != null) onFinish.run(); return; }
+        try { BukkitExecutor.ensureAsync(() -> runAdmittedSort(sortingType)); }
+        catch (Throwable failure) { finishSort(sortingType); throw failure; }
     }
 
     @Override
@@ -217,8 +236,15 @@ public class DefaultIslandsContainer implements IslandsContainer {
 
     @Override
     public void addSortingType(SortingType sortingType, boolean sort) {
-        Preconditions.checkArgument(!sortedIslands.containsKey(sortingType), "You cannot register an existing sorting type to the database.");
-        sortIslandsInternal(sortingType, null);
+        synchronized (sortingLock) {
+            Preconditions.checkArgument(!sortedIslands.containsKey(sortingType), "You cannot register an existing sorting type to the database.");
+            sortedIslands.put(sortingType, Synchronized.of(new java.util.ArrayList<>(islandsByUUID.values())));
+            notifiedValues.add(sortingType);
+            sortingCallbacks.put(sortingType, new java.util.ArrayList<>());
+        }
+        // Initial registration retains the immediate ordering contract; all later sorts are async.
+        try { sortIslandsInternal(sortingType, null); }
+        finally { finishSort(sortingType); }
     }
 
     private void ensureSortingType(SortingType sortingType) {
@@ -226,7 +252,12 @@ public class DefaultIslandsContainer implements IslandsContainer {
     }
 
     private void sortIslandsInternal(SortingType sortingType, @Nullable Runnable onFinish) {
-        List<Island> existingIslands = new LinkedList<>(islandsByUUID.values());
+        final long capturedRevision;
+        List<Island> existingIslands;
+        synchronized (sortingLock) {
+            capturedRevision = membershipRevision;
+            existingIslands = new java.util.ArrayList<>(islandsByUUID.values());
+        }
         existingIslands.removeIf(Island::isIgnored);
 
         List<Island> sortedIslands;
@@ -246,10 +277,30 @@ public class DefaultIslandsContainer implements IslandsContainer {
             throw error;
         }
 
-        this.sortedIslands.put(sortingType, Synchronized.of(sortedIslands));
+        synchronized (sortingLock) {
+            if (capturedRevision != membershipRevision) {
+                sortedIslands = IslandListReconciler.reconcile(sortedIslands, islandsByUUID.values());
+                notifiedValues.add(sortingType);
+            }
+            this.sortedIslands.get(sortingType).set(sortedIslands);
+        }
 
         if (onFinish != null)
             onFinish.run();
+    }
+
+    private void runAdmittedSort(SortingType type) {
+        try { sortIslandsInternal(type, null); }
+        catch (Throwable failure) { notifiedValues.add(type); Log.error(failure, "Island sorting failed"); }
+        finally { finishSort(type); }
+    }
+
+    private void finishSort(SortingType type) {
+        List<Runnable> callbacks;
+        synchronized (sortingLock) { callbacks = sortingCallbacks.remove(type); }
+        if (callbacks != null) for (Runnable callback : callbacks) {
+            try { callback.run(); } catch (Throwable failure) { Log.error(failure, "Island sorting completion failed"); }
+        }
     }
 
     private List<Island> sortIslandsBuiltinSortingType(List<Island> existingIslands, SortingType sortingType) {

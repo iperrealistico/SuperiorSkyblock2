@@ -3,7 +3,7 @@
 This guide describes the PVC source fork. It does not authorize installation,
 permission changes or a production restart. Use the exact JAR, compiled source
 commit, hash and native build scope in the completed release
-[verification record](VERIFICATION.md). This guide describes `2026.3-pvc.2`;
+[verification record](VERIFICATION.md). This guide describes `2026.3-pvc.3`;
 the completed qualification of `2026.3-pvc.1` remains historical evidence for
 that exact older artifact and does not qualify a replacement. Rehearse your actual
 backend/plugin stack before rollout. Later Minecraft/Folia versions need their

@@ -371,17 +371,21 @@ public final class PvcEntitlementService implements AutoCloseable {
                     EntitlementPolicy.Values values = EntitlementPolicy.resolve(data.getPermissions(), defaultRadius(), gridCap());
                     EntitlementSnapshot snapshot = new EntitlementSnapshot(values.getOwnershipLimit(), values.getRadius(),
                             System.currentTimeMillis(), revisions.incrementAndGet(), true, epoch, globalEpoch);
+                    boolean geometryChanged;
                     synchronized (ownerMonitor(owner)) {
                         if (!currentEpoch(owner, snapshot)) {
                             request.future.completeExceptionally(new IllegalStateException("Owner policy changed during publication; retry"));
                             return;
                         }
+                        PvcOwnerCache.Entry previous = cache.peek(owner);
+                        geometryChanged = previous == null || !previous.snapshot.isAuthoritative() ||
+                                previous.snapshot.getRadius() != snapshot.getRadius();
                         cache.put(owner, snapshot, System.currentTimeMillis(), config.getCacheCapacity());
                         PvcOwnerCache.Entry published = cache.peek(owner);
                         if (published != null) { published.failures = 0; published.retryAfterMillis = 0L; }
                     }
                     if (unsaved.size() < config.getHistoryCapacity() || unsaved.containsKey(owner)) unsaved.put(owner, snapshot);
-                    markGeometryChanged(owner);
+                    if (geometryChanged) markGeometryChanged(owner);
                     request.future.complete(snapshot);
                 } catch (Throwable failure) {
                     request.future.completeExceptionally(failure);

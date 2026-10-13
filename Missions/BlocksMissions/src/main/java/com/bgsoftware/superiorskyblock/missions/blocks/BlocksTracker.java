@@ -73,12 +73,15 @@ public class BlocksTracker {
     public void save(ConfigurationSection section) {
         if (!canPersistProgress()) throw new IllegalStateException("Ambiguous legacy tracker progress is quarantined and must not be overwritten");
         EnumMap<TrackingType, Map<String, Map<Long, ChunkBitSet>>> snapshot = new EnumMap<>(TrackingType.class);
+        EnumMap<TrackingType, Map<String, java.util.function.Supplier<Map<Long, ChunkBitSet>>>> sources = new EnumMap<>(TrackingType.class);
         synchronized (this) {
             trackingComponentMap.forEach((type, worlds) -> worlds.forEach((name, component) ->
-                    snapshot.computeIfAbsent(type, ignored -> new HashMap<>()).put(name, component.getBlocks())));
+                    sources.computeIfAbsent(type, ignored -> new HashMap<>()).put(name, component::getBlocks)));
             if (rawData != null) rawData.forEach((type, worlds) -> worlds.forEach((name, data) ->
-                    snapshot.computeIfAbsent(type, ignored -> new HashMap<>()).put(name, data.getBlocks())));
+                    sources.computeIfAbsent(type, ignored -> new HashMap<>()).put(name, data::getBlocks)));
         }
+        sources.forEach((type, worlds) -> worlds.forEach((name, source) ->
+                snapshot.computeIfAbsent(type, ignored -> new HashMap<>()).put(name, source.get())));
         // Build YAML from detached state; never hold tracker locks across serialization.
         for (TrackingType type : TrackingType.values()) {
             section.set("tracked." + type.path, null);
